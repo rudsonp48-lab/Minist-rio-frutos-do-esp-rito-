@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "bio": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Devotional": {
+      "title": "Daily Devotional",
+      "description": "Daily reading and meditation",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "thumbnail": { "type": "string" },
+        "views": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "date"]
+    },
+    "Event": {
+      "title": "Church Event",
+      "description": "Calendar events and activities",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "date", "location"]
+    },
+    "Media": {
+      "title": "Media Content",
+      "description": "Live, radio, podcast, and videos",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["live", "video", "podcast", "radio"] },
+        "url": { "type": "string" },
+        "description": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "type", "url"]
+    },
+    "Photo": {
+      "title": "Shared Photo",
+      "description": "Community photo sharing",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "caption": { "type": "string" },
+        "likes": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "imageUrl", "createdAt"]
+    },
+    "Note": {
+      "title": "Spiritual Note",
+      "description": "User spiritual notes and studies",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "verseRef": { "type": "string" },
+        "wordStudy": { "type": "string" },
+        "xp": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "content"]
+    },
+    "AppConfig": {
+      "title": "Application Configuration",
+      "description": "Global settings for banners and system content",
+      "type": "object",
+      "properties": {
+        "banners": { "type": "array" }
+      }
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "devotionals": {
+      "schema": "Devotional",
+      "description": "Daily devocionais"
+    },
+    "events": {
+      "schema": "Event",
+      "description": "Church calendar"
+    },
+    "media": {
+      "schema": "Media",
+      "description": "Live, radio, and podcasts"
+    },
+    "photos": {
+      "schema": "Photo",
+      "description": "Community photo gallery"
+    },
+    "notes": {
+      "schema": "Note",
+      "description": "User spiritual notes"
+    },
+    "app_config": {
+      "schema": "AppConfig",
+      "description": "Global system settings"
+    }
+  }
+}

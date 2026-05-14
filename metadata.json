@@ -1,0 +1,13 @@
+{
+  "name": "Ecclesia App",
+  "description": "Uma plataforma completa para igrejas com Bíblia, devocionais, calendário de eventos, rádio web, podcasts e painel administrativo.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "Firebase Authentication",
+    "Cloud Firestore",
+    "Real-time Media Streaming"
+  ]
+}

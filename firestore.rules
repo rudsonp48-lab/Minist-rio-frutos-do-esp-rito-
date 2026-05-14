@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. GLOBAL SAFETY NET
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // PHASE 3: PRIMITIVES
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { 
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/admins/$(request.auth.uid)); 
+    }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // VALIDATION BLUEPRINTS
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.email is string &&
+             data.role in ['user', 'admin'] &&
+             data.uid.size() < 128;
+    }
+
+    function isValidNote(data) {
+      return data.userId == request.auth.uid &&
+             data.title is string && data.title.size() <= 200 &&
+             data.content is string && data.content.size() <= 50000;
+    }
+
+    function isValidPhoto(data) {
+      return data.userId == request.auth.uid &&
+             data.imageUrl is string && data.imageUrl.size() <= 1000;
+    }
+
+    // 1. USERS COLLECTION
+    match /users/{userId} {
+      // PII Isolation: Users can read their own full profile, others see public subset (if we had one)
+      // For now, allow get if signed in but protect critical fields on update
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isValidUser(incoming()) && incoming().role == 'user';
+      allow update: if isOwner(userId) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'updatedAt']) &&
+                      incoming().role == existing().role;
+    }
+
+    // 2. ADMINS SEED
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+    }
+
+    // 3. NOTES
+    match /notes/{noteId} {
+      allow read: if isOwner(existing().userId);
+      allow create: if isSignedIn() && isValidNote(incoming());
+      allow update: if isOwner(existing().userId) && isValidNote(incoming()) &&
+                      incoming().userId == existing().userId;
+      allow delete: if isOwner(existing().userId);
+    }
+
+    // 4. PHOTOS
+    match /photos/{photoId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidPhoto(incoming());
+      allow update: if isSignedIn() && (
+        (isOwner(existing().userId) && isValidPhoto(incoming())) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['likes']) && 
+         incoming().likes == (existing().likes + 1)) // Atomic increment verification
+      );
+      allow delete: if isOwner(existing().userId) || isAdmin();
+    }
+
+    // 5. GLOBAL CONFIGS
+    match /app_config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 6. COLLECTIONS MANAGED BY ADMIN
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /media/{mediaId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /devotionals/{devId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

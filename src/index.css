@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,900;1,900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-cyber-yellow: #FFD700;
+  --color-cyber-blue: #00F3FF;
+  --color-cyber-pink: #FF00E5;
+  --color-cyber-black: #050505;
+}
+
+@layer base {
+  body {
+    @apply bg-[#050505] text-white antialiased selection:bg-yellow-400 selection:text-black overflow-x-hidden;
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(255, 215, 0, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 0% 100%, rgba(0, 243, 255, 0.02) 0%, transparent 40%);
+  }
+
+  /* Scanline effect for that terminal/cyber feel */
+  body::after {
+    content: "";
+    @apply fixed inset-0 pointer-events-none z-[9999] opacity-[0.03];
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 2px, 3px 100%;
+  }
+}
+
+@utility scrollbar-hide {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility glass {
+  background-color: rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(40px);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+@utility glass-dark {
+  background-color: rgb(0 0 0 / 0.4);
+  backdrop-filter: blur(64px);
+  border: 1px solid rgb(255 255 255 / 0.05);
+}
+
+@utility glass-card {
+  @apply glass rounded-[2.5rem] relative overflow-hidden transition-all duration-500;
+  &:hover {
+    border-color: rgb(255 255 255 / 0.2);
+    background-color: rgb(255 255 255 / 0.1);
+  }
+}
+
+@utility glow-yellow {
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.2), 0 0 60px rgba(255, 215, 0, 0.1);
+}
+
+@utility glow-blue {
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+}
+
+@utility glow-red {
+  box-shadow: 0 0 40px rgba(239, 68, 68, 0.3);
+}
+
+@utility glow-emerald {
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.2);
+}
+
+@utility text-glow {
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+}
+
+@utility shadow-4xl {
+  box-shadow: 0 35px 70px -15px rgba(0, 0, 0, 0.9);
+}
+
+@utility cyber-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+@utility shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
