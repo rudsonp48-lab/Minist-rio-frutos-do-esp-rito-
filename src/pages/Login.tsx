@@ -23,7 +23,11 @@ export default function Login() {
     try {
       await signInWithPopup(auth, provider);
     } catch (err: any) {
-      setError("Erro ao autenticar.");
+      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized domain')) {
+        setError(`O domínio "${window.location.hostname}" não está autorizado para login. Adicione-o no Console do Firebase > Authentication > Settings > Authorized Domains.`);
+      } else {
+        setError(`Erro: ${err.message || "Erro desconhecido ao autenticar."}`);
+      }
     } finally {
       setLoading(false);
     }

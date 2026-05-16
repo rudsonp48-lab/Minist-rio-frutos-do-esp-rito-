@@ -1,33 +1,28 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Mic, ChevronRight, Share2, Heart, Tv, Settings, Church, CreditCard, QrCode, Copy, CheckCircle2, ChevronLeft, Zap, Bell, Search, Globe, Activity, Plus } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
-import { checkChannelLive, YouTubeVideo } from '../services/youtube';
 import { db } from '../lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { Logo } from '../components/Logo';
 
 const DEFAULT_BANNERS = [
-  { id: 1, title: 'Conferência Profética', subtitle: 'Live Experience', image: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=1600' },
-  { id: 2, title: 'Atlas Digital', subtitle: 'Nova Série', image: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579?auto=format&fit=crop&q=80&w=1600' }
+  { id: 1, title: 'Conferência Profética', subtitle: 'Uma experiência de avivamento', image: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=1600' },
+  { id: 2, title: 'Nova Série', subtitle: 'Atlas Digital: Descobrindo a Verdade', image: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579?auto=format&fit=crop&q=80&w=1600' }
 ];
 
 const RECENT_ITEMS = [
-  { id: 1, title: 'Culto de Domingo', category: 'LIVE', img: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579' },
-  { id: 2, title: 'Adoração e Fogo', category: 'MUSIC', img: 'https://images.unsplash.com/photo-1510076857177-7470076d4098' },
-  { id: 3, title: 'Nexus Podcast', category: 'AUDIO', img: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7' },
-  { id: 4, title: 'Seminário Vida', category: 'TEACHING', img: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3' }
+  { id: 1, title: 'Culto de Domingo', category: 'Live | 10:00', img: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579' },
+  { id: 2, title: 'Adoração e Fogo', category: 'Louvor', img: 'https://images.unsplash.com/photo-1510076857177-7470076d4098' },
+  { id: 3, title: 'Nexus Podcast', category: 'Audio', img: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7' },
+  { id: 4, title: 'Seminário Vida', category: 'Ensino', img: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3' }
 ];
 
 export default function Home() {
-  const [liveStream, setLiveStream] = useState<YouTubeVideo | null>(null);
-  const [currentBanner, setCurrentBanner] = useState(0);
-  const [currentRecent, setCurrentRecent] = useState(0);
   const [config, setConfig] = useState<any>(null);
   const [copiedPix, setCopiedPix] = useState(false);
   const [givingMethod, setGivingMethod] = useState<'pix' | 'card'>('pix');
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, 'app_config', 'main'), (snapshot) => {
@@ -38,25 +33,6 @@ export default function Home() {
 
   const banners = config?.banners?.length > 0 ? config.banners : DEFAULT_BANNERS;
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentBanner(prev => (prev + 1) % banners.length), 6000);
-    return () => clearInterval(timer);
-  }, [banners.length]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentRecent(prev => {
-        const next = (prev + 1) % RECENT_ITEMS.length;
-        if (scrollRef.current) {
-          const itemWidth = scrollRef.current.children[0].clientWidth;
-          scrollRef.current.scrollTo({ left: itemWidth * next, behavior: 'smooth' });
-        }
-        return next;
-      });
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
-
   const handleCopyPix = () => {
     navigator.clipboard.writeText(config?.pixKey || 'ecclesia@pix.church');
     setCopiedPix(true);
@@ -64,168 +40,141 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen pt-12 pb-32 px-6 space-y-8 max-w-lg mx-auto">
-      {/* iOS Header */}
-      <header className="flex items-center justify-center py-2 pb-6">
-        <Logo className="scale-125 origin-center transition-transform" />
-      </header>
-
-      {/* Featured Banner Card */}
-      <section className="relative overflow-hidden ios-shadow group w-full">
-        <div className="w-full h-[65vh] min-h-[500px] max-h-[850px] rounded-[2.5rem] overflow-hidden relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentBanner}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0"
-            >
-              <img 
-                src={banners[currentBanner]?.image} 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[10s]" 
-                alt="Banner"
-              />
-              <div className="absolute inset-x-0 bottom-0 p-8 pt-20 bg-gradient-to-t from-black via-black/40 to-transparent">
-                <span className="ios-pill mb-4 inline-block bg-white/20 border-white/40 text-white backdrop-blur-md">DESTAQUE</span>
-                <h2 className="text-4xl font-bold tracking-tighter text-white leading-[0.9] mb-6">
-                  {banners[currentBanner]?.title}
-                </h2>
-                <Link 
-                  to="/media"
-                  className="h-14 bg-[var(--theme-color,#007AFF)] text-white px-8 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all text-sm"
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  Sintonizar Now
-                </Link>
-              </div>
-            </motion.div>
-          </AnimatePresence>
+    <div className="min-h-screen pt-12 pb-32 px-6 max-w-lg mx-auto bg-black text-white font-sans">
+      {/* Navigation / Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl tracking-tight text-white font-semibold">Descobrir</h1>
         </div>
-      </section>
-
-      {/* Verse of the Day - Filling Gaps */}
-      <section className="ios-card p-6 bg-gradient-to-br from-[var(--theme-color,#007AFF)]/10 to-[#FF2D55]/10 border-[var(--theme-color)]/20 flex flex-col gap-4">
-        <div className="flex items-center gap-2">
-          <Zap className="w-5 h-5 text-[var(--theme-color,#007AFF)] fill-current" />
-          <span className="text-[11px] font-bold text-[var(--theme-color,#007AFF)] uppercase tracking-widest leading-none">Palavra do Dia</span>
+        <div className="flex items-center gap-3">
+          <button className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-800/80 hover:bg-gray-700 transition">
+            <Search className="w-5 h-5 text-gray-200" />
+          </button>
+          <Link to="/profile" className="w-10 h-10 rounded-full flex items-center justify-center relative bg-gray-800/80 hover:bg-gray-700 transition">
+            <User className="w-5 h-5 text-gray-200" />
+          </Link>
         </div>
-        <blockquote className="text-lg font-bold tracking-tight text-white leading-snug">
-          "Pois onde estiverem dois ou três reunidos em meu nome, ali eu estou no meio deles."
-        </blockquote>
-        <p className="text-[10px] font-bold text-[#8E8E93] uppercase tracking-widest">— Mateus 18:20</p>
-      </section>
+      </div>
 
-      {/* Recent Media Horizontal Scroll Carousel */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold tracking-tight">Recentes</h3>
-          <Link to="/media" className="text-[13px] font-semibold text-[var(--theme-color,#007AFF)]">Ver Tudo</Link>
-        </div>
-        <div 
-          ref={scrollRef}
-          className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6 snap-x snap-mandatory"
-        >
-          {RECENT_ITEMS.map((item, idx) => (
-            <motion.div 
-              key={item.id} 
-              className={`min-w-[80%] sm:min-w-[60%] space-y-2 snap-center transition-all ${currentRecent === idx ? 'opacity-100 scale-100' : 'opacity-60 scale-95'}`}
-            >
-              <div className="aspect-[16/9] rounded-[1.5rem] overflow-hidden ios-shadow relative">
-                <img src={item.img} className="w-full h-full object-cover" alt="Recent" />
-                <div className="absolute top-3 left-3">
-                  <span className="text-[8px] font-bold bg-black/40 backdrop-blur-md px-2 py-1 rounded-md text-white border border-white/20">{item.category}</span>
+      {/* Hero Section / Banners */}
+      <div className="flex gap-4 overflow-x-auto pb-6 scrollbar-hide snap-x -mx-6 px-6">
+        {banners.map((banner: any, idx: number) => (
+          <Link to="/media" key={idx} className="relative overflow-hidden rounded-3xl min-h-[320px] flex flex-col bg-neutral-800/60 shadow-xl w-72 h-80 flex-shrink-0 snap-center group">
+            <div className="relative z-10 p-6 flex flex-col h-full bg-cover bg-center justify-between transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url(${banner.image})`}}>
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/80"></div>
+              
+              <div className="flex items-start justify-between relative z-10">
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wider text-[var(--theme-color)] ring-1 ring-[var(--theme-color)]/30 bg-[var(--theme-color)]/10 backdrop-blur-sm">Destaque</span>
                 </div>
               </div>
-              <h4 className="text-[13px] font-bold tracking-tight truncate px-1">{item.title}</h4>
-            </motion.div>
+
+              <div className="mt-auto relative z-10">
+                <h3 className="text-3xl text-white tracking-tight mb-2 font-bold leading-tight">{banner.title}</h3>
+                <p className="text-sm leading-relaxed text-gray-300 mb-4 line-clamp-2">{banner.subtitle}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[var(--theme-color)] flex items-center justify-center shadow-lg">
+                    <Play className="w-4 h-4 text-white fill-current ml-1" />
+                  </div>
+                  <div className="text-xs">
+                    <div className="text-white font-medium">Assistir Agora</div>
+                    <div className="text-gray-400">Ao vivo ou online</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Categories */}
+      <div className="mb-8 mt-2">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-white">Categorias</h3>
+          <Link to="/events" className="text-sm font-medium text-[var(--theme-color)] hover:underline">Ver Todas</Link>
+        </div>
+        <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-6 px-6">
+          <Link to="/bible" className="flex-shrink-0 w-[72px] text-center">
+            <div className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center mb-2 mx-auto bg-blue-500/10 border border-blue-500/20 transition-transform active:scale-95">
+              <BookOpen className="w-7 h-7 text-blue-400" />
+            </div>
+            <span className="text-xs font-medium text-gray-300">Bíblia</span>
+          </Link>
+          <Link to="/notes" className="flex-shrink-0 w-[72px] text-center">
+            <div className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center mb-2 mx-auto bg-pink-500/10 border border-pink-500/20 transition-transform active:scale-95">
+              <Edit3 className="w-7 h-7 text-pink-400" />
+            </div>
+            <span className="text-xs font-medium text-gray-300">Notas</span>
+          </Link>
+          <Link to="/media" className="flex-shrink-0 w-[72px] text-center">
+            <div className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center mb-2 mx-auto bg-emerald-500/10 border border-emerald-500/20 transition-transform active:scale-95">
+              <Radio className="w-7 h-7 text-emerald-400" />
+            </div>
+            <span className="text-xs font-medium text-gray-300">Rádio</span>
+          </Link>
+          <Link to="/events" className="flex-shrink-0 w-[72px] text-center">
+            <div className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center mb-2 mx-auto bg-orange-500/10 border border-orange-500/20 transition-transform active:scale-95">
+              <Calendar className="w-7 h-7 text-orange-400" />
+            </div>
+            <span className="text-xs font-medium text-gray-300">Agenda</span>
+          </Link>
+          <a href="#donate" className="flex-shrink-0 w-[72px] text-center">
+            <div className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center mb-2 mx-auto bg-purple-500/10 border border-purple-500/20 transition-transform active:scale-95">
+              <Heart className="w-7 h-7 text-purple-400" />
+            </div>
+            <span className="text-xs font-medium text-gray-300">Doar</span>
+          </a>
+        </div>
+      </div>
+
+      {/* Featured / Recent Content */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-white">Recentes</h3>
+          <Link to="/media" className="text-sm font-medium text-[var(--theme-color)] hover:underline">Ver Tudo</Link>
+        </div>
+        <div className="space-y-3">
+          {RECENT_ITEMS.map((item) => (
+            <div key={item.id} className="flex gap-4 p-3 rounded-2xl bg-[#1C1C1E] border border-white/5 items-center">
+              <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 relative">
+                <img alt={item.title} className="w-full h-full object-cover" src={item.img} />
+                <div className="absolute inset-0 bg-black/20"></div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-white text-[15px] truncate">{item.title}</h4>
+                <p className="text-[13px] text-gray-400 truncate">{item.category}</p>
+              </div>
+              <Link to="/media" className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--theme-color)] flex-shrink-0 shadow-lg active:scale-95 transition-transform">
+                <Play className="w-4 h-4 text-white fill-current ml-0.5" />
+              </Link>
+            </div>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* Bento Grid Core */}
-      <section className="grid grid-cols-2 gap-4">
-        {/* Bible - Primary Action */}
-        <Link to="/bible" className="col-span-2 p-8 ios-card flex items-center justify-between group bg-gradient-to-br from-[var(--theme-color)]/20 to-transparent border-[var(--theme-color)]/30">
-          <div className="space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--theme-color,#007AFF)] to-[#FF2D55] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-              <BookOpen className="w-6 h-6 text-white" />
-            </div>
-            <h3 className="text-2xl font-bold tracking-tight text-white">Bíblia Sagrada</h3>
-            <p className="text-xs text-zinc-500 font-medium">Estudo Completo</p>
-          </div>
-          <ChevronRight className="w-8 h-8 text-[var(--theme-color)]" />
-        </Link>
-
-        {/* Notes / Blocos de Notas */}
-        <Link to="/notes" className="col-span-2 p-6 ios-card flex items-center justify-between group bg-[#FF9500]/10 border-[#FF9500]/20">
+      {/* Donation Section */}
+      <section className="pt-4" id="donate">
+        <div className="rounded-3xl bg-[#1C1C1E] border border-white/5 p-6 space-y-6">
           <div className="flex items-center gap-4">
-             <div className="w-12 h-12 rounded-2xl bg-[#FF9500] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-               <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-             </div>
-             <div>
-               <h3 className="text-xl font-bold tracking-tight text-white">Anotações</h3>
-               <p className="text-xs text-[#FF9500] font-medium mt-0.5">Meus Estudos</p>
-             </div>
-          </div>
-          <ChevronRight className="w-6 h-6 text-[#FF9500]" />
-        </Link>
-        
-        {/* Media Control */}
-        <Link to="/media" className="p-6 ios-card flex flex-col justify-between aspect-square group border-[var(--theme-color)]/10 hover:border-[var(--theme-color)]/30 transition-colors">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--theme-color)] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-            <Radio className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold tracking-tight text-white">Rádio Web</h3>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">AO VIVO</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Calendar / Matrix */}
-        <Link to="/events" className="p-6 ios-card flex flex-col justify-between aspect-square group">
-          <div className="w-12 h-12 rounded-2xl bg-[#FF2D55] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-            <Calendar className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold tracking-tight text-white">Agenda</h3>
-            <p className="text-xs text-zinc-500 mt-1">Nossos Cultos</p>
-          </div>
-        </Link>
-      </section>
-
-      {/* Fintech Contribution */}
-      <section className="pb-12" id="donate">
-        <div className="ios-card bg-black/5 dark:bg-[#1C1C1E] p-6 sm:p-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--theme-color)]/20 border border-[var(--theme-color)]/30 flex items-center justify-center">
                <Heart className="w-6 h-6 text-[var(--theme-color)] fill-current" />
             </div>
-            <div className="text-right">
-              <span className="text-[#8E8E93] text-[10px] font-bold uppercase tracking-widest">Dízimos e Ofertas</span>
-              <p className="text-[var(--theme-color)] text-xs font-mono">Gateway Ativo</p>
+            <div>
+              <h2 className="text-lg font-bold text-white">Semear e Contribuir</h2>
+              <p className="text-sm text-gray-400">Faça sua contribuição com segurança.</p>
             </div>
           </div>
-          
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight text-white">Semear e Contribuir</h2>
-            <p className="text-sm text-zinc-500">Faça sua contribuição de forma segura e rápida.</p>
-          </div>
 
-          {/* Tabs */}
-          <div className="flex bg-black/10 dark:bg-white/5 p-1 rounded-xl">
+          <div className="flex bg-black/50 p-1 rounded-xl border border-white/5">
             <button 
               onClick={() => setGivingMethod('pix')}
-              className={`flex-1 py-3 px-4 text-xs font-bold rounded-lg transition-all ${givingMethod === 'pix' ? 'bg-white text-black shadow-sm' : 'text-[#8E8E93]'}`}
+              className={`flex-1 py-2.5 px-4 text-sm font-semibold rounded-lg transition-all ${givingMethod === 'pix' ? 'bg-zinc-800 text-white shadow-md' : 'text-gray-500'}`}
             >
               PIX
             </button>
             <button 
               onClick={() => setGivingMethod('card')}
-              className={`flex-1 py-3 px-4 text-xs font-bold rounded-lg transition-all ${givingMethod === 'card' ? 'bg-white text-black shadow-sm' : 'text-[#8E8E93]'}`}
+              className={`flex-1 py-2.5 px-4 text-sm font-semibold rounded-lg transition-all ${givingMethod === 'card' ? 'bg-zinc-800 text-white shadow-md' : 'text-gray-500'}`}
             >
               Cartão
             </button>
@@ -233,29 +182,30 @@ export default function Home() {
 
           {givingMethod === 'pix' ? (
             <div className="space-y-4">
-              <div className="p-4 bg-white/5 border border-white/5 inline-block mx-auto rounded-2xl">
-                 <QrCode className="w-40 h-40 text-white opacity-80" />
+              <div className="p-4 bg-white/5 border border-white/5 inline-block mx-auto rounded-2xl flex justify-center">
+                 <QrCode className="w-32 h-32 text-white/50" />
               </div>
               <button 
                 onClick={handleCopyPix}
-                className="w-full h-14 bg-[var(--theme-color)] text-white rounded-xl flex items-center justify-center gap-2 font-bold active:scale-95 transition-all"
+                className="w-full h-12 bg-[var(--theme-color)] text-white rounded-xl flex items-center justify-center gap-2 font-semibold active:scale-95 transition-all text-sm"
               >
-                {copiedPix ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                {copiedPix ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 <span>{copiedPix ? 'Chave Copiada!' : 'Copiar Chave PIX'}</span>
               </button>
-              <p className="text-[10px] font-mono text-[#8E8E93] text-center mt-2">{config?.pixKey || 'contato@frutosdoespirito.com.br'}</p>
+              <p className="text-[11px] font-mono text-gray-500 text-center">{config?.pixKey || 'contato@frutosdoespirito.com.br'}</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-center text-[#8E8E93] mb-4">Em breve aceitaremos cartões de crédito via portal de doações.</p>
-              <button disabled className="w-full h-14 bg-white/10 text-[#8E8E93] rounded-xl flex items-center justify-center gap-2 font-bold opacity-50 cursor-not-allowed">
-                <CreditCard className="w-5 h-5" />
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-gray-500 mb-4 px-4">Em breve aceitaremos cartões de crédito via portal de doações online.</p>
+              <button disabled className="w-full h-12 bg-white/5 text-gray-500 rounded-xl flex items-center justify-center gap-2 font-semibold cursor-not-allowed text-sm">
+                <CreditCard className="w-4 h-4" />
                 <span>Pagar com Cartão</span>
               </button>
             </div>
           )}
         </div>
       </section>
+
     </div>
   );
 }
