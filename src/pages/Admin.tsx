@@ -1,77 +1,127 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Users, Calendar, Radio, Settings, Search, Plus, 
   Trash2, ShieldAlert, BarChart3, LayoutDashboard, 
   Bell, Database, Loader2, Camera, Save, X, 
-  Zap, Globe, Cpu, CreditCard, ChevronRight
+  Zap, Globe, Cpu, CreditCard, ChevronRight, ChevronLeft, ShieldCheck, ImagePlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, db } from '../lib/firebase';
+import { auth, db, storage } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc, getDocs, limit, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
+import { Link } from 'react-router-dom';
 
 const ADMIN_EMAIL = 'rudson.p48@gmail.com';
-
-interface Banner {
-  id: number;
-  title: string;
-  subtitle: string;
-  image: string;
-  cta: string;
-  type: string;
-}
-
-interface AppConfig {
-  banners: Banner[];
-  churchName: string;
-  pixKey: string;
-  pixBankInfo: string;
-  pixCopiaECola?: string;
-  settingsTitles: {
-    sync: string;
-    security: string;
-    core: string;
-  };
-}
 
 export default function Admin() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState<any[]>([]);
-  const [config, setConfig] = useState<AppConfig>({ 
+  const [config, setConfig] = useState<any>({ 
     banners: [], 
     churchName: '', 
     pixKey: '', 
     pixBankInfo: '',
+    logoUrl: '',
     settingsTitles: { sync: '', security: '', core: '' } 
   });
-  const [isSaving, setIsSaving] = useState(false);
+  const [newItem, setNewItem] = useState<any>({});
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
+  const contentFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setIsSaving(true);
+      try {
+        const storageRef = ref(storage, `banners/banner_${Date.now()}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+        setNewItem({ ...newItem, image: downloadUrl });
+      } catch (err) {
+        alert("Erro no upload do banner");
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  const handleAddBanner = async () => {
+    if (!newItem.image || !newItem.title) return;
+    setIsSaving(true);
+    try {
+      const newBanners = [...(config.banners || []), { 
+        id: Date.now(), 
+        title: newItem.title, 
+        subtitle: newItem.subtitle || '', 
+        image: newItem.image 
+      }];
+      await setDoc(doc(db, 'app_config', 'main'), { banners: newBanners }, { merge: true });
+      setConfig({ ...config, banners: newBanners });
+      setNewItem({});
+    } catch (err) {
+      alert("Erro ao salvar banner");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const removeBanner = async (id: number) => {
+    if (!confirm("Remover banner?")) return;
+    try {
+      const newBanners = config.banners.filter((b: any) => b.id !== id);
+      await setDoc(doc(db, 'app_config', 'main'), { banners: newBanners }, { merge: true });
+      setConfig({ ...config, banners: newBanners });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleContentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setIsSaving(true);
+      try {
+        const storageRef = ref(storage, `content/${activeMenu}_${Date.now()}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+        setNewItem({ ...newItem, url: downloadUrl, image: downloadUrl });
+      } catch (err) {
+        alert("Erro no upload");
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  const handleAddContent = async () => {
+    setIsSaving(true);
+    try {
+      const newDocRef = doc(collection(db, activeMenu));
+      await setDoc(newDocRef, {
+        ...newItem,
+        createdAt: serverTimestamp()
+      });
+      setNewItem({});
+    } catch (err) {
+      alert("Erro ao salvar");
+    } finally {
+      setIsSaving(false);
+    }
+  };
   const [stats, setStats] = useState([
-    { label: 'Sincronia Membros', value: '0', icon: Users, color: 'text-cyan-400' },
-    { label: 'Fluxo Galeria', value: '0', icon: Camera, color: 'text-yellow-400' },
-    { label: 'Transmissões', value: '12', icon: Radio, color: 'text-pink-500' },
-    { label: 'Eventos Ativos', value: '0', icon: Calendar, color: 'text-emerald-400' },
+    { label: 'Membros', value: '0', icon: Users, color: '#007AFF' },
+    { label: 'Fotos', value: '0', icon: Camera, color: '#AF52DE' },
+    { label: 'Mídia', value: '12', icon: Radio, color: '#FF2D55' },
+    { label: 'Eventos', value: '0', icon: Calendar, color: '#FF9500' },
   ]);
 
   useEffect(() => {
     const unsubAuth = auth.onAuthStateChanged(async (user) => {
       if (user && user.email === ADMIN_EMAIL) {
-        try {
-          const adminRef = doc(db, 'admins', user.uid);
-          const adminSnap = await getDoc(adminRef);
-          if (!adminSnap.exists()) {
-             await setDoc(adminRef, { 
-               email: user.email, 
-               bootstrappedAt: serverTimestamp(),
-               protocol: 'ALPHA-NEXUS-4' 
-             });
-          }
-          setIsAdmin(true);
-        } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, `admins/${user.uid}`);
-          setIsAdmin(true); 
-        }
+        setIsAdmin(true);
       } else {
         setIsAdmin(false);
       }
@@ -84,16 +134,10 @@ export default function Admin() {
     if (!isAdmin) return;
 
     const fetchConfig = async () => {
-      try {
-        const docRef = doc(db, 'app_config', 'main');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setConfig(docSnap.data() as AppConfig);
-        } else {
-          await setDoc(docRef, config);
-        }
-      } catch (err) {
-        handleFirestoreError(err, OperationType.GET, 'app_config/main');
+      const docRef = doc(db, 'app_config', 'main');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setConfig(prev => ({ ...prev, ...docSnap.data() }));
       }
     };
     fetchConfig();
@@ -113,10 +157,12 @@ export default function Admin() {
     };
     fetchCounts();
 
-    if (activeMenu !== 'settings' && activeMenu !== 'dashboard' && activeMenu !== 'analytics') {
+    if (activeMenu !== 'settings' && activeMenu !== 'dashboard' && activeMenu !== 'banners') {
       const q = query(collection(db, activeMenu), orderBy('createdAt', 'desc'), limit(40));
       return onSnapshot(q, (snap) => {
         setContent(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (err) => {
+        console.error("Erro no listener do admin:", err);
       });
     }
   }, [isAdmin, activeMenu]);
@@ -124,286 +170,263 @@ export default function Admin() {
   const handleSaveConfig = async () => {
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'app_config', 'main'), config);
-      alert("NEXUS UPDATE: Configurações sincronizadas!");
-    } catch (err) {
+      await setDoc(doc(db, 'app_config', 'main'), config, { merge: true });
+      alert("Configurações Atualizadas");
+    } catch (err: any) {
       console.error(err);
-      alert("ERRO DE CONEXÃO: Falha ao injetar dados.");
+      alert("Erro ao salvar: " + (err.message || 'Erro desconhecido. Verifique as permissões.'));
     } finally {
       setIsSaving(false);
     }
   };
 
   const deleteItem = async (id: string) => {
-    if (!confirm("Confirmar deleção permanente na Matriz?")) return;
+    if (!confirm("Remover permanentemente?")) return;
     try {
       await deleteDoc(doc(db, activeMenu, id));
     } catch (err) { console.error(err); }
+  };
+  
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setIsSaving(true);
+      try {
+        const storageRef = ref(storage, `config/logo_${Date.now()}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+        setConfig(prev => ({ ...prev, logoUrl: downloadUrl }));
+      } catch (err) {
+        console.error("Failed to upload logo", err);
+        alert("Erro no upload da logo");
+      } finally {
+        setIsSaving(false);
+      }
+    }
   };
 
   if (loading) return null;
 
   if (!isAdmin) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center cyber-grid">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-32 h-32 glass flex items-center justify-center rounded-[2.5rem] mb-12 border-red-500/20 shadow-4xl glow-red">
-          <ShieldAlert className="w-16 h-16 text-red-500 animate-pulse" />
-        </motion.div>
-        <h1 className="text-6xl font-display font-black italic uppercase tracking-tighter mb-4">Acesso <span className="text-red-500 text-glow">Bloqueado</span></h1>
-        <p className="text-zinc-500 font-bold uppercase tracking-[0.4em] text-[10px] mb-12">Protocolo de segurança ECCLESIA-01 ativo.</p>
-        <button onClick={() => window.location.href = '/'} className="bg-white text-black px-12 py-6 rounded-full font-black uppercase tracking-widest text-xs hover:bg-yellow-400 transition-all active:scale-95">Reset Terminal</button>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <ShieldAlert className="w-16 h-16 text-[#FF3B30] mb-6" />
+        <h1 className="text-2xl font-bold tracking-tight mb-2">Acesso Restrito</h1>
+        <p className="text-[#8E8E93] text-sm mb-8">Esta área é exclusiva para administradores.</p>
+        <Link to="/" className="text-[#007AFF] font-bold">Voltar para Início</Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-24 pb-40 cyber-grid">
-      {/* Background Ambience */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[10%] left-[-5%] w-[600px] h-[600px] bg-yellow-400/5 blur-[120px]" />
-        <div className="absolute bottom-[10%] right-[-5%] w-[600px] h-[600px] bg-cyan-400/5 blur-[120px]" />
-      </div>
+    <div className="min-h-screen pb-32">
+       {/* iOS Navigation Header */}
+       <nav className="fixed top-0 left-0 right-0 z-40 ios-glass border-b border-black/[0.05] dark:border-white/[0.05] flex items-center justify-between px-6 h-16">
+        <Link to="/settings" className="flex items-center gap-1 text-[#007AFF] font-medium">
+          <ChevronLeft className="w-6 h-6" />
+          <span>Ajustes</span>
+        </Link>
+        <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2">Admin</h1>
+        <div className="w-10" />
+      </nav>
 
-      <header className="relative z-10 px-6 pt-16">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-12">
-           <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                 <div className="w-12 h-12 glass flex items-center justify-center rounded-2xl glow-yellow border-yellow-400/20">
-                   <Cpu className="w-6 h-6 text-yellow-400 animate-pulse" />
-                 </div>
-                 <span className="text-yellow-400 text-[10px] font-black uppercase tracking-[0.4em] text-glow">Nexus Command Center // v4.0.0</span>
-              </div>
-              <h1 className="text-6xl md:text-9xl font-display font-black italic uppercase tracking-tighter leading-[0.8]">
-                 System <br /> <span className="text-yellow-400">Control</span>
-              </h1>
-           </div>
-           
-           <div className="flex items-center gap-4">
-              <div className="glass px-8 py-5 rounded-[2rem] flex items-center gap-4 border-emerald-500/20">
-                 <div className="w-2 h-2 rounded-full bg-emerald-500 glow-emerald animate-pulse" />
-                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Kernel: Online</span>
-              </div>
-              <button onClick={() => auth.signOut()} className="w-14 h-14 glass flex items-center justify-center rounded-2xl hover:bg-red-500/20 hover:text-red-500 transition-all border-white/5">
-                 <X className="w-6 h-6" />
-              </button>
-           </div>
-        </div>
-      </header>
+      <div className="pt-24 px-6 space-y-8 max-w-lg mx-auto">
+        <header className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-3xl font-bold tracking-tight">Matrix Panel</h2>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#34C759]" />
+              <span className="text-[11px] font-bold text-[#34C759] uppercase tracking-widest">Nível Alpha Ativo</span>
+            </div>
+          </div>
+          <button className="w-12 h-12 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center text-[#8E8E93]">
+            <Bell className="w-6 h-6" />
+          </button>
+        </header>
 
-      {/* Terminal Stats */}
-      <section className="px-6 relative z-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        {/* Stats Grid */}
+        <section className="grid grid-cols-2 gap-4">
           {stats.map((stat, idx) => (
-            <motion.div 
-              key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              className="glass p-10 rounded-[3.5rem] relative overflow-hidden group hover:border-yellow-400/30 transition-all shadow-4xl bg-black/40"
-            >
-              <div className={`absolute top-0 right-0 w-24 h-24 blur-[60px] opacity-20 rounded-full bg-current ${stat.color}`} />
-              <stat.icon className={`w-8 h-8 ${stat.color} mb-12 group-hover:scale-110 transition-transform`} />
-              <div>
-                 <span className="text-5xl font-display font-black italic tracking-tighter block mb-2">{stat.value}</span>
-                 <span className="text-zinc-500 text-[9px] font-black uppercase tracking-widest block opacity-60">{stat.label}</span>
+            <div key={idx} className="ios-card p-6 flex flex-col justify-between aspect-square">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ background: stat.color }}>
+                <stat.icon className="w-5 h-5" />
               </div>
-            </motion.div>
+              <div>
+                <span className="text-3xl font-bold tracking-tight text-white">{stat.value}</span>
+                <p className="text-[11px] font-bold text-[#8E8E93] uppercase tracking-widest mt-1">{stat.label}</p>
+              </div>
+            </div>
+          ))}
+        </section>
+
+        {/* Action Menu */}
+        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6">
+          {[
+            { id: 'dashboard', label: 'Início' },
+            { id: 'settings', label: 'Igreja' },
+            { id: 'banners', label: 'Banners' },
+            { id: 'events', label: 'Eventos' },
+            { id: 'photos', label: 'Mídia' },
+            { id: 'users', label: 'Membros' }
+          ].map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveMenu(item.id)}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${
+                activeMenu === item.id 
+                  ? 'text-white' 
+                  : 'bg-black/5 dark:bg-white/5 text-[#8E8E93]'
+              }`}
+              style={activeMenu === item.id ? { backgroundColor: 'var(--theme-color)' } : {}}
+            >
+              {item.label}
+            </button>
           ))}
         </div>
-      </section>
 
-      <section className="px-6 relative z-10 grid lg:grid-cols-[350px_1fr] gap-16">
-        {/* Navigation Blade */}
-        <aside className="space-y-4">
-           {[
-             { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-             { id: 'photos', label: 'N-Gallery', icon: Camera },
-             { id: 'events', label: 'Agenda Matrix', icon: Calendar },
-             { id: 'users', label: 'Nodes / Users', icon: Users },
-             { id: 'settings', label: 'Root Config', icon: Settings },
-           ].map(item => (
-             <button
-               key={item.id}
-               onClick={() => setActiveMenu(item.id)}
-               className={`w-full flex items-center gap-6 px-10 py-8 rounded-[2.5rem] transition-all relative overflow-hidden italic font-display font-black uppercase tracking-tighter text-xl ${
-                 activeMenu === item.id ? 'glass text-yellow-400 border-yellow-400/40 glow-yellow translate-x-2' : 'text-zinc-600 hover:text-zinc-300'
-               }`}
-             >
-               <item.icon className="w-5 h-5" />
-               <span>{item.label}</span>
-               {activeMenu === item.id && <Zap className="w-4 h-4 ml-auto animate-pulse" />}
-             </button>
-           ))}
-        </aside>
+        {/* Dynamic Content Module */}
+        <AnimatePresence mode="wait">
+          {activeMenu === 'settings' ? (
+            <motion.div key="s" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="ios-card p-8 space-y-6">
+                <h3 className="text-xl font-bold tracking-tight">Main Config</h3>
+                
+                {/* Logo Upload Section */}
+                <div className="space-y-2">
+                  <span className="text-sm font-bold text-[#8E8E93]">Logotipo do App</span>
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full aspect-[3/1] bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors overflow-hidden relative"
+                  >
+                    {config.logoUrl ? (
+                      <img src={config.logoUrl} className="w-full h-full object-contain p-4" alt="Logo preview" />
+                    ) : (
+                      <>
+                        <ImagePlus className="w-6 h-6 text-[#8E8E93]" />
+                        <span className="text-xs text-[#8E8E93] font-bold">Upload Logo</span>
+                      </>
+                    )}
+                  </div>
+                  <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+                </div>
 
-        {/* Content Module */}
-        <div className="glass p-12 md:p-24 rounded-[4rem] border-white/5 relative bg-black/60 shadow-4xl min-h-[600px]">
-           <AnimatePresence mode="wait">
-              {activeMenu === 'settings' ? (
-                <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-16">
-                   <div className="flex items-center justify-between">
-                      <h2 className="text-4xl md:text-6xl font-display font-black italic uppercase tracking-tighter">Root <span className="text-yellow-400">Config</span></h2>
-                      <button onClick={handleSaveConfig} disabled={isSaving} className="bg-yellow-400 text-black px-12 py-6 rounded-[2rem] font-display font-black uppercase italic tracking-tighter text-xl flex items-center gap-4 glow-yellow hover:scale-105 active:scale-95 transition-all shadow-4xl">
-                         {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
-                         <span>Deploy</span>
-                      </button>
-                   </div>
+                <div className="space-y-4">
+                  <input value={config.churchName} onChange={e => setConfig({...config, churchName: e.target.value})} placeholder="Nome da Igreja" className="w-full bg-white dark:bg-black/20 border-black/5 dark:border-white/5 rounded-2xl py-4 px-6 text-sm outline-none" />
+                  <input value={config.pixKey} onChange={e => setConfig({...config, pixKey: e.target.value})} placeholder="Chave PIX" className="w-full bg-white dark:bg-black/20 border-black/5 dark:border-white/5 rounded-2xl py-4 px-6 text-sm outline-none" />
+                </div>
+                <button 
+                  onClick={handleSaveConfig}
+                  disabled={isSaving}
+                  className="w-full h-14 bg-[#34C759] text-white rounded-2xl font-bold flex items-center justify-center gap-2"
+                >
+                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Sincronizar Matrix</span>}
+                </button>
+              </div>
+            </motion.div>
+          ) : activeMenu === 'dashboard' ? (
+            <motion.div key="d" className="ios-card p-10 text-center space-y-4">
+              <Cpu className="w-12 h-12 text-[var(--theme-color)] mx-auto animate-pulse" />
+              <h3 className="text-xl font-bold">Kernel v4.2 Online</h3>
+              <p className="text-sm text-[#8E8E93]">Monitoramento de latência e integridade em tempo real.</p>
+            </motion.div>
+          ) : activeMenu === 'banners' ? (
+            <motion.div key="b" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="ios-card p-6 space-y-4">
+                <h3 className="font-bold text-lg">Adicionar Novo Banner</h3>
+                <div 
+                  onClick={() => bannerFileInputRef.current?.click()}
+                  className="w-full aspect-[16/9] bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-black/10 transition-colors overflow-hidden relative"
+                >
+                  {newItem.image ? (
+                    <img src={newItem.image} className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      <ImagePlus className="w-6 h-6 text-[#8E8E93]" />
+                      <span className="text-xs text-[#8E8E93] font-bold">16:9 Image</span>
+                    </>
+                  )}
+                </div>
+                <input type="file" ref={bannerFileInputRef} onChange={handleBannerUpload} className="hidden" accept="image/*" />
+                <input value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} placeholder="Título principal" className="w-full bg-white dark:bg-black/20 border-black/5 dark:border-white/5 rounded-xl py-3 px-4 text-sm" />
+                <input value={newItem.subtitle || ''} onChange={e => setNewItem({...newItem, subtitle: e.target.value})} placeholder="Subtítulo" className="w-full bg-white dark:bg-black/20 border-black/5 dark:border-white/5 rounded-xl py-3 px-4 text-sm" />
+                <button onClick={handleAddBanner} disabled={isSaving} className="w-full h-12 bg-[var(--theme-color)] text-white rounded-xl font-bold flex flex-center gap-2 justify-center items-center">
+                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Salvar Banner</span>}
+                </button>
+              </div>
 
-                   <div className="grid md:grid-cols-2 gap-12">
-                      <div className="space-y-8 glass p-10 rounded-[3rem] border-white/5">
-                         <div className="flex items-center gap-4 text-yellow-400">
-                           <Globe className="w-5 h-5" />
-                           <span className="text-[10px] font-black uppercase tracking-[0.3em]">Identidade Digital</span>
-                         </div>
-                         <div className="space-y-4">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-600 ml-4">Nome do Ecossistema</label>
-                            <input value={config.churchName} onChange={e => setConfig({...config, churchName: e.target.value})} className="w-full glass py-6 px-10 rounded-3xl outline-none focus:border-yellow-400/50 bg-white/5 font-bold" />
-                         </div>
-                      </div>
-
-                      <div className="space-y-8 glass p-10 rounded-[3rem] border-white/5">
-                         <div className="flex items-center gap-4 text-cyan-400">
-                           <CreditCard className="w-5 h-5" />
-                           <span className="text-[10px] font-black uppercase tracking-[0.3em]">Fluxo Financeiro (PIX)</span>
-                         </div>
-                         <div className="space-y-4">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-600 ml-4">Matriz PIX (Chave)</label>
-                            <input value={config.pixKey} onChange={e => setConfig({...config, pixKey: e.target.value})} className="w-full glass py-6 px-10 rounded-3xl outline-none focus:border-cyan-400/30 bg-white/5 font-bold" />
-                         </div>
-                         <div className="space-y-4">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-600 ml-4">Configuração Bancária</label>
-                            <input value={config.pixBankInfo} onChange={e => setConfig({...config, pixBankInfo: e.target.value})} className="w-full glass py-6 px-10 rounded-3xl outline-none focus:border-cyan-400/30 bg-white/5 font-bold" />
-                         </div>
-                      </div>
-                   </div>
-
-                   <div className="space-y-10">
-                      <div className="flex items-center justify-between">
-                         <h3 className="text-2xl font-display font-black uppercase tracking-tighter italic">Banners Nexus</h3>
-                         <button onClick={() => setConfig({...config, banners: [...config.banners, { id: Date.now(), title: 'NOME BANNER', subtitle: 'TAG', image: '', cta: 'SYNC', type: 'ALPHA' }]})} className="w-12 h-12 glass flex items-center justify-center rounded-2xl hover:bg-white/10">
-                            <Plus className="w-6 h-6" />
-                         </button>
-                      </div>
-                      <div className="grid gap-6">
-                         {config.banners.map((b, i) => (
-                           <div key={b.id} className="glass p-10 rounded-[3rem] border-white/5 group hover:border-yellow-400/20 transition-all">
-                              <div className="flex justify-between items-start mb-10">
-                                 <div className="flex gap-4">
-                                    <div className="w-16 h-16 glass rounded-2xl overflow-hidden bg-white/5">
-                                       {b.image && <img src={b.image} className="w-full h-full object-cover" />}
-                                    </div>
-                                    <div className="space-y-1">
-                                       <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Banner ID // #{i + 1}</span>
-                                       <h4 className="text-xl font-display font-black tracking-tighter uppercase italic">{b.title}</h4>
-                                    </div>
-                                 </div>
-                                 <button onClick={() => setConfig({...config, banners: config.banners.filter(x => x.id !== b.id)})} className="p-3 glass rounded-xl text-red-500 opacity-0 group-hover:opacity-100 transition-all">
-                                    <Trash2 className="w-5 h-5" />
-                                 </button>
-                              </div>
-                              <div className="grid md:grid-cols-2 gap-6">
-                                 <input value={b.title} onChange={e => { const nb = [...config.banners]; nb[i].title = e.target.value; setConfig({...config, banners: nb})}} placeholder="Título" className="glass py-5 px-8 rounded-2xl outline-none text-sm" />
-                                 <input value={b.subtitle} onChange={e => { const nb = [...config.banners]; nb[i].subtitle = e.target.value; setConfig({...config, banners: nb})}} placeholder="Tag" className="glass py-5 px-8 rounded-2xl outline-none text-sm" />
-                                 <input value={b.image} onChange={e => { const nb = [...config.banners]; nb[i].image = e.target.value; setConfig({...config, banners: nb})}} placeholder="URL Imagem" className="glass py-5 px-8 rounded-2xl outline-none text-sm md:col-span-2" />
-                              </div>
-                           </div>
-                         ))}
-                      </div>
-                   </div>
-                </motion.div>
-              ) : activeMenu === 'dashboard' ? (
-                 <motion.div key="dash" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-16">
-                    <div className="space-y-4">
-                       <h2 className="text-4xl md:text-6xl font-display font-black italic uppercase tracking-tighter">Nexus <span className="text-yellow-400">Pulse</span></h2>
-                       <p className="text-zinc-500 italic max-w-lg">Monitoramento de integridade da matriz e sincronização de dados comunitários em tempo real.</p>
+              <div className="space-y-4">
+                {config.banners?.map((b: any) => (
+                  <div key={b.id} className="ios-card p-4 flex gap-4 pr-6 items-center group">
+                    <img src={b.image} className="w-20 h-20 rounded-xl object-cover" />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-sm">{b.title}</h4>
+                      <p className="text-xs text-[#8E8E93]">{b.subtitle}</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                       {[
-                         { label: 'Uptime Sistema', val: '99.9%', color: 'text-emerald-500' },
-                         { label: 'Latência Nexus', val: '24ms', color: 'text-cyan-500' },
-                         { label: 'Sincronia Firebase', val: 'Ativo', color: 'text-yellow-500' },
-                       ].map((x, i) => (
-                         <div key={i} className="glass p-10 rounded-[3rem] border-white/5">
-                            <span className="text-zinc-600 text-[10px] font-black uppercase tracking-widest block mb-4">{x.label}</span>
-                            <span className={`${x.color} text-4xl font-display font-black tracking-tighter italic uppercase`}>{x.val}</span>
-                         </div>
-                       ))}
+                    <button onClick={() => removeBanner(b.id)} className="w-10 h-10 rounded-full flex items-center justify-center text-[#FF3B30] bg-[#FF3B30]/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div key="l" className="space-y-6">
+              {(activeMenu === 'events' || activeMenu === 'photos') && (
+                <div className="ios-card p-6 space-y-4">
+                  <h3 className="font-bold text-lg">Adicionar {activeMenu === 'events' ? 'Evento/Aviso' : 'Mídia'}</h3>
+                  {(activeMenu === 'photos' || activeMenu === 'events') && (
+                    <div 
+                      onClick={() => contentFileInputRef.current?.click()}
+                      className="w-full h-32 bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer relative overflow-hidden"
+                    >
+                       {newItem.image ? (
+                         <img src={newItem.image} className="w-full h-full object-cover" />
+                       ) : (
+                         <span className="text-xs text-[#8E8E93] font-bold">Upload Imagem</span>
+                       )}
                     </div>
-                    <div className="glass-dark bg-black/40 p-12 rounded-[4rem] border-white/5 space-y-10">
-                       <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">Ocupação de Buffer</span>
-                          <div className="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                             <div className="w-2/3 h-full bg-yellow-400 glow-yellow" />
-                          </div>
-                       </div>
-                       <div className="h-64 flex items-end gap-4">
-                          {[40, 60, 45, 90, 65, 80, 55, 75, 45, 60, 85].map((h, i) => (
-                            <motion.div key={i} initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: i * 0.1 }} className="flex-1 bg-yellow-400/20 rounded-t-xl hover:bg-yellow-400 transition-all cursor-pointer" />
-                          ))}
-                       </div>
+                  )}
+                  <input type="file" ref={contentFileInputRef} onChange={handleContentUpload} className="hidden" accept="image/*" />
+                  <input value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} placeholder="Título" className="w-full bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm" />
+                  
+                  {activeMenu === 'events' && (
+                    <div className="flex gap-2">
+                       <input value={newItem.date || ''} onChange={e => setNewItem({...newItem, date: e.target.value})} placeholder="Data Ex: 12 DEZ 20:00" className="flex-1 bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm" />
+                       <input value={newItem.location || ''} onChange={e => setNewItem({...newItem, location: e.target.value})} placeholder="Local/Endereço" className="flex-1 bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm" />
                     </div>
-                 </motion.div>
-              ) : (
-                <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
-                   <div className="flex items-center justify-between">
-                      <h2 className="text-4xl md:text-6xl font-display font-black italic uppercase tracking-tighter">Nexus <span className="text-yellow-400">List</span></h2>
-                      <div className="relative group max-w-xs w-full">
-                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
-                         <input placeholder="Filtrar Matriz..." className="w-full glass py-4 pl-14 pr-6 rounded-2xl outline-none text-[10px] uppercase font-black tracking-widest" />
-                      </div>
-                   </div>
+                  )}
 
-                   <div className="overflow-x-auto">
-                      <table className="w-full border-separate border-spacing-y-4">
-                         <thead>
-                            <tr className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-600">
-                               <th className="px-10 py-4">ID / Entidade</th>
-                               <th className="px-10 py-4">Status</th>
-                               <th className="px-10 py-4 text-right">Ação</th>
-                            </tr>
-                         </thead>
-                         <tbody>
-                            {content.map((item, i) => (
-                              <tr key={item.id} className="group">
-                                 <td className="glass px-10 py-6 rounded-l-[3rem] border-r-0">
-                                    <div className="flex items-center gap-6">
-                                       <div className="w-14 h-14 glass flex items-center justify-center rounded-2xl bg-white/5 overflow-hidden">
-                                          {item.url ? <img src={item.url} className="w-full h-full object-cover" /> : item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <Database className="w-6 h-6 text-yellow-400" />}
-                                       </div>
-                                       <div>
-                                          <p className="text-xl font-display font-black tracking-tighter uppercase italic text-white leading-none mb-1">{item.title || item.name || item.email || 'Registro Undef'}</p>
-                                          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600 italic">CRC: {item.id.slice(0, 10)}</p>
-                                       </div>
-                                    </div>
-                                 </td>
-                                 <td className="glass px-10 py-6 border-x-0">
-                                    <div className="flex items-center gap-3">
-                                       <div className="w-2 h-2 rounded-full bg-emerald-500 glow-emerald animate-pulse" />
-                                       <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Synced</span>
-                                    </div>
-                                 </td>
-                                 <td className="glass px-10 py-6 rounded-r-[3rem] text-right border-l-0">
-                                    <button onClick={() => deleteItem(item.id)} className="w-12 h-12 glass flex items-center justify-center rounded-2xl text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all ml-auto">
-                                       <Trash2 className="w-5 h-5" />
-                                    </button>
-                                 </td>
-                              </tr>
-                            ))}
-                         </tbody>
-                      </table>
-                   </div>
-
-                   {content.length === 0 && (
-                     <div className="py-24 text-center">
-                        <Loader2 className="w-12 h-12 text-yellow-400 animate-spin mx-auto mb-6 opacity-20" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600 italic">Vácuo de Dados Detectado</span>
-                     </div>
-                   )}
-                </motion.div>
+                  <button onClick={handleAddContent} disabled={isSaving} className="w-full h-12 bg-[var(--theme-color)] text-white rounded-xl font-bold flex flex-center gap-2 justify-center items-center">
+                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Adicionar</span>}
+                  </button>
+                </div>
               )}
-           </AnimatePresence>
-        </div>
-      </section>
+
+              <div className="space-y-4">
+                {content.map((item) => (
+                  <div key={item.id} className="ios-card p-4 flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-black/5 dark:bg-white/5 flex items-center justify-center overflow-hidden">
+                         {item.url || item.image ? <img src={item.url || item.image} className="w-full h-full object-cover" /> : <Database className="w-5 h-5 text-[#8E8E93]" />}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm truncate max-w-[150px]">{item.title || item.name || item.email || 'Registro'}</h4>
+                        <p className="text-[10px] text-[#8E8E93] font-bold uppercase tracking-widest">{item.id.slice(0, 8)}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => deleteItem(item.id)} className="w-10 h-10 rounded-full bg-[#FF3B30]/10 flex items-center justify-center text-[#FF3B30] opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

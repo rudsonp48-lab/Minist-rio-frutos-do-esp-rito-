@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="112" fill="#141414" />
+  <!-- Subtle glowing circle -->
+  <circle cx="256" cy="256" r="160" fill="url(#glow)" opacity="0.2" />
+  <path d="M236 120 H276 V220 H360 V260 H276 V400 H236 V260 H152 V220 H236 V120 Z" fill="url(#gold)" />
+  <defs>
+    <linearGradient id="gold" x1="152" y1="120" x2="360" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFEA79"/>
+      <stop offset="1" stop-color="#C2A530"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="256" cy="256" r="160" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFEA79" />
+      <stop offset="1" stop-color="#141414" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+</svg>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { ThemeProvider } from './lib/ThemeContext';
 
 // Pages
 import Home from './pages/Home';
@@ -20,6 +21,9 @@ import SettingsPage from './pages/Settings';
 import Navbar from './components/layout/Navbar';
 import BottomNav from './components/layout/BottomNav';
 
+import { motion, AnimatePresence } from 'motion/react';
+import { useLocation } from 'react-router-dom';
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -29,7 +33,6 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        // Bootstrapped admin check
         if (user.email === 'rudson.p48@gmail.com') {
           setIsAdmin(true);
         } else {
@@ -57,7 +60,6 @@ export default function App() {
     );
   }
 
-  // Separate Login Page logic
   if (!user) {
     return (
       <Router>
@@ -69,27 +71,55 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-transparent text-white font-sans pb-20 md:pb-0 md:pt-16">
-        <Navbar isAdmin={isAdmin} user={user} />
-        
-        <main className="max-w-7xl mx-auto px-4 py-6">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/bible" element={<Bible />} />
-            <Route path="/media" element={<Media />} />
-            <Route path="/events" element={<Events />} />
-            <Route path="/gallery" element={<Gallery />} />
-            <Route path="/notes" element={<Notes />} />
-            <Route path="/profile" element={<Profile user={user} />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/" />} />
+    <ThemeProvider>
+      <Router>
+        <AppContent user={user} isAdmin={isAdmin} />
+      </Router>
+    </ThemeProvider>
+  );
+}
+
+function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) {
+  const location = useLocation();
+
+  return (
+    <div className="min-h-screen bg-transparent text-white font-sans flex flex-col relative z-0">
+      <div className="spline-container absolute inset-0 w-full h-full -z-10 pointer-events-none opacity-60">
+        <iframe src="https://my.spline.design/particlesmoment-kW3xyVny6weIhXJ3vbs2M2bB" frameBorder="0" width="100%" height="100%" id="aura-spline"></iframe>
+      </div>
+      <Navbar isAdmin={isAdmin} user={user} />
+      
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 mb-24 md:mb-0 md:pt-16 overflow-x-hidden">
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
+            <Route path="/bible" element={<PageWrapper><Bible /></PageWrapper>} />
+            <Route path="/media" element={<PageWrapper><Media /></PageWrapper>} />
+            <Route path="/events" element={<PageWrapper><Events /></PageWrapper>} />
+            <Route path="/gallery" element={<PageWrapper><Gallery /></PageWrapper>} />
+            <Route path="/notes" element={<PageWrapper><Notes /></PageWrapper>} />
+            <Route path="/profile" element={<PageWrapper><Profile user={user!} /></PageWrapper>} />
+            <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
+            <Route path="/admin" element={isAdmin ? <PageWrapper><Admin /></PageWrapper> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
-        </main>
+        </AnimatePresence>
+      </main>
 
-        <BottomNav />
-      </div>
-    </Router>
+      <BottomNav />
+    </div>
+  );
+}
+
+function PageWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.4, ease: "circOut" }}
+    >
+      {children}
+    </motion.div>
   );
 }

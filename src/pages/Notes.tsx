@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Edit3, Save, Trophy, Star, BookOpen, Clock, Trash2, Search, ChevronRight } from 'lucide-react';
+import { Edit3, Save, Trophy, Star, BookOpen, Clock, Trash2, Search, ChevronRight, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, where, onSnapshot, orderBy, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
+import { Link } from 'react-router-dom';
 
 interface Note {
   id: string;
@@ -25,27 +26,35 @@ export default function Notes() {
   const [userXP, setUserXP] = useState(0);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        setNotes([]);
+        setLoading(false);
+        return;
+      }
 
-    const q = query(
-      collection(db, 'notes'),
-      where('userId', '==', auth.currentUser.uid),
-      orderBy('createdAt', 'desc')
-    );
+      const q = query(
+        collection(db, 'notes'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Note));
-      setNotes(data);
-      
-      const totalXP = data.reduce((acc, note) => acc + (note.xp || 0), 0);
-      setUserXP(totalXP);
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'notes');
-      setLoading(false);
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Note));
+        setNotes(data);
+        
+        const totalXP = data.reduce((acc, note) => acc + (note.xp || 0), 0);
+        setUserXP(totalXP);
+        setLoading(false);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, 'notes');
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
     });
 
-    return () => unsubscribe();
+    return () => unsubAuth();
   }, []);
 
   const [showXP, setShowXP] = useState<number | null>(null);
@@ -54,7 +63,6 @@ export default function Notes() {
     e.preventDefault();
     if (!title || !content || !auth.currentUser) return;
 
-    // Gamification check: more content/details = more XP
     const xpReward = 10 + (verseRef ? 5 : 0) + (wordStudy ? 15 : 0);
 
     try {
@@ -97,207 +105,180 @@ export default function Notes() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-16 pb-24">
-      <header className="pt-8 mb-12 px-4 md:px-0">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-4">
-             <div className="w-12 h-[2px] bg-yellow-400 glow-yellow" />
-             <span className="text-yellow-400 text-[9px] md:text-[10px] font-display font-black uppercase tracking-[0.4em] text-glow">Sistema de Documentação Espiritual</span>
-          </div>
-        </div>
-        
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 md:gap-12">
+    <div className="min-h-screen pb-32">
+      {/* iOS Navigation Header */}
+      <nav className="fixed top-0 left-0 right-0 z-40 ios-glass border-b border-black/[0.05] dark:border-white/[0.05] flex items-center justify-between px-6 h-16">
+        <Link to="/" className="flex items-center gap-1 text-[var(--theme-color,#007AFF)] font-medium transition-opacity active:opacity-50">
+          <ChevronLeft className="w-6 h-6" />
+          <span>Início</span>
+        </Link>
+        <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2">Estudos</h1>
+        <div className="w-10" />
+      </nav>
+
+      <div className="pt-24 px-6 space-y-8 max-w-4xl mx-auto">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
            <div>
-             <h1 className="text-5xl md:text-9xl font-display font-black italic uppercase tracking-tighter leading-[0.8] md:leading-[0.75]">Nexus <br /> <span className="text-yellow-400">Notes</span></h1>
-             <p className="text-zinc-500 font-display font-bold uppercase tracking-[0.3em] text-[8px] md:text-[10px] mt-6 md:mt-8 flex items-center gap-3 opacity-60">
-                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse glow-yellow" />
-                Extração de dados metafísicos e estudos analíticos
-             </p>
+             <div className="flex items-center gap-2 mb-2">
+               <BookOpen className="w-5 h-5 text-[#8E8E93]" />
+               <span className="text-[11px] font-bold uppercase tracking-widest text-[#8E8E93]">Área de Estudo</span>
+             </div>
+             <h2 className="text-4xl font-bold tracking-tighter">Minhas Anotações</h2>
            </div>
            
-           {/* Gamification Badge 2.0 */}
-           <div className="glass-dark bg-zinc-950/60 border border-yellow-400/20 px-8 md:px-10 py-5 md:py-6 rounded-3xl md:rounded-[3rem] flex items-center gap-6 md:gap-8 shadow-3xl relative overflow-hidden group min-w-full md:min-w-[320px]">
-             <div className="absolute top-0 right-0 w-40 h-40 bg-yellow-400/5 blur-[60px] rounded-full group-hover:bg-yellow-400/10 transition-all" />
-             <div className="w-16 h-16 glass flex items-center justify-center rounded-[1.5rem] glow-yellow shadow-2xl">
-               <Trophy className="w-8 h-8 text-yellow-400" />
+           {/* Gamification Badge */}
+           <div className="ios-card bg-white dark:bg-[#1C1C1E] p-4 flex items-center gap-4 min-w-[240px]">
+             <div className="w-12 h-12 bg-black/5 dark:bg-white/5 rounded-2xl flex items-center justify-center">
+               <Trophy className="w-6 h-6 text-[var(--theme-color,#FFD700)]" />
              </div>
              <div className="flex-1">
-               <div className="flex items-center justify-between mb-2">
-                 <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600">Nível {getLevel(userXP)}</span>
-                 <div className="flex gap-1">
-                   {[1,2,3].map(i => <Star key={i} className={`w-2.5 h-2.5 ${i <= (getLevel(userXP) % 3 + 1) ? 'text-yellow-400 glow-yellow' : 'text-zinc-900'}`} />)}
-                 </div>
+               <div className="flex items-center justify-between">
+                 <span className="text-[9px] font-bold uppercase tracking-widest text-[#8E8E93]">Nível {getLevel(userXP)}</span>
                </div>
-               <p className="text-2xl font-display font-black italic uppercase tracking-tighter text-white group-hover:text-yellow-400 transition-colors uppercase">{getRank(userXP)}</p>
-               <div className="w-full h-1.5 bg-white/5 rounded-full mt-4 overflow-hidden p-[1px]">
+               <p className="font-bold tracking-tight text-sm">{getRank(userXP)}</p>
+               <div className="w-full h-1.5 bg-black/5 dark:bg-white/5 rounded-full mt-2 overflow-hidden">
                  <motion.div 
                    initial={{ width: 0 }}
                    animate={{ width: `${(userXP % 100)}%` }}
-                   className="h-full bg-yellow-400 glow-yellow rounded-full" 
+                   className="h-full bg-[var(--theme-color,#FFD700)] rounded-full" 
                  />
                </div>
              </div>
            </div>
-        </div>
-      </header>
+        </header>
 
-      <AnimatePresence>
-        {showXP && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.5, y: 100 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.5, y: -100 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none"
-          >
-            <div className="glass px-16 py-10 rounded-[4rem] shadow-[0_0_150px_rgba(234,179,8,0.3)] border-yellow-400/30 flex flex-col items-center backdrop-blur-3xl">
-              <Trophy className="w-20 h-20 mb-6 animate-bounce text-yellow-400 glow-yellow" />
-              <span className="text-6xl font-display font-black italic tracking-tighter text-white">+{showXP} XP</span>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] mt-6 opacity-60 text-center text-yellow-400">Sincronização de Dados Completa</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="grid lg:grid-cols-5 gap-12 lg:gap-16 px-4 md:px-0">
-        {/* Note Editor 2.0 */}
-        <div className="lg:col-span-2">
-          <form onSubmit={handleSave} className="glass-dark bg-zinc-950/40 border border-white/5 rounded-[2.5rem] md:rounded-[4rem] p-8 md:p-12 space-y-8 md:space-y-10 shadow-3xl lg:sticky lg:top-24">
-            <div className="space-y-6">
-              <div className="flex items-center gap-4 opacity-40">
-                 <div className="w-8 h-[1px] bg-yellow-400" />
-                 <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">Terminal de Entrada</span>
+        <AnimatePresence>
+          {showXP && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.5, y: -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.5, y: -20 }}
+              className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
+            >
+              <div className="ios-card px-6 py-3 flex items-center gap-3 bg-[var(--theme-color,#FFD700)] text-white font-bold">
+                <Trophy className="w-5 h-5" />
+                <span>+{showXP} XP</span>
               </div>
-              <input 
-                type="text" 
-                placeholder="Título do Estudo"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-transparent text-4xl font-display font-black italic uppercase tracking-tighter placeholder:text-zinc-900 focus:outline-none focus:text-yellow-400 transition-colors uppercase"
-                required
-              />
-              <div className="h-px bg-yellow-400/20" />
-            </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-zinc-700">
-                <BookOpen className="w-4 h-4" />
-                <span className="text-[9px] font-black uppercase tracking-[0.3em]">Referência Bíblica</span>
+        <div className="grid lg:grid-cols-5 gap-8">
+          {/* Note Editor */}
+          <div className="lg:col-span-2">
+            <form onSubmit={handleSave} className="ios-card p-6 space-y-6 lg:sticky lg:top-24">
+              <div className="space-y-4">
+                <input 
+                  type="text" 
+                  placeholder="Título do Estudo"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full bg-transparent text-2xl font-bold tracking-tight placeholder:text-black/20 dark:placeholder:text-white/20 focus:outline-none"
+                  required
+                />
+                <div className="h-px bg-black/5 dark:bg-white/5" />
               </div>
-              <input 
-                type="text" 
-                placeholder="Ex: João 3:16"
-                value={verseRef}
-                onChange={(e) => setVerseRef(e.target.value)}
-                className="w-full glass-dark bg-zinc-900/50 rounded-2xl p-6 text-sm font-bold border border-white/5 focus:border-yellow-400/40 focus:outline-none transition-all placeholder:text-zinc-800"
-              />
-            </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-zinc-700">
-                <Search className="w-4 h-4" />
-                <span className="text-[9px] font-black uppercase tracking-[0.3em]">Estudo Exegético</span>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-[#8E8E93]">
+                  <BookOpen className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Referência Bíblica</span>
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Ex: João 3:16"
+                  value={verseRef}
+                  onChange={(e) => setVerseRef(e.target.value)}
+                  className="w-full bg-black/5 dark:bg-white/5 rounded-xl p-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--theme-color)] transition-all"
+                />
               </div>
-              <input 
-                type="text" 
-                placeholder="Ex: Logos - Verbo, Razão"
-                value={wordStudy}
-                onChange={(e) => setWordStudy(e.target.value)}
-                className="w-full glass-dark bg-zinc-900/50 rounded-2xl p-6 text-sm font-bold border border-white/5 focus:border-yellow-400/40 focus:outline-none transition-all placeholder:text-zinc-800"
-              />
-            </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-zinc-700">
-                <Edit3 className="w-4 h-4" />
-                <span className="text-[9px] font-black uppercase tracking-[0.3em]">Fluxo de Pensamento</span>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-[#8E8E93]">
+                  <Search className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Estudo de Palavras</span>
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Ex: Logos - Verbo, Razão"
+                  value={wordStudy}
+                  onChange={(e) => setWordStudy(e.target.value)}
+                  className="w-full bg-black/5 dark:bg-white/5 rounded-xl p-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--theme-color)] transition-all"
+                />
               </div>
-              <textarea 
-                rows={8}
-                placeholder="Transcreva sua revelação..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="w-full glass-dark bg-zinc-900/50 rounded-[2.5rem] p-8 text-sm font-medium border border-white/5 focus:border-yellow-400/40 focus:outline-none transition-all resize-none leading-relaxed placeholder:text-zinc-800"
-                required
-              />
-            </div>
 
-            <button type="submit" className="w-full bg-white text-black py-7 rounded-[2rem] font-display font-black uppercase italic tracking-tighter text-lg flex items-center justify-center gap-4 hover:bg-yellow-400 hover:scale-[1.03] transition-all shadow-3xl active:scale-95 group glow-yellow">
-              <Save className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-              <span>Salvar Estudo</span>
-            </button>
-          </form>
-        </div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-[#8E8E93]">
+                  <Edit3 className="w-4 h-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Anotação</span>
+                </div>
+                <textarea 
+                  rows={6}
+                  placeholder="Escreva seus pensamentos..."
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  className="w-full bg-black/5 dark:bg-white/5 rounded-[1.5rem] p-5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--theme-color)] transition-all resize-none leading-relaxed"
+                  required
+                />
+              </div>
 
-        {/* Notes List 2.0 */}
-        <div className="lg:col-span-3 space-y-12">
-          <div className="flex items-center justify-between px-4">
-            <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter">Registros <span className="text-yellow-400">Nexus</span></h2>
-            <div className="flex items-center gap-4 text-zinc-700 text-[10px] font-black uppercase tracking-widest">
-              <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-              <span>Stream Ativo</span>
-            </div>
+              <button type="submit" className="w-full bg-[var(--theme-color,#007AFF)] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <Save className="w-5 h-5" />
+                <span>Salvar Estudo</span>
+              </button>
+            </form>
           </div>
 
-          <div className="grid gap-8">
+          {/* Notes List */}
+          <div className="lg:col-span-3 space-y-4">
             <AnimatePresence>
               {loading ? (
-                <p className="text-center py-20 text-zinc-800 font-black uppercase tracking-[0.5em] text-xs">Carregando estudos...</p>
+                <p className="text-center py-10 text-[#8E8E93] text-sm">Carregando estudos...</p>
               ) : notes.length === 0 ? (
-                <div className="text-center py-32 glass-dark bg-zinc-950/40 border border-dashed border-white/5 rounded-[4rem]">
-                  <p className="text-zinc-700 font-display font-black uppercase italic tracking-tighter text-2xl">Vazio Metafísico</p>
-                  <p className="text-zinc-800 text-[10px] uppercase font-black tracking-widest mt-4">Inicie o fluxo de dados para ganhar XP.</p>
+                <div className="text-center py-20 ios-card bg-black/5 dark:bg-white/5 border border-dashed border-black/10 dark:border-white/10">
+                  <p className="font-bold text-lg mb-2">Nenhuma anotação ainda</p>
+                  <p className="text-[#8E8E93] text-sm">Seus estudos e reflexões aparecerão aqui.</p>
                 </div>
               ) : notes.map((note) => (
                 <motion.div 
                   key={note.id}
                   layout
-                  initial={{ opacity: 0, x: 50 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  className="glass-dark bg-zinc-950/40 border border-white/5 rounded-[3.5rem] p-12 group hover:border-yellow-400/40 transition-all relative overflow-hidden shadow-2xl"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="ios-card p-6 md:p-8"
                 >
-                  <div className="absolute top-0 right-0 w-60 h-60 bg-yellow-400/5 blur-[80px] rounded-full pointer-events-none" />
-                  
-                  <div className="flex flex-col md:flex-row justify-between items-start mb-10 gap-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="glass px-4 py-1.5 rounded-full border-yellow-400/30">
-                           <span className="text-yellow-400 text-[9px] font-black uppercase tracking-widest text-glow">+{note.xp} XP-SYNC</span>
-                        </div>
-                        {note.verseRef && <span className="text-zinc-600 font-display font-black uppercase tracking-widest text-[9px] md:text-[10px] italic">{note.verseRef}</span>}
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--theme-color)]/10 text-[var(--theme-color)] text-[10px] font-bold uppercase tracking-widest">+{note.xp} XP</span>
+                        {note.verseRef && <span className="text-[#8E8E93] text-xs font-bold">{note.verseRef}</span>}
                       </div>
-                      <h3 className="text-3xl md:text-4xl font-display font-black italic uppercase tracking-tighter leading-tight text-white group-hover:text-yellow-400 transition-colors uppercase">{note.title}</h3>
+                      <h3 className="text-xl font-bold tracking-tight">{note.title}</h3>
                     </div>
                     <button 
                       onClick={() => deleteNote(note.id)}
-                      className="w-12 h-12 md:w-14 md:h-14 glass flex items-center justify-center rounded-2xl hover:bg-red-500/10 hover:text-red-500 transition-all group/del"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-[#8E8E93] hover:bg-[#FF3B30]/10 hover:text-[#FF3B30] transition-colors"
                     >
-                      <Trash2 className="w-5 h-5 text-zinc-800 group-hover/del:text-red-500 transition-colors" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
                   {note.wordStudy && (
-                    <div className="mb-8 p-6 glass-dark bg-black/40 rounded-[2rem] border border-yellow-400/10">
-                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-500 mb-2">Lexicon Study</p>
-                      <p className="text-lg font-display font-medium text-zinc-400 italic tracking-tight opacity-70">"{note.wordStudy}"</p>
+                    <div className="mb-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#8E8E93] mb-1">Estudo</p>
+                      <p className="text-sm font-medium italic">"{note.wordStudy}"</p>
                     </div>
                   )}
 
-                  <p className="text-zinc-500 text-lg font-medium leading-relaxed line-clamp-4 group-hover:text-zinc-400 transition-colors">
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap opacity-90">
                     {note.content}
                   </p>
 
-                  <div className="mt-12 flex justify-between items-center pt-10 border-t border-white/5 relative z-10">
-                    <div className="flex items-center gap-4">
-                       <Clock className="w-4 h-4 text-zinc-800" />
-                       <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-800">
-                         {note.createdAt?.toDate().toLocaleDateString('pt-BR')} • ECCLESIA-LOG
-                       </span>
-                    </div>
-                    <button className="text-[10px] font-display font-black uppercase italic tracking-widest text-yellow-400 hover:text-white transition-all flex items-center gap-3 group/link underline underline-offset-8 decoration-yellow-400/20">
-                      <span>Acessar Estudo</span>
-                      <ChevronRight className="w-4 h-4 group-hover/link:translate-x-2 transition-transform" />
-                    </button>
+                  <div className="mt-6 flex items-center gap-2 pt-6 border-t border-black/5 dark:border-white/5">
+                     <Clock className="w-4 h-4 text-[#8E8E93]" />
+                     <span className="text-[10px] font-bold uppercase tracking-widest text-[#8E8E93]">
+                       {note.createdAt?.toDate().toLocaleDateString('pt-BR')}
+                     </span>
                   </div>
                 </motion.div>
               ))}

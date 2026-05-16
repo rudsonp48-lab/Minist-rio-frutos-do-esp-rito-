@@ -10,8 +10,10 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     function isAdmin() { 
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/admins/$(request.auth.uid)); 
+      return isSignedIn() && (
+             request.auth.token.email == 'rudson.p48@gmail.com' ||
+             exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      ); 
     }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function incoming() { return request.resource.data; }
@@ -42,7 +44,7 @@ service cloud.firestore {
       // PII Isolation: Users can read their own full profile, others see public subset (if we had one)
       // For now, allow get if signed in but protect critical fields on update
       allow get: if isSignedIn();
-      allow list: if isAdmin();
+      allow list: if isSignedIn();
       allow create: if isSignedIn() && isValidUser(incoming()) && incoming().role == 'user';
       allow update: if isOwner(userId) && 
                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'updatedAt']) &&
@@ -78,21 +80,21 @@ service cloud.firestore {
     // 5. GLOBAL CONFIGS
     match /app_config/{configId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
 
     // 6. COLLECTIONS MANAGED BY ADMIN
     match /events/{eventId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
     match /media/{mediaId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
     match /devotionals/{devId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
   }
 }

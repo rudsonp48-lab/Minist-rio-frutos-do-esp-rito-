@@ -1,8 +1,9 @@
-import { User, signOut } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
-import { LogOut, User as UserIcon, Settings, Heart, Image as ImageIcon, Bell, ChevronRight, ShieldCheck, Trophy } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { User, signOut, updateProfile } from 'firebase/auth';
+import { auth, db, storage } from '../lib/firebase';
+import { LogOut, User as UserIcon, Settings, Heart, Image as ImageIcon, Bell, ChevronRight, ShieldCheck, Trophy, Camera, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { motion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -12,6 +13,9 @@ interface ProfileProps {
 
 export default function Profile({ user }: ProfileProps) {
   const navigate = useNavigate();
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleLogout = () => {
     signOut(auth);
   };
@@ -27,13 +31,35 @@ export default function Profile({ user }: ProfileProps) {
     return () => unsubscribe();
   }, [user.uid]);
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setIsUploading(true);
+      try {
+        const fileExtension = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+        const storageRef = ref(storage, `profiles/${user.uid}/${fileName}`);
+        
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+
+        await updateProfile(user, { photoURL: downloadUrl });
+        window.location.reload();
+      } catch (error) {
+        console.error("Erro ao atualizar perfil:", error);
+        alert("Falha no upload da foto.");
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
   const getLevel = (xp: number) => Math.floor(xp / 100) + 1;
 
   const sections = [
-    { label: `Domínio Espiritual (Nível ${getLevel(xp)})`, icon: Trophy, color: 'text-yellow-400', path: '/notes' },
+    { label: `Domínio Espiritual (Nível ${getLevel(xp)})`, icon: Trophy, color: 'text-[var(--theme-color,#FFD700)]', path: '/notes' },
     { label: 'Meus Momentos', icon: ImageIcon, color: 'text-blue-400', path: '/gallery' },
     { label: 'Favoritos', icon: Heart, color: 'text-red-400', path: '/media' },
-    { label: 'Notificações', icon: Bell, color: 'text-yellow-400', path: '/settings' },
     { label: 'Configurações', icon: Settings, color: 'text-zinc-400', path: '/settings' },
   ];
 
@@ -41,19 +67,37 @@ export default function Profile({ user }: ProfileProps) {
     <div className="max-w-2xl mx-auto space-y-16 pb-24">
       {/* Profile Header 2.0 */}
       <section className="text-center pt-20 relative">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-yellow-400/5 blur-[100px] rounded-full pointer-events-none" />
         
         <div className="relative inline-block mb-10">
-          <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 animate-pulse" />
-          {user.photoURL ? (
-            <img src={user.photoURL} alt={user.displayName || 'User'} className="relative w-48 h-48 rounded-[4rem] border-4 border-yellow-400 object-cover p-1 shadow-3xl grayscale group-hover:grayscale-0 transition-all" />
-          ) : (
-            <div className="relative w-48 h-48 rounded-[4rem] glass border-4 border-white/5 flex items-center justify-center">
-              <UserIcon className="w-20 h-20 text-zinc-800" />
+          <div className="absolute inset-0 bg-[var(--theme-color,#FFD700)] blur-2xl opacity-20 animate-pulse" />
+          
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className="relative cursor-pointer group"
+          >
+            {user.photoURL ? (
+              <img src={user.photoURL} alt={user.displayName || 'User'} className="relative w-40 h-40 md:w-48 md:h-48 rounded-[3rem] md:rounded-[4rem] border-4 border-[var(--theme-color,#FFD700)] object-cover p-1 shadow-3xl grayscale group-hover:grayscale-0 transition-all" />
+            ) : (
+              <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-[3rem] md:rounded-[4rem] glass border-4 border-white/5 flex items-center justify-center">
+                <UserIcon className="w-16 h-16 md:w-20 md:h-20 text-zinc-800" />
+              </div>
+            )}
+            
+            <div className="absolute inset-0 bg-black/40 rounded-[3rem] md:rounded-[4rem] opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              {isUploading ? <Loader2 className="w-8 h-8 text-white animate-spin" /> : <Camera className="w-8 h-8 text-white" />}
             </div>
-          )}
-          <div className="absolute -bottom-4 -right-4 bg-yellow-400 p-5 rounded-3xl border-8 border-black shadow-2xl glow-yellow">
-             <ShieldCheck className="w-8 h-8 text-black" />
+            
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept="image/*"
+              className="hidden"
+            />
+          </div>
+          
+          <div className="absolute -bottom-2 -right-2 bg-[var(--theme-color,#FFD700)] p-4 rounded-3xl border-8 border-black shadow-2xl glow-yellow">
+             <ShieldCheck className="w-6 h-6 text-black" />
           </div>
         </div>
         
