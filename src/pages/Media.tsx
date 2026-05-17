@@ -137,7 +137,8 @@ export default function Media() {
     const x = e.clientX - rect.left;
     const percentage = x / rect.width;
     const seekTime = percentage * duration;
-    playerRef.current.seekTo(seekTime, 'seconds');
+    
+    playerRef.current.currentTime = seekTime;
     setPlayedSeconds(seekTime);
   };
 
@@ -369,25 +370,21 @@ export default function Media() {
             className={`fixed inset-0 z-[100] ${activeTab === 'music' ? 'bg-[#0A0A0A] sm:max-w-[440px] sm:mx-auto flex flex-col pt-[max(20px,env(safe-area-inset-top))]' : 'bg-black flex flex-col pt-[max(20px,env(safe-area-inset-top))]'}`}
           >
             {/* ReactPlayer instance */}
-            <div className={`overflow-hidden flex-shrink-0 ${activeTab === 'music' ? 'opacity-0 w-0 h-0 absolute pointer-events-none' : 'w-full aspect-video relative mt-14'}`}>
+            <div className={`overflow-hidden flex-shrink-0 ${activeTab === 'music' ? 'absolute pointer-events-none opacity-0 w-1 h-1 -left-[9999px]' : 'w-full aspect-video relative mt-14'}`}>
               <ReactPlayer
                 ref={playerRef}
-                url={`https://www.youtube.com/watch?v=${selectedVideo.id}`}
+                src={`https://www.youtube.com/watch?v=${selectedVideo.id}`}
                 playing={isPlaying}
                 controls={activeTab !== 'music'}
                 width="100%"
                 height="100%"
                 onEnded={playNext}
-                onProgress={({ playedSeconds }) => {
-                  setPlayedSeconds(playedSeconds);
-                  if (!duration && playerRef.current) {
-                    const currentDuration = playerRef.current.getDuration();
-                    if (currentDuration > 0) setDuration(currentDuration);
-                  }
-                }}
+                onTimeUpdate={(e: any) => setPlayedSeconds(e.currentTarget.currentTime)}
+                onDurationChange={(e: any) => setDuration(e.currentTarget.duration)}
                 config={{
                   youtube: {
-                    playerVars: { modestbranding: 1, playsinline: 1 }
+                    modestbranding: 1, 
+                    playsinline: 1 
                   }
                 }}
               />
