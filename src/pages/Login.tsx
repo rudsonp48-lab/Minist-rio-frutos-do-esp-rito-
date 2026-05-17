@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { auth } from '../lib/firebase';
 import { 
   GoogleAuthProvider, 
@@ -8,6 +8,8 @@ import {
 } from 'firebase/auth';
 import { Mail, Lock, Plus, LogIn, ChevronRight, Apple } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTheme } from '../lib/ThemeContext';
+import { Church } from 'lucide-react';
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
@@ -15,6 +17,7 @@ export default function Login() {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { churchName, logoUrl } = useTheme();
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -51,57 +54,61 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-white font-sans overflow-hidden">
-      {/* iOS Blur Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black via-[#1C1C1E] to-[#2C2C2E]" />
-      <div className="absolute top-[-20%] left-[-20%] w-[100%] aspect-square bg-[#007AFF]/10 blur-[120px] rounded-full" />
-      <div className="absolute bottom-[-20%] right-[-20%] w-[100%] aspect-square bg-[#AF52DE]/10 blur-[120px] rounded-full" />
+    <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-6 text-white font-sans overflow-hidden relative">
+      {/* Background Animation */}
+      <div className="absolute inset-0 w-full h-full z-0 opacity-40 pointer-events-none">
+        <iframe src="https://my.spline.design/particlesmoment-kW3xyVny6weIhXJ3vbs2M2bB" frameBorder="0" width="100%" height="100%"></iframe>
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent z-0 pointer-events-none" />
 
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
         className="w-full max-w-[360px] relative z-10 space-y-12"
       >
         <div className="text-center space-y-4">
-           <div className="w-20 h-20 bg-gradient-to-br from-white to-gray-200 rounded-[1.5rem] flex items-center justify-center mx-auto ios-shadow">
-             <div className="w-16 h-16 rounded-[1.2rem] bg-black flex items-center justify-center">
-               <Apple className="w-10 h-10 text-white fill-current" />
-             </div>
+           <div className="w-24 h-24 bg-white/5 backdrop-blur-xl rounded-[2rem] flex items-center justify-center mx-auto shadow-2xl border border-white/10 overflow-hidden">
+             {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="w-16 h-16 object-contain" />
+             ) : (
+                <Church className="w-12 h-12 text-white" />
+             )}
            </div>
            <div className="space-y-1">
-             <h1 className="text-3xl font-bold tracking-tight">Ecclesia</h1>
-             <p className="text-sm font-medium text-[#8E8E93]">O Reino em sua mão.</p>
+             <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60">{churchName || 'Ecclesia'}</h1>
+             <p className="text-sm font-medium text-white/50 tracking-wide uppercase">Acesso Global</p>
            </div>
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
-          <div className="ios-card bg-white/10 backdrop-blur-3xl overflow-hidden divide-y divide-white/10">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden divide-y divide-white/10">
             <input 
               type="email" required value={email} onChange={e => setEmail(e.target.value)}
               placeholder="E-mail"
-              className="w-full h-14 px-6 bg-transparent outline-none text-[17px] font-medium placeholder:text-[#8E8E93]"
+              className="w-full h-14 px-6 bg-transparent outline-none text-[16px] font-medium placeholder:text-white/30 text-white transition-colors focus:bg-white/5"
             />
             <input 
               type="password" required value={password} onChange={e => setPassword(e.target.value)}
               placeholder="Senha"
-              className="w-full h-14 px-6 bg-transparent outline-none text-[17px] font-medium placeholder:text-[#8E8E93]"
+              className="w-full h-14 px-6 bg-transparent outline-none text-[16px] font-medium placeholder:text-white/30 text-white transition-colors focus:bg-white/5"
             />
           </div>
 
           <button 
             type="submit"
             disabled={loading}
-            className="w-full h-14 bg-white text-black rounded-2xl font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            className="w-full h-14 bg-white text-black rounded-2xl font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(255,255,255,0.3)]"
           >
-            {loading ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <span>{isRegister ? 'Continuar' : 'Entrar'}</span>}
+            {loading ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <span>{isRegister ? 'Criar Conta' : 'Entrar'}</span>}
           </button>
 
           <button 
             type="button"
             onClick={handleGoogleLogin}
-            className="w-full h-14 bg-white/10 rounded-2xl font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+            className="w-full h-14 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 rounded-2xl font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-white/80 hover:text-white"
           >
-            <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+            <img src="https://www.google.com/favicon.ico" className="w-4 h-4 opacity-80" alt="Google" />
             <span>Continuar com Google</span>
           </button>
         </form>
@@ -109,9 +116,9 @@ export default function Login() {
         <div className="text-center">
           <button 
             onClick={() => setIsRegister(!isRegister)}
-            className="text-[#007AFF] font-bold text-sm"
+            className="text-white/40 hover:text-white font-medium text-sm transition-colors"
           >
-            {isRegister ? 'Já tenho conta' : 'Criar minha conta agora'}
+            {isRegister ? 'Já tenho uma conta? Entrar' : 'Novo por aqui? Crie uma conta'}
           </button>
         </div>
 
@@ -119,9 +126,6 @@ export default function Login() {
           <p className="text-[#FF3B30] text-center text-xs font-bold px-8 leading-snug">{error}</p>
         )}
 
-        <footer className="pt-12 text-center text-[11px] font-bold text-[#8E8E93] uppercase tracking-widest opacity-50">
-          Sync Protocol v4.2.0 • 2026
-        </footer>
       </motion.div>
     </div>
   );

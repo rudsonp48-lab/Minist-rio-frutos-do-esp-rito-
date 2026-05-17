@@ -1,9 +1,7 @@
 import { Link } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { Church, User as UserIcon, Shield, Settings } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { db } from '../../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { useTheme } from '../../lib/ThemeContext';
 
 interface NavbarProps {
   user: User | null;
@@ -11,17 +9,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({ user, isAdmin }: NavbarProps) {
-  const [churchName, setChurchName] = useState('Ecclesia');
-
-  useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'app_config', 'main'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.churchName) setChurchName(data.churchName);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+  const { churchName, logoUrl } = useTheme();
 
   return (
     <nav className="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-5xl z-50 hidden md:block">
@@ -29,11 +17,15 @@ export default function Navbar({ user, isAdmin }: NavbarProps) {
         <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/0 via-yellow-400/5 to-yellow-400/0 opacity-0 group-hover/nav:opacity-100 transition-opacity duration-1000" />
         
         <Link to="/" className="flex items-center gap-3 group relative z-10">
-          <div className="w-10 h-10 glass flex items-center justify-center rounded-xl group-hover:glow-yellow transition-all">
-            <Church className="w-6 h-6 text-yellow-400" />
+          <div className="w-10 h-10 glass flex items-center justify-center rounded-xl group-hover:glow-yellow transition-all overflow-hidden">
+            {logoUrl ? (
+              <img src={logoUrl} alt={churchName || "Logo"} className="w-full h-full object-contain" />
+            ) : (
+              <Church className="w-6 h-6 text-yellow-400" />
+            )}
           </div>
           <div>
-            <span className="text-xl font-display font-black italic uppercase tracking-tighter block leading-none">{churchName}</span>
+            <span className="text-xl font-display font-black italic uppercase tracking-tighter block leading-none">{churchName || 'Ecclesia'}</span>
             <span className="text-[8px] font-black uppercase tracking-[0.3em] text-yellow-400/60 leading-none mt-1">V 3.1</span>
           </div>
         </Link>
