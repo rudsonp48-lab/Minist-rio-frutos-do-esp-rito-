@@ -26,26 +26,6 @@ export default function Bible() {
   
   const [searchReference, setSearchReference] = useState('João 3:16');
   const [searchedVerse, setSearchedVerse] = useState<Verse | null>(null);
-  const [markedVerses, setMarkedVerses] = useState<string[]>([]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('marked_verses');
-    if (saved) setMarkedVerses(JSON.parse(saved));
-  }, []);
-
-  const toggleMarkVerse = (book: string, chapter: number, verse: number) => {
-    const key = `${book} ${chapter}:${verse}`;
-    setMarkedVerses((prev) => {
-      let newMarks = [];
-      if (prev.includes(key)) {
-        newMarks = prev.filter(k => k !== key);
-      } else {
-        newMarks = [...prev, key];
-      }
-      localStorage.setItem('marked_verses', JSON.stringify(newMarks));
-      return newMarks;
-    });
-  };
 
   const translations = [
     { id: 'almeida', label: 'Almeida' },
@@ -250,23 +230,14 @@ export default function Bible() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {chapterVerses.map(v => {
-                    const isMarked = markedVerses.includes(`${v.book_name} ${v.chapter}:${v.verse}`);
-                    return (
-                      <div 
-                        key={v.verse} 
-                        onClick={() => toggleMarkVerse(v.book_name, v.chapter, v.verse)}
-                        className={`flex gap-4 p-2 -mx-2 rounded-lg cursor-pointer transition-colors ${
-                          isMarked ? 'bg-yellow-500/20 dark:bg-yellow-500/30' : 'hover:bg-black/5 dark:hover:bg-white/5'
-                        }`}
-                      >
-                        <span className="text-[11px] font-bold text-[#8E8E93] mt-1.5 w-6 text-right shrink-0">{v.verse}</span>
-                        <p className={`text-[17px] leading-relaxed font-medium ${isMarked ? 'text-yellow-900 dark:text-yellow-50' : 'text-black/90 dark:text-white/90'}`}>
-                          {v.text}
-                        </p>
-                      </div>
-                    );
-                  })}
+                  {chapterVerses.map(v => (
+                    <div key={v.verse} className="flex gap-4">
+                      <span className="text-[11px] font-bold text-[#8E8E93] mt-1.5 w-6 text-right shrink-0">{v.verse}</span>
+                      <p className="text-[17px] leading-relaxed text-black/90 dark:text-white/90 font-medium">
+                        {v.text}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
             </motion.div>

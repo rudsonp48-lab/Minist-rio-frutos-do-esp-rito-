@@ -2,10 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { ThemeProvider } from './lib/ThemeContext';
-import { PlayerProvider } from './lib/PlayerContext';
-import GlobalPlayer from './components/GlobalPlayer';
 
 // Pages
 import Home from './pages/Home';
@@ -35,20 +33,6 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        // Create/Update user profile for admin management
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          await setDoc(userRef, {
-            uid: user.uid,
-            email: user.email?.toLowerCase(),
-            displayName: user.displayName || 'Membro',
-            photoURL: user.photoURL || '',
-            lastLogin: serverTimestamp()
-          }, { merge: true });
-        } catch (e) {
-          console.error("Error updating user profile:", e);
-        }
-
         if (user.email === 'rudson.p48@gmail.com') {
           setIsAdmin(true);
         } else {
@@ -88,11 +72,9 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <PlayerProvider>
-        <Router>
-          <AppContent user={user} isAdmin={isAdmin} />
-        </Router>
-      </PlayerProvider>
+      <Router>
+        <AppContent user={user} isAdmin={isAdmin} />
+      </Router>
     </ThemeProvider>
   );
 }
@@ -124,7 +106,6 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
         </AnimatePresence>
       </main>
 
-      <GlobalPlayer />
       <BottomNav />
     </div>
   );

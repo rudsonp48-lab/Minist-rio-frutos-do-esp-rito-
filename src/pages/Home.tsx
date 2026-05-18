@@ -1,19 +1,11 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard, Church } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
-import { doc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
-import { useTheme } from '../lib/ThemeContext';
-
-interface Devotional {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  thumbnail?: string;
-}
+import { Logo } from '../components/Logo';
 
 const DEFAULT_BANNERS = [
   { id: 1, title: 'Conferência Profética', subtitle: 'Uma experiência de avivamento', image: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=1600' },
@@ -31,18 +23,6 @@ export default function Home() {
   const [config, setConfig] = useState<any>(null);
   const [copiedPix, setCopiedPix] = useState(false);
   const [givingMethod, setGivingMethod] = useState<'pix' | 'card'>('pix');
-  const [devotional, setDevotional] = useState<Devotional | null>(null);
-  const { churchName, logoUrl, themeColor } = useTheme();
-
-  useEffect(() => {
-    const q = query(collection(db, 'devotionals'), orderBy('date', 'desc'), limit(1));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        setDevotional({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Devotional);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, 'app_config', 'main'), (snapshot) => {
@@ -59,32 +39,12 @@ export default function Home() {
     setTimeout(() => setCopiedPix(false), 2000);
   };
 
-  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
-
-  useEffect(() => {
-    if (!banners || banners.length <= 1) return;
-    const interval = setInterval(() => {
-      setActiveBannerIndex((prev) => (prev + 1) % banners.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [banners]);
-
   return (
     <div className="min-h-screen pt-12 pb-32 px-6 max-w-lg mx-auto bg-black text-white font-sans">
       {/* Navigation / Header */}
-      <div className="flex items-center justify-between mb-8 mt-2">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10 overflow-hidden">
-             {logoUrl ? (
-                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
-             ) : (
-                <Church className="w-5 h-5 text-white" />
-             )}
-          </div>
-          <div>
-            <h1 className="text-xl tracking-tight text-white font-bold leading-none">{churchName || 'Ecclesia'}</h1>
-            <p className="text-[10px] text-gray-400 font-medium tracking-wide uppercase mt-1">Bem-vindo(a)</p>
-          </div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl tracking-tight text-white font-semibold">Descobrir</h1>
         </div>
         <div className="flex items-center gap-3">
           <button className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-800/80 hover:bg-gray-700 transition">
@@ -97,58 +57,34 @@ export default function Home() {
       </div>
 
       {/* Hero Section / Banners */}
-      <div className="relative mb-8 -mx-6 px-6">
-        <div className="relative w-full aspect-[4/5] sm:aspect-square overflow-hidden rounded-3xl shadow-2xl">
-          <AnimatePresence mode="popLayout" initial={false}>
-            <motion.div
-              key={activeBannerIndex}
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="absolute inset-0 w-full h-full"
-            >
-              <Link to="/media" className="relative w-full h-full flex flex-col group block">
-                <div 
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-[10s] group-hover:scale-110" 
-                  style={{ backgroundImage: `url(${banners[activeBannerIndex]?.image})`}}
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/30 to-black/90"></div>
-                
-                <div className="flex items-start justify-between relative z-10 p-6">
+      <div className="flex gap-4 overflow-x-auto pb-6 scrollbar-hide snap-x -mx-6 px-6">
+        {banners.map((banner: any, idx: number) => (
+          <Link to="/media" key={idx} className="relative overflow-hidden rounded-3xl min-h-[320px] flex flex-col bg-neutral-800/60 shadow-xl w-72 h-80 flex-shrink-0 snap-center group">
+            <div className="relative z-10 p-6 flex flex-col h-full bg-cover bg-center justify-between transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url(${banner.image})`}}>
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/80"></div>
+              
+              <div className="flex items-start justify-between relative z-10">
+                <div className="flex flex-wrap gap-2">
                   <span className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wider text-[var(--theme-color)] ring-1 ring-[var(--theme-color)]/30 bg-[var(--theme-color)]/10 backdrop-blur-sm">Destaque</span>
                 </div>
+              </div>
 
-                <div className="mt-auto relative z-10 p-6">
-                  <h3 className="text-3xl text-white tracking-tight mb-2 font-black leading-tight drop-shadow-md">{banners[activeBannerIndex]?.title}</h3>
-                  <p className="text-sm leading-relaxed text-gray-300 mb-6 line-clamp-2">{banners[activeBannerIndex]?.subtitle}</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-[var(--theme-color)] flex items-center justify-center shadow-[0_0_20px_rgba(var(--theme-color-rgb),0.4)]">
-                      <Play className="w-5 h-5 text-white fill-current ml-1" />
-                    </div>
-                    <div className="text-xs">
-                      <div className="text-white font-bold uppercase tracking-wide">Assistir Agora</div>
-                      <div className="text-gray-400">Ao vivo ou online</div>
-                    </div>
+              <div className="mt-auto relative z-10">
+                <h3 className="text-3xl text-white tracking-tight mb-2 font-bold leading-tight">{banner.title}</h3>
+                <p className="text-sm leading-relaxed text-gray-300 mb-4 line-clamp-2">{banner.subtitle}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[var(--theme-color)] flex items-center justify-center shadow-lg">
+                    <Play className="w-4 h-4 text-white fill-current ml-1" />
+                  </div>
+                  <div className="text-xs">
+                    <div className="text-white font-medium">Assistir Agora</div>
+                    <div className="text-gray-400">Ao vivo ou online</div>
                   </div>
                 </div>
-              </Link>
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Carousel Indicators */}
-          {banners.length > 1 && (
-            <div className="absolute bottom-6 right-6 z-20 flex gap-2 border border-white/10 bg-black/20 backdrop-blur-md px-3 py-2 rounded-full">
-              {banners.map((_: any, idx: number) => (
-                <button 
-                  key={idx}
-                  onClick={() => setActiveBannerIndex(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${activeBannerIndex === idx ? 'w-4 bg-white' : 'w-1.5 bg-white/40'}`}
-                />
-              ))}
+              </div>
             </div>
-          )}
-        </div>
+          </Link>
+        ))}
       </div>
 
       {/* Categories */}
@@ -189,49 +125,6 @@ export default function Home() {
             <span className="text-xs font-medium text-gray-300">Doar</span>
           </a>
         </div>
-      </div>
-
-      {/* Devocional Section */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-white">Devocional Diário</h3>
-          <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</span>
-        </div>
-        <Link to={`/bible`} className="group block relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-1 shadow-2xl transition-transform active:scale-95">
-           <div className="bg-[#1C1C1E] rounded-[22px] p-5 relative overflow-hidden h-full">
-              {/* Background Glow */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-              
-              <div className="flex flex-col h-full relative z-10">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
-                    <BookOpen className="w-4 h-4 text-indigo-400" />
-                  </div>
-                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Alimento Espiritual</span>
-                </div>
-
-                <h4 className="text-xl font-bold text-white mb-2 leading-tight">
-                  {devotional?.title || 'A Palavra que Transforma'}
-                </h4>
-                <p className="text-sm text-gray-400 line-clamp-3 mb-4 leading-relaxed italic">
-                  "{devotional?.content || 'Carregando devocional do dia para fortalecer sua fé e guiar seus passos...'}"
-                </p>
-
-                <div className="mt-auto flex items-center justify-between pt-2 border-t border-white/5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
-                      <Church className="w-3 h-3 text-gray-400" />
-                    </div>
-                    <span className="text-[10px] text-gray-500 font-medium">Ecclesia Devocional</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-[11px] font-bold text-indigo-400 group-hover:gap-2 transition-all">
-                    <span>Ler Reflexão</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-              </div>
-           </div>
-        </Link>
       </div>
 
       {/* Featured / Recent Content */}
@@ -310,58 +203,6 @@ export default function Home() {
               </button>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Prayer Requests Section */}
-      <section className="pt-4" id="prayer">
-        <div className="rounded-3xl bg-[#1C1C1E] border border-white/5 p-6 space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-               <Heart className="w-6 h-6 text-blue-400 fill-current" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">Pedidos de Oração</h2>
-              <p className="text-sm text-gray-400">Como podemos orar por você?</p>
-            </div>
-          </div>
-          
-          <form 
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const form = e.target as HTMLFormElement;
-              const request = (form.elements.namedItem('request') as HTMLTextAreaElement).value;
-              if (!request.trim()) return;
-              try {
-                // We'll write this to a 'prayers' collection
-                const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
-                await addDoc(collection(db, 'prayers'), {
-                  request,
-                  createdAt: serverTimestamp(),
-                  status: 'pending'
-                });
-                alert('Pedido enviado! Estaremos orando por você.');
-                form.reset();
-              } catch (err) {
-                console.error(err);
-                alert('Erro ao enviar.');
-              }
-            }}
-            className="space-y-4"
-          >
-            <textarea 
-              name="request"
-              placeholder="Escreva seu pedido aqui..." 
-              required
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm outline-none focus:border-blue-500/50 resize-none h-24 placeholder:text-gray-600"
-            />
-            <button 
-              type="submit"
-              className="w-full h-12 bg-blue-500 text-white rounded-xl flex items-center justify-center font-semibold active:scale-95 transition-all text-sm"
-            >
-              Enviar Pedido
-            </button>
-          </form>
         </div>
       </section>
 

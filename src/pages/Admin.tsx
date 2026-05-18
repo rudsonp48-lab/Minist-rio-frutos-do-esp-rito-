@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, storage } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc, getDocs, limit, setDoc, getDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, getDocs, limit, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { Link } from 'react-router-dom';
@@ -17,7 +17,6 @@ const ADMIN_EMAIL = 'rudson.p48@gmail.com';
 export default function Admin() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState<any[]>([]);
   const [config, setConfig] = useState<any>({ 
@@ -29,19 +28,6 @@ export default function Admin() {
     settingsTitles: { sync: '', security: '', core: '' } 
   });
   const [newItem, setNewItem] = useState<any>({});
-  
-  const PERMISSIONS: Record<string, string[]> = {
-    PROPRIETARIO: ['dashboard', 'settings', 'prayers', 'banners', 'devotionals', 'events', 'photos', 'users', 'admins'],
-    CONTRIBUTOR: ['dashboard', 'banners', 'devotionals', 'events', 'photos'],
-    ORGANIZER: ['dashboard', 'prayers', 'events'],
-    DEFAULT: ['dashboard']
-  };
-
-  const hasPermission = (menu: string) => {
-    if (auth.currentUser?.email === ADMIN_EMAIL) return true;
-    const role = userRole || 'DEFAULT';
-    return PERMISSIONS[role]?.includes(menu) || PERMISSIONS['DEFAULT'].includes(menu);
-  };
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
   const contentFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -134,28 +120,10 @@ export default function Admin() {
 
   useEffect(() => {
     const unsubAuth = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        if (user.email === ADMIN_EMAIL) {
-          setIsAdmin(true);
-          setUserRole('PROPRIETARIO');
-        } else {
-          try {
-            const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-            if (adminDoc.exists()) {
-              setIsAdmin(true);
-              setUserRole(adminDoc.data().role);
-            } else {
-              setIsAdmin(false);
-              setUserRole(null);
-            }
-          } catch (e) {
-            setIsAdmin(false);
-            setUserRole(null);
-          }
-        }
+      if (user && user.email === ADMIN_EMAIL) {
+        setIsAdmin(true);
       } else {
         setIsAdmin(false);
-        setUserRole(null);
       }
       setLoading(false);
     });
@@ -230,13 +198,10 @@ export default function Admin() {
         const storageRef = ref(storage, `config/logo_${Date.now()}`);
         const snapshot = await uploadBytes(storageRef, file);
         const downloadUrl = await getDownloadURL(snapshot.ref);
-        const newConfig = { ...config, logoUrl: downloadUrl };
-        setConfig(newConfig);
-        await setDoc(doc(db, 'app_config', 'main'), newConfig, { merge: true });
-        alert("Logo atualizada com sucesso!");
+        setConfig(prev => ({ ...prev, logoUrl: downloadUrl }));
       } catch (err) {
         console.error("Failed to upload logo", err);
-        alert("Erro no upload da logo. Verifique sua conexão e se tem permissão.");
+        alert("Erro no upload da logo");
       } finally {
         setIsSaving(false);
       }
@@ -302,14 +267,11 @@ export default function Admin() {
           {[
             { id: 'dashboard', label: 'Início' },
             { id: 'settings', label: 'Igreja' },
-            { id: 'prayers', label: 'Orações' },
             { id: 'banners', label: 'Banners' },
-            { id: 'devotionals', label: 'Devocional' },
             { id: 'events', label: 'Eventos' },
             { id: 'photos', label: 'Mídia' },
-            { id: 'users', label: 'Membros' },
-            { id: 'admins', label: 'Equipe' }
-          ].filter(item => hasPermission(item.id)).map(item => (
+            { id: 'users', label: 'Membros' }
+          ].map(item => (
             <button
               key={item.id}
               onClick={() => setActiveMenu(item.id)}
@@ -333,33 +295,20 @@ export default function Admin() {
                 <h3 className="text-xl font-bold tracking-tight">Main Config</h3>
                 
                 {/* Logo Upload Section */}
-                <div className="space-y-4">
-                  <span className="text-sm font-bold text-[#8E8E93]">Logotipo do App (Upload ou URL)</span>
-                  <div className="flex gap-4">
-                    <div 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-1/3 aspect-[3/1] bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors overflow-hidden relative"
-                    >
-                      {config.logoUrl ? (
-                        <img src={config.logoUrl} className="w-full h-full object-contain p-4" alt="Logo preview" />
-                      ) : (
-                        <>
-                          <ImagePlus className="w-6 h-6 text-[#8E8E93]" />
-                          <span className="text-xs text-[#8E8E93] font-bold">Upload Logo</span>
-                        </>
-                      )}
-                    </div>
-                    <div className="flex-1 flex flex-col justify-center">
-                       <input 
-                         value={config.logoUrl || ''} 
-                         onChange={e => {
-                           const newConfig = {...config, logoUrl: e.target.value};
-                           setConfig(newConfig);
-                         }} 
-                         placeholder="Ou cole a URL da imagem aqui" 
-                         className="w-full bg-white dark:bg-black/20 border-black/5 dark:border-white/5 rounded-2xl py-4 px-6 text-sm outline-none" 
-                       />
-                    </div>
+                <div className="space-y-2">
+                  <span className="text-sm font-bold text-[#8E8E93]">Logotipo do App</span>
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full aspect-[3/1] bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors overflow-hidden relative"
+                  >
+                    {config.logoUrl ? (
+                      <img src={config.logoUrl} className="w-full h-full object-contain p-4" alt="Logo preview" />
+                    ) : (
+                      <>
+                        <ImagePlus className="w-6 h-6 text-[#8E8E93]" />
+                        <span className="text-xs text-[#8E8E93] font-bold">Upload Logo</span>
+                      </>
+                    )}
                   </div>
                   <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
                 </div>
@@ -387,23 +336,18 @@ export default function Admin() {
             <motion.div key="b" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="ios-card p-6 space-y-4">
                 <h3 className="font-bold text-lg">Adicionar Novo Banner</h3>
-                <div className="flex gap-4 mb-4">
-                  <div 
-                    onClick={() => bannerFileInputRef.current?.click()}
-                    className="w-1/3 aspect-[16/9] bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-black/10 transition-colors overflow-hidden relative"
-                  >
-                    {newItem.image ? (
-                      <img src={newItem.image} className="w-full h-full object-cover" />
-                    ) : (
-                      <>
-                        <ImagePlus className="w-6 h-6 text-[#8E8E93]" />
-                        <span className="text-xs text-[#8E8E93] font-bold">16:9 Image</span>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center">
-                     <input value={newItem.image || ''} onChange={e => setNewItem({...newItem, image: e.target.value})} placeholder="Ou cole a URL da Imagem" className="w-full bg-white dark:bg-black/20 border-black/5 dark:border-white/5 rounded-xl py-3 px-4 text-sm" />
-                  </div>
+                <div 
+                  onClick={() => bannerFileInputRef.current?.click()}
+                  className="w-full aspect-[16/9] bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-black/10 transition-colors overflow-hidden relative"
+                >
+                  {newItem.image ? (
+                    <img src={newItem.image} className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      <ImagePlus className="w-6 h-6 text-[#8E8E93]" />
+                      <span className="text-xs text-[#8E8E93] font-bold">16:9 Image</span>
+                    </>
+                  )}
                 </div>
                 <input type="file" ref={bannerFileInputRef} onChange={handleBannerUpload} className="hidden" accept="image/*" />
                 <input value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} placeholder="Título principal" className="w-full bg-white dark:bg-black/20 border-black/5 dark:border-white/5 rounded-xl py-3 px-4 text-sm" />
@@ -430,131 +374,29 @@ export default function Admin() {
             </motion.div>
           ) : (
             <motion.div key="l" className="space-y-6">
-                  {activeMenu === 'admins' ? (
-                    <div className="space-y-6">
-                      <div className="ios-card p-6 space-y-4">
-                        <h3 className="font-bold text-lg">Adicionar Admin</h3>
-                        <p className="text-xs text-[#8E8E93] leading-relaxed">
-                          O usuário deve ter uma conta no aplicativo antes de ser promovido.
-                        </p>
-                        <div className="space-y-3">
-                          <input 
-                            value={newItem.email || ''} 
-                            onChange={e => setNewItem({...newItem, email: e.target.value})} 
-                            placeholder="E-mail do novo admin" 
-                            className="w-full bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm" 
-                          />
-                          <select 
-                            value={newItem.role || 'CONTRIBUTOR'} 
-                            onChange={e => setNewItem({...newItem, role: e.target.value})}
-                            className="w-full bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm"
-                          >
-                            <option value="CONTRIBUTOR">CONTRIBUTOR (Mídia/Banners)</option>
-                            <option value="ORGANIZER">ORGANIZER (Orações/Eventos)</option>
-                            <option value="PROPRIETARIO">PROPRIETARIO (Acesso Total)</option>
-                          </select>
-                          <button 
-                            onClick={async () => {
-                              if (!newItem.email) return;
-                              setIsSaving(true);
-                              try {
-                                const q = query(collection(db, 'users'), where('email', '==', newItem.email.toLowerCase()));
-                                const snap = await getDocs(q);
-                                if (snap.empty) {
-                                  alert("Usuário não encontrado. Peça para ele baixar o app e entrar primeiro.");
-                                } else {
-                                  const userDoc = snap.docs[0];
-                                  await setDoc(doc(db, 'admins', userDoc.id), {
-                                    email: userDoc.data().email,
-                                    role: newItem.role || 'CONTRIBUTOR',
-                                    displayName: userDoc.data().displayName || 'Membro',
-                                    uid: userDoc.id,
-                                    promotedAt: serverTimestamp(),
-                                    createdAt: serverTimestamp() // Added for query consistency
-                                  });
-                                  alert("Novo administrador cadastrado!");
-                                  setNewItem({});
-                                }
-                              } catch (e) {
-                                console.error(e);
-                                alert("Erro ao processar solicitação.");
-                              } finally {
-                                setIsSaving(false);
-                              }
-                            }}
-                            disabled={isSaving}
-                            className="w-full h-12 bg-[var(--theme-color)] text-white rounded-xl font-bold flex items-center justify-center gap-2"
-                          >
-                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Confirmar Promoção</span>}
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        {content.map((item) => (
-                          <div key={item.id} className="ios-card p-4 flex items-center justify-between group">
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center">
-                                <ShieldCheck className="w-5 h-5 text-[var(--theme-color)]" />
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-sm truncate max-w-[200px]">{item.displayName || item.email}</h4>
-                                <p className="text-[10px] text-[#34C759] font-bold uppercase tracking-widest">{item.role}</p>
-                              </div>
-                            </div>
-                            <button onClick={() => deleteItem(item.id)} className="w-10 h-10 rounded-full bg-[#FF3B30]/10 flex items-center justify-center text-[#FF3B30] opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Trash2 className="w-5 h-5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (activeMenu === 'events' || activeMenu === 'photos' || activeMenu === 'devotionals') && (
+              {(activeMenu === 'events' || activeMenu === 'photos') && (
                 <div className="ios-card p-6 space-y-4">
-                  <h3 className="font-bold text-lg">Adicionar {activeMenu === 'events' ? 'Evento/Aviso' : (activeMenu === 'devotionals' ? 'Devocional' : 'Mídia')}</h3>
-                  {(activeMenu === 'photos' || activeMenu === 'events' || activeMenu === 'devotionals') && (
-                    <div className="flex gap-4">
-                      <div 
-                        onClick={() => contentFileInputRef.current?.click()}
-                        className="w-1/3 aspect-square bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer relative overflow-hidden"
-                      >
-                         {newItem.image || newItem.thumbnail ? (
-                           <img src={newItem.image || newItem.thumbnail} className="w-full h-full object-cover" />
-                         ) : (
-                           <span className="text-xs text-[#8E8E93] font-bold text-center px-2">Upload Imagem</span>
-                         )}
-                      </div>
-                      <div className="flex-1 flex flex-col justify-center">
-                         <input value={newItem.image || newItem.thumbnail || ''} onChange={e => setNewItem({...newItem, image: e.target.value, thumbnail: e.target.value})} placeholder="Ou cole a URL da Imagem" className="w-full bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm" />
-                      </div>
+                  <h3 className="font-bold text-lg">Adicionar {activeMenu === 'events' ? 'Evento/Aviso' : 'Mídia'}</h3>
+                  {(activeMenu === 'photos' || activeMenu === 'events') && (
+                    <div 
+                      onClick={() => contentFileInputRef.current?.click()}
+                      className="w-full h-32 bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer relative overflow-hidden"
+                    >
+                       {newItem.image ? (
+                         <img src={newItem.image} className="w-full h-full object-cover" />
+                       ) : (
+                         <span className="text-xs text-[#8E8E93] font-bold">Upload Imagem</span>
+                       )}
                     </div>
                   )}
                   <input type="file" ref={contentFileInputRef} onChange={handleContentUpload} className="hidden" accept="image/*" />
                   <input value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} placeholder="Título" className="w-full bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm" />
                   
-                  {activeMenu === 'devotionals' && (
-                    <textarea 
-                      value={newItem.content || ''} 
-                      onChange={e => setNewItem({...newItem, content: e.target.value})} 
-                      placeholder="Conteúdo do devocional..." 
-                      className="w-full bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm min-h-32"
-                    />
-                  )}
-
                   {activeMenu === 'events' && (
                     <div className="flex gap-2">
                        <input value={newItem.date || ''} onChange={e => setNewItem({...newItem, date: e.target.value})} placeholder="Data Ex: 12 DEZ 20:00" className="flex-1 bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm" />
                        <input value={newItem.location || ''} onChange={e => setNewItem({...newItem, location: e.target.value})} placeholder="Local/Endereço" className="flex-1 bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm" />
                     </div>
-                  )}
-
-                  {activeMenu === 'devotionals' && (
-                    <input 
-                      type="date" 
-                      value={newItem.date || ''} 
-                      onChange={e => setNewItem({...newItem, date: e.target.value})} 
-                      className="w-full bg-white dark:bg-black/20 rounded-xl py-3 px-4 text-sm"
-                    />
                   )}
 
                   <button onClick={handleAddContent} disabled={isSaving} className="w-full h-12 bg-[var(--theme-color)] text-white rounded-xl font-bold flex flex-center gap-2 justify-center items-center">
@@ -571,38 +413,13 @@ export default function Admin() {
                          {item.url || item.image ? <img src={item.url || item.image} className="w-full h-full object-cover" /> : <Database className="w-5 h-5 text-[#8E8E93]" />}
                       </div>
                       <div>
-                        <h4 className="font-bold text-sm truncate max-w-[200px]">{item.title || item.name || item.request || item.email || item.displayName || 'Registro'}</h4>
-                        <p className="text-[10px] text-[#8E8E93] font-bold uppercase tracking-widest">
-                          {item.id.slice(0, 8)} {activeMenu === 'prayers' && '• ORAÇÃO'}
-                          {activeMenu === 'admins' && `• ${item.role?.toUpperCase() || 'MODERADOR'}`}
-                        </p>
+                        <h4 className="font-bold text-sm truncate max-w-[150px]">{item.title || item.name || item.email || 'Registro'}</h4>
+                        <p className="text-[10px] text-[#8E8E93] font-bold uppercase tracking-widest">{item.id.slice(0, 8)}</p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      {activeMenu === 'users' && !item.isAdmin && (
-                        <button 
-                          onClick={async () => {
-                            const role = prompt("Defina o nível (PROPRIETARIO, CONTRIBUTOR, ORGANIZER):", "CONTRIBUTOR");
-                            if (role) {
-                              await setDoc(doc(db, 'admins', item.id), {
-                                email: item.email,
-                                uid: item.id,
-                                role: role.toUpperCase(),
-                                promotedAt: serverTimestamp(),
-                                createdAt: serverTimestamp() // Added for query consistency
-                              });
-                              alert("Membro promovido a administrador!");
-                            }
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-[#34C759]/10 text-[#34C759] text-[10px] font-bold uppercase tracking-wider"
-                        >
-                          Promover
-                        </button>
-                      )}
-                      <button onClick={() => deleteItem(item.id)} className="w-10 h-10 rounded-full bg-[#FF3B30]/10 flex items-center justify-center text-[#FF3B30] opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+                    <button onClick={() => deleteItem(item.id)} className="w-10 h-10 rounded-full bg-[#FF3B30]/10 flex items-center justify-center text-[#FF3B30] opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
                 ))}
               </div>
