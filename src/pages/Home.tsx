@@ -3,9 +3,17 @@ import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, ChevronRig
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { useTheme } from '../lib/ThemeContext';
+
+interface Devotional {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  thumbnail?: string;
+}
 
 const DEFAULT_BANNERS = [
   { id: 1, title: 'Conferência Profética', subtitle: 'Uma experiência de avivamento', image: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=1600' },
@@ -23,7 +31,18 @@ export default function Home() {
   const [config, setConfig] = useState<any>(null);
   const [copiedPix, setCopiedPix] = useState(false);
   const [givingMethod, setGivingMethod] = useState<'pix' | 'card'>('pix');
-  const { churchName, logoUrl } = useTheme();
+  const [devotional, setDevotional] = useState<Devotional | null>(null);
+  const { churchName, logoUrl, themeColor } = useTheme();
+
+  useEffect(() => {
+    const q = query(collection(db, 'devotionals'), orderBy('date', 'desc'), limit(1));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        setDevotional({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Devotional);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, 'app_config', 'main'), (snapshot) => {
@@ -170,6 +189,49 @@ export default function Home() {
             <span className="text-xs font-medium text-gray-300">Doar</span>
           </a>
         </div>
+      </div>
+
+      {/* Devocional Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-white">Devocional Diário</h3>
+          <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</span>
+        </div>
+        <Link to={`/bible`} className="group block relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-1 shadow-2xl transition-transform active:scale-95">
+           <div className="bg-[#1C1C1E] rounded-[22px] p-5 relative overflow-hidden h-full">
+              {/* Background Glow */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+              
+              <div className="flex flex-col h-full relative z-10">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                    <BookOpen className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Alimento Espiritual</span>
+                </div>
+
+                <h4 className="text-xl font-bold text-white mb-2 leading-tight">
+                  {devotional?.title || 'A Palavra que Transforma'}
+                </h4>
+                <p className="text-sm text-gray-400 line-clamp-3 mb-4 leading-relaxed italic">
+                  "{devotional?.content || 'Carregando devocional do dia para fortalecer sua fé e guiar seus passos...'}"
+                </p>
+
+                <div className="mt-auto flex items-center justify-between pt-2 border-t border-white/5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                      <Church className="w-3 h-3 text-gray-400" />
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-medium">Ecclesia Devocional</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-indigo-400 group-hover:gap-2 transition-all">
+                    <span>Ler Reflexão</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
+           </div>
+        </Link>
       </div>
 
       {/* Featured / Recent Content */}

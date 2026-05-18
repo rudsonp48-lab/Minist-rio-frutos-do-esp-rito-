@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Play, Radio, Mic, Tv, ChevronRight, Volume2, Volume1, Share2, Heart, Search, ChevronLeft, LayoutGrid, RadioTower, ListPlus, ListVideo, SkipForward, SkipBack, X, Clock, ChevronDown, MoreHorizontal, Shuffle, Pause, Repeat, Cast, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { searchGospelContent, YouTubeVideo } from '../services/youtube';
 import { useTheme } from '../lib/ThemeContext';
-import ReactPlayer from 'react-player';
+import { usePlayer } from '../lib/PlayerContext';
 
 const MUSIC_CATEGORIES = [
   { name: 'Pop Coral', query: 'pop coral gospel cover', colors: 'from-pink-500 to-rose-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/cd1e23ec-0f27-4bd7-94aa-ec4a5e45ff55_320w.jpg' },
@@ -23,18 +23,18 @@ export default function Media() {
   const [activeTab, setActiveTab] = useState<'all' | 'live' | 'music' | 'podcast'>('all');
   const [ytVideos, setYtVideos] = useState<YouTubeVideo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<YouTubeVideo | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Playlist State
-  const [playlist, setPlaylist] = useState<YouTubeVideo[]>([]);
-  const [showPlaylist, setShowPlaylist] = useState(false);
+  const { 
+    setSelectedVideo, 
+    playlist, 
+    setPlaylist, 
+    addToPlaylist, 
+    removeFromPlaylist,
+    setIsFullscreen 
+  } = usePlayer();
 
-  // Player state
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [playedSeconds, setPlayedSeconds] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const playerRef = useRef<any>(null);
+  const [showPlaylist, setShowPlaylist] = useState(false);
 
   // Drag and drop state
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
@@ -103,53 +103,6 @@ export default function Media() {
     fetchContent();
   }, [activeTab]);
 
-  const addToPlaylist = (video: YouTubeVideo, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPlaylist(prev => [...prev, video]);
-    if (!selectedVideo) {
-      setSelectedVideo(video);
-    }
-  };
-
-  const removeFromPlaylist = (index: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPlaylist(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const playNext = () => {
-    if (playlist.length > 0) {
-      const next = playlist[0];
-      setSelectedVideo(next);
-      setPlaylist(prev => prev.slice(1));
-      setPlayedSeconds(0);
-      setDuration(0);
-      setIsPlaying(true);
-    } else {
-      setSelectedVideo(null);
-      setPlayedSeconds(0);
-      setDuration(0);
-    }
-  };
-
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!playerRef.current || duration === 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    const seekTime = percentage * duration;
-    
-    playerRef.current.currentTime = seekTime;
-    setPlayedSeconds(seekTime);
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const remainingSeconds = Math.max(0, duration - playedSeconds);
-
   const items = [...ytVideos.map(v => ({
     id: v.id,
     title: v.title,
@@ -159,26 +112,6 @@ export default function Media() {
     ytId: v.id,
     originalVideo: v
   }))];
-
-  useEffect(() => {
-    if (selectedVideo && 'mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: selectedVideo.title,
-        artist: 'Ecclesia App',
-        album: 'Mídia e Mensagens',
-        artwork: [
-          { src: selectedVideo.thumbnail, sizes: '512x512', type: 'image/jpeg' }
-        ]
-      });
-
-      navigator.mediaSession.setActionHandler('nexttrack', playNext);
-    }
-    return () => {
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.setActionHandler('nexttrack', null);
-      }
-    };
-  }, [selectedVideo]);
 
   return (
     <div className="min-h-screen pb-32">
@@ -227,6 +160,15 @@ export default function Media() {
                 style={{ '--tw-ring-color': themeColor } as any}
               />
             </form>
+          )}
+
+          {!import.meta.env.VITE_YOUTUBE_API_KEY && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-wider mb-1">Aviso do Sistema</p>
+              <p className="text-[12px] text-amber-500/80 leading-tight">
+                A chave da API do YouTube não foi configurada. Acesse o painel de segredos do AI Studio e adicione <strong>VITE_YOUTUBE_API_KEY</strong> para ver o conteúdo.
+              </p>
+            </div>
           )}
         </header>
 
@@ -329,9 +271,6 @@ export default function Media() {
                   animate={{ opacity: 1, y: 0 }}
                   onClick={() => {
                     setSelectedVideo(item.originalVideo);
-                    setPlayedSeconds(0);
-                    setDuration(0);
-                    setIsPlaying(true);
                   }}
                   className="ios-card flex items-center p-3 gap-4 active:scale-98 cursor-pointer shadow-sm border-black/[0.05] dark:border-white/[0.05]"
                 >
@@ -347,7 +286,7 @@ export default function Media() {
                     <p className="text-[11px] text-[#8E8E93] mt-1 line-clamp-1">{item.author}</p>
                   </div>
                   <button 
-                    onClick={(e) => addToPlaylist(item.originalVideo, e)}
+                    onClick={(e: any) => { e.stopPropagation(); addToPlaylist(item.originalVideo); }}
                     className="w-10 h-10 rounded-full flex items-center justify-center text-[#8E8E93] hover:text-[var(--theme-color)] hover:bg-black/5 transition-all"
                   >
                      <ListPlus className="w-5 h-5" />
@@ -359,177 +298,7 @@ export default function Media() {
         </div>
       </div>
 
-      {/* Fullscreen Player */}
-      <AnimatePresence>
-        {selectedVideo && (
-          <motion.div 
-            initial={{ opacity: 0, y: '100%' }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className={`fixed inset-0 z-[100] ${activeTab === 'music' ? 'bg-[#0A0A0A] sm:max-w-[440px] sm:mx-auto flex flex-col pt-[max(20px,env(safe-area-inset-top))]' : 'bg-black flex flex-col pt-[max(20px,env(safe-area-inset-top))]'}`}
-          >
-            {/* ReactPlayer instance */}
-            <div className={`overflow-hidden flex-shrink-0 ${activeTab === 'music' ? 'absolute pointer-events-none opacity-0 w-1 h-1 -left-[9999px]' : 'w-full aspect-video relative mt-14'}`}>
-              <ReactPlayer
-                ref={playerRef}
-                src={`https://www.youtube.com/watch?v=${selectedVideo.id}`}
-                playing={isPlaying}
-                controls={activeTab !== 'music'}
-                width="100%"
-                height="100%"
-                onEnded={playNext}
-                onTimeUpdate={(e: any) => setPlayedSeconds(e.currentTarget.currentTime)}
-                onDurationChange={(e: any) => setDuration(e.currentTarget.duration)}
-                config={{
-                  youtube: {
-                    modestbranding: 1, 
-                    playsinline: 1 
-                  }
-                }}
-              />
-            </div>
-
-            {activeTab === 'music' ? (
-              <>
-                {/* Navigation */}
-                <div className="flex px-6 pt-4 pb-6 items-center justify-between shrink-0">
-                  <button onClick={() => setSelectedVideo(null)} className="w-10 h-10 flex items-center justify-center p-2 -ml-2 text-white/80 hover:text-white active:scale-90 transition-all">
-                    <ChevronDown className="w-8 h-8" />
-                  </button>
-                  <div className="flex flex-col items-center">
-                    <span className="text-[10px] text-white/60 uppercase tracking-[0.2em] font-sans font-bold">Tocando Agora</span>
-                    <span className="text-xs text-white font-medium font-sans mt-0.5">Sua Playlist</span>
-                  </div>
-                  <button className="w-10 h-10 flex items-center justify-center p-2 -mr-2 text-white/80 hover:text-white active:scale-90 transition-all">
-                    <MoreHorizontal className="w-6 h-6" />
-                  </button>
-                </div>
-
-                {/* Album Art */}
-                <div className="px-8 pb-8 shrink-0 flex items-center justify-center">
-                  <div className={`w-full aspect-square relative rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-transform duration-500 ${isPlaying ? 'scale-100' : 'scale-95'}`}>
-                    <img src={selectedVideo.thumbnail} alt={selectedVideo.title} className="w-full h-full object-cover" />
-                  </div>
-                </div>
-
-                {/* Song Info */}
-                <div className="px-8 pb-6 shrink-0 flex flex-col flex-1">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex-1 min-w-0 pr-4">
-                      <h1 className="text-[28px] leading-tight text-white tracking-tight truncate font-sans font-bold">{selectedVideo.title}</h1>
-                      <p className="text-xl text-white/60 truncate mt-1 font-sans">{selectedVideo.author || 'Ecclesia Stream'}</p>
-                    </div>
-                    <button 
-                      className="p-2 active:scale-90 transition-transform -mr-2" 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        if (!playlist.find(v => v.id === selectedVideo.id)) {
-                          addToPlaylist(selectedVideo, e); 
-                        } else {
-                          setPlaylist(prev => prev.filter(v => v.id !== selectedVideo.id));
-                        }
-                      }}
-                    >
-                      <Heart className={`w-7 h-7 ${playlist.find(v => v.id === selectedVideo.id) ? 'text-[#FF2D55] fill-[#FF2D55]' : 'text-white/70'}`} />
-                    </button>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full mb-8">
-                    <div className="w-full h-1.5 bg-white/20 rounded-full mb-3 cursor-pointer relative" onClick={handleSeek}>
-                      <div className="h-full bg-white rounded-full relative pointer-events-none" style={{ width: `${(playedSeconds / (duration || 1)) * 100}%` }}>
-                        <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow" />
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-xs text-white/50 font-medium font-sans tracking-wide pointer-events-none">
-                      <span>{formatTime(playedSeconds)}</span>
-                      <span>-{formatTime(remainingSeconds)}</span>
-                    </div>
-                  </div>
-
-                  {/* Controls */}
-                  <div className="flex gap-6 items-center justify-center mb-8">
-                    <button className="text-white/60 hover:text-white active:scale-90 transition-all p-2">
-                      <Shuffle className="w-6 h-6" />
-                    </button>
-                    
-                    <button className="text-white active:scale-90 transition-all p-2 opacity-50 cursor-not-allowed">
-                      <SkipBack className="w-10 h-10 fill-current translate-x-px" />
-                    </button>
-                    
-                    <div className="relative group">
-                      <div className="absolute inset-0 bg-[#0084ff] blur-2xl opacity-40 group-active:opacity-20 transition-opacity rounded-full pointer-events-none"></div>
-                      <button onClick={() => setIsPlaying(!isPlaying)} className="relative w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center text-black active:scale-[0.92] transition-all shadow-xl">
-                        {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current translate-x-1" />}
-                      </button>
-                    </div>
-                    
-                    <button onClick={playNext} className="text-white active:scale-90 transition-all p-2">
-                      <SkipForward className="w-10 h-10 fill-current" />
-                    </button>
-                    
-                    <button className="text-white/60 hover:text-white active:scale-90 transition-all p-2">
-                      <Repeat className="w-6 h-6" />
-                    </button>
-                  </div>
-
-                  {/* Bottom Elements: Volume and Actions */}
-                  <div className="mt-auto pb-8 space-y-8">
-                    <div className="flex items-center justify-between">
-                      <button className="flex items-center gap-2 p-2 -ml-2 active:opacity-50 transition-opacity">
-                        <Cast className="w-5 h-5 text-white/80" />
-                      </button>
-                      <button onClick={() => setShowPlaylist(true)} className="p-2 -mr-2 relative active:opacity-50 transition-opacity">
-                        <List className="w-6 h-6 text-white/80" />
-                        {playlist.length > 0 && (
-                          <span className="absolute top-1.5 right-1 w-2.5 h-2.5 bg-[#FF3B30] rounded-full border-2 border-black" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-between px-4 py-6 shrink-0 absolute top-0 w-full z-10 bg-gradient-to-b from-black/80 to-transparent">
-                  <button 
-                    onClick={() => setSelectedVideo(null)}
-                    className="text-white/80 hover:text-white p-2 bg-black/40 rounded-full backdrop-blur-md"
-                  >
-                    <ChevronDown className="w-6 h-6" />
-                  </button>
-                  <h2 className="text-white font-bold text-sm truncate px-4 drop-shadow-md">{selectedVideo.title}</h2>
-                  <button 
-                    onClick={() => setShowPlaylist(true)}
-                    className="text-white/80 hover:text-white p-2 bg-black/40 rounded-full backdrop-blur-md relative"
-                  >
-                    <ListVideo className="w-5 h-5" />
-                    {playlist.length > 0 && (
-                       <span className="absolute top-1 right-1 bg-[#FF3B30] w-2 h-2 rounded-full" />
-                    )}
-                  </button>
-                </div>
-                
-                <div className="flex-1 flex flex-col items-center justify-start mt-8">
-                  <div className="w-full max-w-md px-8 flex justify-center gap-8">
-                     <button className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-white active:bg-white/20 transition-all opacity-50 cursor-not-allowed">
-                       <SkipBack className="w-8 h-8 fill-current translate-x-px" />
-                     </button>
-                     <button onClick={() => setIsPlaying(!isPlaying)} className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-black active:scale-95 transition-all shadow-xl shadow-white/10">
-                       {isPlaying ? <Pause className="w-10 h-10 fill-current" /> : <Play className="w-10 h-10 fill-current translate-x-1" />}
-                     </button>
-                     <button onClick={playNext} className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-white active:bg-white/20 transition-all">
-                       <SkipForward className="w-8 h-8 fill-current" />
-                     </button>
-                  </div>
-                  <p className="text-white/40 text-xs mt-12 px-6 text-center max-w-xs">Para reprodução em segundo plano (tela desligada), certifique-se de ativar o PIP do navegador e deixar tocando.</p>
-                </div>
-              </>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Fullscreen Player removed - now handled globally */}
 
       {/* Playlist Drawer */}
       <AnimatePresence>
@@ -585,7 +354,7 @@ export default function Media() {
                         <h4 className="font-bold text-sm truncate">{video.title}</h4>
                       </div>
                       <button 
-                        onClick={(e) => removeFromPlaylist(idx, e)}
+                        onClick={(e) => { e.stopPropagation(); removeFromPlaylist(idx); }}
                         className="w-8 h-8 flex items-center justify-center text-[#8E8E93] group-hover:text-[#FF3B30] active:scale-95"
                       >
                         <X className="w-4 h-4" />
