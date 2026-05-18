@@ -62,11 +62,13 @@ export default function App() {
 
   if (!user) {
     return (
-      <Router>
-        <Routes>
-          <Route path="/*" element={<Login />} />
-        </Routes>
-      </Router>
+      <ThemeProvider>
+        <Router>
+          <Routes>
+            <Route path="/*" element={<Login />} />
+          </Routes>
+        </Router>
+      </ThemeProvider>
     );
   }
 

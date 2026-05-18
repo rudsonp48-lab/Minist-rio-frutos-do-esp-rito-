@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { searchGospelContent, YouTubeVideo } from '../services/youtube';
 import { useTheme } from '../lib/ThemeContext';
+import ReactPlayer from 'react-player';
 
 const MUSIC_CATEGORIES = [
   { name: 'Pop Coral', query: 'pop coral gospel cover', colors: 'from-pink-500 to-rose-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/cd1e23ec-0f27-4bd7-94aa-ec4a5e45ff55_320w.jpg' },
@@ -28,6 +29,23 @@ export default function Media() {
   // Playlist State
   const [playlist, setPlaylist] = useState<YouTubeVideo[]>([]);
   const [showPlaylist, setShowPlaylist] = useState(false);
+
+  // Player state
+  const playerRef = useRef<ReactPlayer>(null);
+  const [playing, setPlaying] = useState(true);
+  const [volume, setVolume] = useState(0.8);
+  const [played, setPlayed] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+
+  const formatTime = (seconds: number) => {
+    const date = new Date(seconds * 1000);
+    const hh = date.getUTCHours();
+    const mm = date.getUTCMinutes();
+    const ss = date.getUTCSeconds().toString().padStart(2, '0');
+    if (hh) return `${hh}:${mm.toString().padStart(2, '0')}:${ss}`;
+    return `${mm}:${ss}`;
+  };
 
   useEffect(() => {
     const liveId = searchParams.get('live');
@@ -305,12 +323,21 @@ export default function Media() {
           >
             {activeTab === 'music' ? (
               <>
-                {/* Hidden Iframe for Audio Playback */}
+                {/* Hidden ReactPlayer for Audio Playback */}
                 <div className="w-0 h-0 overflow-hidden opacity-0 pointer-events-none absolute">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${selectedVideo.id}?autoplay=1&modestbranding=1&rel=0&playsinline=1`}
-                    title={selectedVideo.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  <ReactPlayer 
+                    ref={playerRef}
+                    url={`https://www.youtube.com/watch?v=${selectedVideo.id}`} 
+                    playing={playing} 
+                    controls={false}
+                    volume={volume} 
+                    muted={isMuted}
+                    onProgress={(s) => setPlayed(s.playedSeconds)}
+                    onDuration={setDuration}
+                    onEnded={playNext}
+                    width="0"
+                    height="0"
+                    config={{ youtube: { playerVars: { playsinline: 1 } } }}
                   />
                 </div>
 
@@ -359,14 +386,22 @@ export default function Media() {
 
                   {/* Progress Bar */}
                   <div className="w-full mb-8">
-                    <div className="w-full h-1.5 bg-white/20 rounded-full mb-3 cursor-pointer relative">
-                      <div className="w-1/3 h-full bg-white rounded-full relative">
+                    <div 
+                      className="w-full h-1.5 bg-white/20 rounded-full mb-3 cursor-pointer relative"
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const percentage = x / rect.width;
+                        if (playerRef.current) playerRef.current.seekTo(percentage);
+                      }}
+                    >
+                      <div className="h-full bg-white rounded-full relative" style={{ width: `${(played / (duration || 1)) * 100}%` }}>
                         <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow" />
                       </div>
                     </div>
                     <div className="flex justify-between text-xs text-white/50 font-medium font-sans tracking-wide">
-                      <span>1:23</span>
-                      <span>-3:20</span>
+                      <span>{formatTime(played)}</span>
+                      <span>-{formatTime(duration - played > 0 ? duration - played : 0)}</span>
                     </div>
                   </div>
 
@@ -376,14 +411,27 @@ export default function Media() {
                       <Shuffle className="w-6 h-6" />
                     </button>
                     
-                    <button className="text-white active:scale-90 transition-all p-2">
+                    <button 
+                      onClick={() => {
+                        if (playerRef.current && played > 3) {
+                          playerRef.current.seekTo(0);
+                        } else {
+                          // Could play previous track here
+                          if (playerRef.current) playerRef.current.seekTo(0);
+                        }
+                      }} 
+                      className="text-white active:scale-90 transition-all p-2"
+                    >
                       <SkipBack className="w-10 h-10 fill-current" />
                     </button>
                     
                     <div className="relative group">
                       <div className="absolute inset-0 bg-[#0084ff] blur-2xl opacity-40 group-active:opacity-20 transition-opacity rounded-full"></div>
-                      <button className="relative w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center text-black active:scale-[0.92] transition-all shadow-xl">
-                        <Pause className="w-8 h-8 fill-current translate-x-px" />
+                      <button 
+                        onClick={() => setPlaying(!playing)}
+                        className="relative w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center text-black active:scale-[0.92] transition-all shadow-xl"
+                      >
+                        {playing ? <Pause className="w-8 h-8 fill-current translate-x-px" /> : <Play className="w-8 h-8 fill-current ml-1" />}
                       </button>
                     </div>
                     
@@ -399,13 +447,21 @@ export default function Media() {
                   {/* Bottom Elements: Volume and Actions */}
                   <div className="mt-auto pb-8 space-y-8">
                     <div className="flex items-center gap-4">
-                      <button className="p-1">
-                        <Volume1 className="w-4 h-4 text-white/50" />
+                      <button className="p-1" onClick={() => setIsMuted(!isMuted)}>
+                        {isMuted || volume === 0 ? <Volume1 className="w-4 h-4 text-white/50" /> : <Volume2 className="w-4 h-4 text-white/50" />}
                       </button>
-                      <div className="flex-1 h-1.5 bg-white/20 rounded-full">
-                        <div className="w-2/3 h-full bg-white rounded-full"></div>
+                      <div 
+                        className="flex-1 h-1.5 bg-white/20 rounded-full cursor-pointer relative"
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                          setVolume(x / rect.width);
+                          setIsMuted(false);
+                        }}
+                      >
+                        <div className="h-full bg-white rounded-full" style={{ width: `${isMuted ? 0 : volume * 100}%` }}></div>
                       </div>
-                      <button className="p-1">
+                      <button className="p-1" onClick={() => setVolume(1)}>
                         <Volume2 className="w-5 h-5 text-white/50" />
                       </button>
                     </div>
@@ -457,8 +513,11 @@ export default function Media() {
                   </div>
                   
                   <div className="w-full max-w-md mt-12 px-8 flex justify-center gap-8">
-                     <button className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-white active:bg-white/20 transition-all opacity-50 cursor-not-allowed">
-                       <SkipBack className="w-8 h-8 fill-current translate-x-px" />
+                     <button 
+                       onClick={() => setSelectedVideo(null)} 
+                       className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                     >
+                       <ChevronDown className="w-8 h-8 translate-y-1" />
                      </button>
                      <button onClick={playNext} className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-black active:scale-95 transition-all shadow-xl shadow-white/10">
                        <SkipForward className="w-8 h-8 fill-current" />

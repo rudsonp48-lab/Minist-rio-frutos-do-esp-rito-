@@ -12,6 +12,13 @@ const DEFAULT_BANNERS = [
   { id: 2, title: 'Nova Série', subtitle: 'Atlas Digital: Descobrindo a Verdade', image: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579?auto=format&fit=crop&q=80&w=1600' }
 ];
 
+const DEVOCIONAL = {
+  title: "A Paz que Excede o Entendimento",
+  verse: "E a paz de Deus, que excede todo o entendimento, guardará os vossos corações e os vossos sentimentos em Cristo Jesus.",
+  reference: "Filipenses 4:7",
+  text: "Em meio às tempestades da vida, a ansiedade tenta tomar conta de nossa mente. Mas Deus nos oferece uma paz sobrenatural. Não é a ausência de problemas, mas a presença de Deus no meio deles. Hoje, entregue suas preocupações a Ele e deixe que essa paz guarde seu coração."
+};
+
 const RECENT_ITEMS = [
   { id: 1, title: 'Culto de Domingo', category: 'Live | 10:00', img: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579' },
   { id: 2, title: 'Adoração e Fogo', category: 'Louvor', img: 'https://images.unsplash.com/photo-1510076857177-7470076d4098' },
@@ -124,6 +131,36 @@ export default function Home() {
             </div>
             <span className="text-xs font-medium text-gray-300">Doar</span>
           </a>
+        </div>
+      </div>
+
+      {/* Devotional */}
+      <div className="mb-8 mt-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-white">Devocional Diário</h3>
+        </div>
+        <div className="p-6 rounded-[2rem] bg-gradient-to-br from-[#1C1C1E] to-[#2C2C2E] border border-white/5 relative overflow-hidden shadow-2xl">
+          <div className="absolute -top-10 -right-10 opacity-5">
+            <BookOpen className="w-48 h-48 text-white" />
+          </div>
+          <div className="relative z-10">
+            <span className="text-[10px] font-bold text-[var(--theme-color)] tracking-[0.2em] uppercase mb-3 block">Leitura de Hoje</span>
+            <h4 className="text-2xl font-semibold text-white mb-4 leading-tight">{DEVOCIONAL.title}</h4>
+            
+            <div className="px-5 py-4 bg-black/40 rounded-2xl mb-5 border border-white/5 backdrop-blur-md">
+              <p className="text-[15px] text-white/90 italic leading-relaxed">"{DEVOCIONAL.verse}"</p>
+              <p className="text-xs text-[var(--theme-color)] font-semibold mt-3 text-right">{DEVOCIONAL.reference}</p>
+            </div>
+            
+            <p className="text-[14px] text-gray-400 leading-relaxed mb-6 font-medium">
+              {DEVOCIONAL.text}
+            </p>
+            
+            <Link to="/bible" className="w-full py-3.5 rounded-xl bg-[var(--theme-color)] hover:opacity-90 active:scale-[0.98] transition-all text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-[var(--theme-color)]/20">
+              <BookOpen className="w-4 h-4 fill-current" />
+              Ler na Bíblia
+            </Link>
+          </div>
         </div>
       </div>
 

@@ -69,10 +69,12 @@ export async function searchGospelContent(query: string): Promise<YouTubeVideo[]
     const data = await response.json();
 
     if (data.items) {
-      return data.items.map((item: any) => ({
-        id: item.id.videoId,
+      return data.items
+        .filter((item: any) => item.id?.videoId || typeof item.id === 'string')
+        .map((item: any) => ({
+        id: item.id?.videoId || item.id,
         title: item.snippet.title,
-        thumbnail: item.snippet.thumbnails.high.url,
+        thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url,
         publishedAt: item.snippet.publishedAt,
         type: 'video'
       }));
