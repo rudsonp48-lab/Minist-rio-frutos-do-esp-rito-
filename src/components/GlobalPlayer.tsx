@@ -65,14 +65,18 @@ export default function GlobalPlayer() {
             volume={1}
             muted={false}
             onReady={(player: any) => {
-              if (player) {
+              if (player && typeof player.getDuration === 'function') {
                 setDuration(player.getDuration() || 0);
               }
             }}
-            onDuration={(d: number) => setDuration(d)}
             onEnded={playNext}
             onProgress={(state: any) => {
               setPlayedSeconds(state.playedSeconds);
+              // Update duration in progress if it wasn't captured in onReady
+              if (playerRef.current && (!duration || duration === 0)) {
+                const d = playerRef.current.getDuration();
+                if (d) setDuration(d);
+              }
             }}
             onPause={() => setIsPlaying(false)}
             onPlay={() => setIsPlaying(true)}
@@ -85,10 +89,9 @@ export default function GlobalPlayer() {
                   modestbranding: 1, 
                   playsinline: 1, 
                   rel: 0, 
-                  controls: 1, // Changed to 1 for better compatibility with autoplay blocks
+                  controls: 1,
                   autoplay: 1,
-                  enablejsapi: 1,
-                  origin: window.location.origin
+                  enablejsapi: 1
                 }
               }
             } as any}
