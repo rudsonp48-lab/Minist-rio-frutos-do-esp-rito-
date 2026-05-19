@@ -7,6 +7,7 @@ export interface YouTubeVideo {
   thumbnail: string;
   publishedAt: string;
   type: 'video' | 'live';
+  author?: string;
 }
 
 export async function checkChannelLive(channelId: string = CHANNEL_ID): Promise<YouTubeVideo[] | null> {

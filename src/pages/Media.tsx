@@ -6,6 +6,8 @@ import { searchGospelContent, YouTubeVideo } from '../services/youtube';
 import { useTheme } from '../lib/ThemeContext';
 import ReactPlayer from 'react-player';
 
+const RP = ReactPlayer as any;
+
 const MUSIC_CATEGORIES = [
   { name: 'Pop Coral', query: 'pop coral gospel cover', colors: 'from-pink-500 to-rose-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/cd1e23ec-0f27-4bd7-94aa-ec4a5e45ff55_320w.jpg' },
   { name: 'Worship Rock', query: 'worship rock gospel', colors: 'from-orange-500 to-red-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/8830c989-0aa7-4a9b-a1fc-a81e75ddc91c_320w.jpg' },
@@ -31,7 +33,7 @@ export default function Media() {
   const [showPlaylist, setShowPlaylist] = useState(false);
 
   // Player state
-  const playerRef = useRef<ReactPlayer>(null);
+  const playerRef = useRef<any>(null);
   const [playing, setPlaying] = useState(true);
   const [volume, setVolume] = useState(0.8);
   const [played, setPlayed] = useState(0);
@@ -325,19 +327,20 @@ export default function Media() {
               <>
                 {/* Hidden ReactPlayer for Audio Playback */}
                 <div className="w-0 h-0 overflow-hidden opacity-0 pointer-events-none absolute">
-                  <ReactPlayer 
+                  {/* @ts-ignore */}
+                  <RP  
                     ref={playerRef}
                     url={`https://www.youtube.com/watch?v=${selectedVideo.id}`} 
                     playing={playing} 
                     controls={false}
                     volume={volume} 
                     muted={isMuted}
-                    onProgress={(s) => setPlayed(s.playedSeconds)}
+                    onProgress={(s: any) => setPlayed(s.playedSeconds)}
                     onDuration={setDuration}
                     onEnded={playNext}
                     width="0"
                     height="0"
-                    config={{ youtube: { playerVars: { playsinline: 1 } } }}
+                    config={{ youtube: { playerVars: { playsinline: 1 } } } as any}
                   />
                 </div>
 

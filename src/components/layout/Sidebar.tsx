@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { 
   Church, Home, BookOpen, Radio, Calendar, Heart, 
-  Map, Headphones, Users, Event, User as UserIcon, 
+  Map, Headphones, Users, User as UserIcon, 
   Settings, Info, Shield 
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
