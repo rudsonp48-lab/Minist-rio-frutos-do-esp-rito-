@@ -10,17 +10,17 @@ type ThemeContextType = {
 };
 
 const ThemeContext = createContext<ThemeContextType>({
-  themeColor: '#007AFF',
+  themeColor: '#8A2BE2',
   setThemeColor: () => {},
 });
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [themeColor, setThemeColor] = useState(() => {
-    return localStorage.getItem('app_theme_color') || '#007AFF';
+    return localStorage.getItem('app_theme_color') || '#8A2BE2';
   });
   
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
-  const [churchName, setChurchName] = useState<string | undefined>();
+  const [churchName, setChurchName] = useState<string | undefined>('Ministério Frutos do Espírito');
 
   useEffect(() => {
     localStorage.setItem('app_theme_color', themeColor);

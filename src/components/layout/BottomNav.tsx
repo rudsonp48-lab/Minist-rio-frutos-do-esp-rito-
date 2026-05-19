@@ -17,8 +17,8 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom">
-      <div className="absolute inset-0 bg-white/80 dark:bg-[#1C1C1E]/80 backdrop-blur-2xl border-t border-black/[0.05] dark:border-white/[0.05]" />
+    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom lg:hidden">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-2xl border-t border-white/[0.05]" />
       
       <div className="relative flex items-center justify-around h-16 px-2">
         {navItems.map((item) => {

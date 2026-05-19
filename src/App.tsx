@@ -15,14 +15,45 @@ import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Notes from './pages/Notes';
+import Prayers from './pages/Prayers';
 import SettingsPage from './pages/Settings';
 
 // Components
-import Navbar from './components/layout/Navbar';
+import Sidebar from './components/layout/Sidebar';
 import BottomNav from './components/layout/BottomNav';
-
+import { User as UserIcon, Church } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
+import { useTheme } from './lib/ThemeContext';
+
+function SplashScreen() {
+  return (
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center relative overflow-hidden">
+      {/* Background Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] max-w-[600px] aspect-square bg-[var(--theme-color)]/20 blur-[120px] rounded-full animate-pulse pointer-events-none" />
+      
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1.5, ease: "easeOut" }}
+        className="relative z-10 flex flex-col items-center"
+      >
+        <div className="w-24 h-24 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.05)] mb-8 relative">
+           <div className="absolute inset-0 bg-gradient-to-tr from-[var(--theme-color)]/30 to-transparent rounded-3xl" />
+           <Church className="w-10 h-10 text-white relative z-10" />
+        </div>
+        <h1 className="text-4xl font-serif text-white tracking-[0.2em] uppercase font-bold mb-4" style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}>
+          Ecclesia
+        </h1>
+        <div className="flex gap-1.5 items-center">
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--theme-color)] animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--theme-color)] animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--theme-color)] animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -53,11 +84,7 @@ export default function App() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-transparent flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   if (!user) {
@@ -83,15 +110,35 @@ export default function App() {
 
 function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) {
   const location = useLocation();
+  const { churchName } = useTheme();
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col relative z-0">
       <div className="spline-container absolute inset-0 w-full h-full -z-10 pointer-events-none opacity-60">
         <iframe src="https://my.spline.design/particlesmoment-kW3xyVny6weIhXJ3vbs2M2bB" frameBorder="0" width="100%" height="100%" id="aura-spline"></iframe>
       </div>
-      <Navbar isAdmin={isAdmin} user={user} />
+      <Sidebar isAdmin={isAdmin} user={user} />
       
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 mb-24 md:mb-0 md:pt-16 overflow-x-hidden">
+      {/* Mobile Top Header */}
+      <div className="lg:hidden fixed top-0 w-full z-40 bg-black/50 backdrop-blur-3xl border-b border-white/5 py-4 px-6 flex items-center justify-between">
+        <span 
+          className="text-lg font-serif tracking-widest text-white uppercase"
+          style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}
+        >
+          {churchName || 'ECCLESIA'}
+        </span>
+        <Link to="/profile" className="flex items-center gap-2">
+          {user?.photoURL ? (
+            <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-white/20 object-cover" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+              <UserIcon className="w-4 h-4 text-white" />
+            </div>
+          )}
+        </Link>
+      </div>
+
+      <main className="flex-1 w-full lg:ml-[280px] px-0 lg:px-4 py-0 lg:py-6 lg:mb-0 lg:max-w-[calc(100%-280px)] overflow-x-hidden pt-16 lg:pt-6 pb-24 lg:pb-6">
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
@@ -100,6 +147,7 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
             <Route path="/events" element={<PageWrapper><Events /></PageWrapper>} />
             <Route path="/gallery" element={<PageWrapper><Gallery /></PageWrapper>} />
             <Route path="/notes" element={<PageWrapper><Notes /></PageWrapper>} />
+            <Route path="/prayers" element={<PageWrapper><Prayers /></PageWrapper>} />
             <Route path="/profile" element={<PageWrapper><Profile user={user!} /></PageWrapper>} />
             <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
             <Route path="/admin" element={isAdmin ? <PageWrapper><Admin /></PageWrapper> : <Navigate to="/" />} />

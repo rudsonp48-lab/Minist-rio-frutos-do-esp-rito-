@@ -1,0 +1,140 @@
+import { Link, useLocation } from 'react-router-dom';
+import { User } from 'firebase/auth';
+import { 
+  Church, Home, BookOpen, Radio, Calendar, Heart, 
+  Map, Headphones, Users, Event, User as UserIcon, 
+  Settings, Info, Shield 
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { cn } from '../../lib/utils';
+import { useTheme } from '../../lib/ThemeContext';
+
+interface SidebarProps {
+  user: User | null;
+  isAdmin: boolean;
+}
+
+export default function Sidebar({ user, isAdmin }: SidebarProps) {
+  const location = useLocation();
+  const { themeColor, churchName } = useTheme();
+
+  const menuItems = [
+    { to: '/', label: 'Home', icon: Home },
+    { to: '/bible', label: 'Bíblia', icon: BookOpen },
+    { to: '/media?live=1', label: 'Cultos Ao Vivo', icon: Radio },
+    { to: '/events', label: 'Agenda', icon: Calendar },
+    { to: '/prayers', label: 'Pedidos de Oração', icon: Heart },
+    { to: '/notes', label: 'Bloco de Notas', icon: BookOpen },
+    { to: '/gallery', label: 'Estudos Bíblicos', icon: Map },
+    { to: '/devotional', label: 'Devocionais', icon: BookOpen },
+    { to: '/media', label: 'Louvores', icon: Headphones },
+    { to: '/podcast', label: 'Podcast', icon: Radio },
+    { to: '/cells', label: 'Células', icon: Users },
+  ];
+
+  const bottomItems = [
+    { to: '/profile', label: 'Área do Membro', icon: UserIcon },
+    { to: '/settings', label: 'Configurações', icon: Settings },
+    { to: '/about', label: 'Sobre a Igreja', icon: Info },
+  ];
+
+  if (isAdmin) {
+    bottomItems.unshift({ to: '/admin', label: 'Painel Admin', icon: Shield });
+  }
+
+  return (
+    <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-black/40 backdrop-blur-3xl border-r border-white/5 z-40 hidden lg:flex flex-col overflow-hidden">
+      {/* Glow Effect */}
+      <div className="absolute top-0 left-0 w-full h-[500px] bg-[var(--theme-color)]/10 blur-[120px] rounded-full pointer-events-none -translate-y-1/2 -translate-x-1/2" />
+
+      {/* Header */}
+      <div className="p-8 pb-4 relative z-10 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(255,255,255,0.05)]">
+          <Church className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex flex-col overflow-hidden">
+          <span 
+            className="text-lg font-serif tracking-widest text-white uppercase truncate"
+            style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}
+          >
+            {churchName || 'ECCLESIA'}
+          </span>
+          <span className="text-[10px] font-medium text-white/40 tracking-[0.2em] uppercase">Ministério</span>
+        </div>
+      </div>
+
+      {/* Main Navigation */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 scrollbar-hide relative z-10">
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to));
+          const Icon = item.icon;
+
+          return (
+            <Link
+              key={item.label}
+              to={item.to}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden",
+                isActive ? "text-white" : "text-white/50 hover:text-white"
+              )}
+            >
+              {isActive && (
+                <div 
+                  className="absolute inset-0 opacity-10" 
+                  style={{ backgroundColor: themeColor || '#8A2BE2' }} 
+                />
+              )}
+              {isActive && (
+                <div 
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-1/2 rounded-r-full" 
+                  style={{ backgroundColor: themeColor || '#8A2BE2' }} 
+                />
+              )}
+              <Icon 
+                className={cn(
+                  "w-5 h-5 transition-transform duration-300",
+                  isActive ? "scale-110" : "group-hover:scale-110"
+                )} 
+                style={isActive ? { color: themeColor || '#8A2BE2' } : {}}
+              />
+              <span className="text-[14px] font-medium tracking-wide">
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Divider */}
+      <div className="px-8 py-2 relative z-10">
+        <div className="h-[1px] w-full bg-white/5" />
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="px-4 pb-8 space-y-1 relative z-10">
+        {bottomItems.map((item) => {
+          const isActive = location.pathname === item.to;
+          const Icon = item.icon;
+
+          return (
+            <Link
+              key={item.label}
+              to={item.to}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group",
+                isActive ? "text-white bg-white/5" : "text-white/50 hover:text-white hover:bg-white/5"
+              )}
+            >
+              <Icon className={cn("w-5 h-5", isActive ? "text-white" : "")} />
+              <span className="text-[14px] font-medium tracking-wide">
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}

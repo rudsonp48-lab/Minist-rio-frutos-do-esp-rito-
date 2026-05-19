@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Book, ChevronRight, ChevronLeft, Bookmark, Share2, Download, Wifi, WifiOff, Target, Zap, Globe, Cpu, BookOpen, List } from 'lucide-react';
+import { Search, Book, ChevronRight, ChevronLeft, Bookmark, Share2, Download, Wifi, WifiOff, Target, Zap, Globe, Cpu, BookOpen, List, PenTool, Highlighter, Edit3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BIBLE_STRUCTURE, SAMPLE_VERSES } from '../lib/bibleData';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../lib/ThemeContext';
+import Notes from './Notes';
 
 interface Verse {
   book_name: string;
@@ -19,13 +20,29 @@ export default function Bible() {
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
-  const [view, setView] = useState<'books' | 'chapters' | 'chapter' | 'search'>('books');
+  const [view, setView] = useState<'books' | 'chapters' | 'chapter' | 'search' | 'notes'>('books');
   const [selectedBook, setSelectedBook] = useState<typeof BIBLE_STRUCTURE[0] | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [chapterVerses, setChapterVerses] = useState<Verse[]>([]);
   
   const [searchReference, setSearchReference] = useState('João 3:16');
   const [searchedVerse, setSearchedVerse] = useState<Verse | null>(null);
+
+  const [highlightedVerses, setHighlightedVerses] = useState<string[]>(() => {
+    const cached = localStorage.getItem('bible_highlights');
+    return cached ? JSON.parse(cached) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bible_highlights', JSON.stringify(highlightedVerses));
+  }, [highlightedVerses]);
+
+  const toggleHighlight = (book: string, chapter: number, verse: number) => {
+    const key = `${book}_${chapter}_${verse}`;
+    setHighlightedVerses(prev => 
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
 
   const translations = [
     { id: 'almeida', label: 'Almeida' },
@@ -106,7 +123,7 @@ export default function Bible() {
     if (view === 'chapter') {
       setView('chapters');
       setChapterVerses([]);
-    } else if (view === 'chapters' || view === 'search') {
+    } else if (view === 'chapters' || view === 'search' || view === 'notes') {
       setView('books');
       setSelectedBook(null);
       setSelectedChapter(null);
@@ -129,39 +146,47 @@ export default function Bible() {
           </Link>
         )}
         <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2">
-          {view === 'books' ? 'Bíblia' : view === 'chapters' ? selectedBook?.book : view === 'chapter' ? `${selectedBook?.book} ${selectedChapter}` : 'Busca'}
+          {view === 'books' ? 'Bíblia' : view === 'chapters' ? selectedBook?.book : view === 'chapter' ? `${selectedBook?.book} ${selectedChapter}` : view === 'notes' ? 'Bloco de Notas' : 'Busca'}
         </h1>
-        <div className="w-16" /> {/* Placeholder for balance */}
+        <div className="w-16 flex justify-end">
+           {view !== 'notes' && (
+             <button onClick={() => setView('notes')} className="w-10 h-10 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/5" style={{ color: themeColor }}>
+               <Edit3 className="w-5 h-5" />
+             </button>
+           )}
+        </div>
       </nav>
 
       <div className="pt-20 px-4 md:px-6 space-y-6 max-w-2xl mx-auto">
-        <header className="space-y-4">
-          <form onSubmit={searchSingleVerse} className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93]" />
-            <input 
-              type="text" 
-              value={searchReference}
-              onChange={(e) => setSearchReference(e.target.value)}
-              placeholder="Buscar versículo (Ex: João 3:16)"
-              className="w-full bg-black/5 dark:bg-white/5 rounded-2xl py-3 pl-10 pr-4 text-[15px] focus:outline-none focus:ring-2 transition-all"
-              style={{ '--tw-ring-color': themeColor } as any}
-            />
-          </form>
+        {view !== 'notes' && (
+          <header className="space-y-4">
+            <form onSubmit={searchSingleVerse} className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93]" />
+              <input 
+                type="text" 
+                value={searchReference}
+                onChange={(e) => setSearchReference(e.target.value)}
+                placeholder="Buscar versículo (Ex: João 3:16)"
+                className="w-full bg-black/5 dark:bg-white/5 rounded-2xl py-3 pl-10 pr-4 text-[15px] focus:outline-none focus:ring-2 transition-all"
+                style={{ '--tw-ring-color': themeColor } as any}
+              />
+            </form>
 
-          <div className="flex gap-2 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
-             {translations.map((t) => (
-               <button
-                 key={t.id}
-                 onClick={() => { setTranslation(t.id); if(view==='chapter' && selectedBook && selectedChapter) fetchChapter(selectedBook.book, selectedChapter, t.id); }}
-                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-                   translation === t.id ? 'bg-white dark:bg-white/10 shadow-sm' : 'text-[#8E8E93]'
-                 }`}
-               >
-                 {t.label}
-               </button>
-             ))}
-          </div>
-        </header>
+            <div className="flex gap-2 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
+               {translations.map((t) => (
+                 <button
+                   key={t.id}
+                   onClick={() => { setTranslation(t.id); if(view==='chapter' && selectedBook && selectedChapter) fetchChapter(selectedBook.book, selectedChapter, t.id); }}
+                   className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                     translation === t.id ? 'bg-white dark:bg-white/10 shadow-sm' : 'text-[#8E8E93]'
+                   }`}
+                 >
+                   {t.label}
+                 </button>
+               ))}
+            </div>
+          </header>
+        )}
 
         {/* Dynamic Area */}
         <AnimatePresence mode="wait">
@@ -229,15 +254,22 @@ export default function Bible() {
                   <p className="text-[#FF3B30] font-bold">{error}</p>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {chapterVerses.map(v => (
-                    <div key={v.verse} className="flex gap-4">
-                      <span className="text-[11px] font-bold text-[#8E8E93] mt-1.5 w-6 text-right shrink-0">{v.verse}</span>
-                      <p className="text-[17px] leading-relaxed text-black/90 dark:text-white/90 font-medium">
-                        {v.text}
-                      </p>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                  {chapterVerses.map(v => {
+                    const isHighlighted = highlightedVerses.includes(`${v.book_name}_${v.chapter}_${v.verse}`);
+                    return (
+                      <div 
+                        key={v.verse} 
+                        onClick={() => toggleHighlight(v.book_name, v.chapter, v.verse)}
+                        className={`flex gap-4 p-3 rounded-2xl cursor-pointer transition-all ${isHighlighted ? 'bg-[var(--theme-color)]/20' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                      >
+                        <span className="text-[11px] font-bold mt-1.5 w-6 text-right shrink-0" style={{ color: isHighlighted ? themeColor : '#8E8E93' }}>{v.verse}</span>
+                        <p className={`text-[17px] leading-relaxed font-medium ${isHighlighted ? 'text-[var(--theme-color)]' : 'text-black/90 dark:text-white/90'}`}>
+                          {v.text}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </motion.div>
@@ -263,6 +295,12 @@ export default function Bible() {
                   <p className="text-2xl font-bold tracking-tight leading-snug italic text-black/90 dark:text-white/90">"{searchedVerse.text.trim()}"</p>
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {view === 'notes' && (
+            <motion.div key="notes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full">
+               <Notes embedded={true} />
             </motion.div>
           )}
         </AnimatePresence>
