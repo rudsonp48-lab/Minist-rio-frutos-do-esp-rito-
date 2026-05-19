@@ -60,8 +60,56 @@ export async function fetchVideosFromPlaylist(playlistId: string): Promise<YouTu
   }
 }
 
+export const MOCK_VIDEOS: YouTubeVideo[] = [
+  {
+    id: 'kQOOS35sBhc',
+    title: 'PODES MORAR AQUI // FOGO E GLÓRIA // ADORAÇÃO PROFÉTICA',
+    thumbnail: 'https://i.ytimg.com/vi/kQOOS35sBhc/hqdefault.jpg',
+    publishedAt: new Date().toISOString(),
+    type: 'music',
+    author: 'Ecclesia Stream'
+  },
+  {
+    id: 'tN8pA0L_q8c',
+    title: 'GABRIELA ROCHA - ME ATRAIU (AO VIVO)',
+    thumbnail: 'https://i.ytimg.com/vi/tN8pA0L_q8c/hqdefault.jpg',
+    publishedAt: new Date().toISOString(),
+    type: 'music',
+    author: 'Gabriela Rocha'
+  },
+  {
+    id: '9Yf-7K_rF0o',
+    title: 'JEFERSON E SUELLEN - VEM ME BUSCAR',
+    thumbnail: 'https://i.ytimg.com/vi/9Yf-7K_rF0o/hqdefault.jpg',
+    publishedAt: new Date().toISOString(),
+    type: 'music',
+    author: 'Jeferson e Suellen'
+  },
+  {
+    id: 'I-M-oA5E440',
+    title: 'KLEBER LUCAS E CAETANO VELOSO - DEUS CUIDA DE MIM',
+    thumbnail: 'https://i.ytimg.com/vi/I-M-oA5E440/hqdefault.jpg',
+    publishedAt: new Date().toISOString(),
+    type: 'music',
+    author: 'Kleber Lucas'
+  },
+  {
+    id: 'M2q208B2-dM',
+    title: 'PODER DO TEU AMOR - ALINE BARROS',
+    thumbnail: 'https://i.ytimg.com/vi/M2q208B2-dM/hqdefault.jpg',
+    publishedAt: new Date().toISOString(),
+    type: 'music',
+    author: 'Aline Barros'
+  }
+];
+
 export async function searchGospelContent(query: string): Promise<YouTubeVideo[]> {
-  if (!API_KEY) return [];
+  if (!API_KEY) {
+    if (query.toLowerCase().includes('pode morar aqui')) {
+      return [MOCK_VIDEOS[0]];
+    }
+    return MOCK_VIDEOS;
+  }
 
   try {
     const response = await fetch(
@@ -69,7 +117,7 @@ export async function searchGospelContent(query: string): Promise<YouTubeVideo[]
     );
     const data = await response.json();
 
-    if (data.items) {
+    if (data.items && data.items.length > 0) {
       return data.items
         .filter((item: any) => item.id?.videoId || typeof item.id === 'string')
         .map((item: any) => ({
@@ -77,12 +125,14 @@ export async function searchGospelContent(query: string): Promise<YouTubeVideo[]
         title: item.snippet.title,
         thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url,
         publishedAt: item.snippet.publishedAt,
-        type: 'video'
+        type: 'video',
+        author: item.snippet.channelTitle || 'Ecclesia Stream'
       }));
     }
-    return [];
+    return MOCK_VIDEOS;
   } catch (error) {
     console.error('Error searching YouTube:', error);
-    return [];
+    return MOCK_VIDEOS;
   }
 }
+

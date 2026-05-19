@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword 
 } from 'firebase/auth';
-import { Mail, Lock, Plus, LogIn, ChevronRight, Apple } from 'lucide-react';
+import { Mail, Lock, Church } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../lib/ThemeContext';
 
@@ -53,13 +53,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-white font-sans overflow-hidden relative">
-      {/* Background Frame */}
-      <div className="spline-container absolute inset-0 w-full h-full z-0 pointer-events-none opacity-50 mix-blend-screen overflow-hidden">
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-white font-sans overflow-hidden relative">
+      {/* Dynamic Colorful Backgrounds */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-purple-600/30 blur-[120px] rounded-full mix-blend-screen animate-[pulse_8s_ease-in-out_infinite] z-0 pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-blue-600/20 blur-[120px] rounded-full mix-blend-screen animate-[pulse_10s_ease-in-out_infinite_2s] z-0 pointer-events-none" />
+      <div className="absolute top-[40%] left-[60%] w-[40vw] h-[40vw] bg-pink-600/20 blur-[100px] rounded-full mix-blend-screen animate-[pulse_9s_ease-in-out_infinite_4s] z-0 pointer-events-none" />
+
+      {/* Spline particles - subtle */}
+      <div className="spline-container absolute inset-0 w-full h-full z-0 pointer-events-none opacity-30 mix-blend-screen overflow-hidden">
         <iframe src="https://my.spline.design/particlesmoment-kW3xyVny6weIhXJ3vbs2M2bB" frameBorder="0" width="100%" height="100%"></iframe>
       </div>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black z-0 pointer-events-none" />
 
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -67,25 +72,42 @@ export default function Login() {
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-[380px] relative z-10 space-y-12"
       >
-        <div className="text-center space-y-12 flex flex-col items-center">
+        <div className="text-center space-y-10 flex flex-col items-center">
            <motion.div 
              initial={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
              transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-             className="flex flex-col items-center justify-center pt-8 gap-4"
+             className="flex flex-col items-center justify-center pt-8 gap-5"
            >
-             <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-white/20 to-white/5 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.1)] rotate-3 hover:rotate-0 transition-transform duration-500">
-               <div className="w-16 h-16 rounded-[1.5rem] bg-white text-black flex items-center justify-center -rotate-3 hover:rotate-0 transition-transform duration-500">
-                  <span className="font-serif text-3xl font-bold">E</span>
-               </div>
-             </div>
+             {/* Animated Church Logo */}
+             <motion.div 
+                animate={{
+                  boxShadow: [
+                    "0 0 20px rgba(168, 85, 247, 0.3)",
+                    "0 0 50px rgba(59, 130, 246, 0.5)",
+                    "0 0 20px rgba(168, 85, 247, 0.3)"
+                  ]
+                }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="w-24 h-24 rounded-[2rem] bg-gradient-to-tr from-purple-500 via-blue-500 to-pink-500 p-[2px] shadow-2xl relative"
+              >
+                <div className="absolute inset-0 bg-gradient-to-tr from-purple-500 via-blue-500 to-pink-500 blur-xl opacity-50 rounded-[2rem]" />
+                <div className="w-full h-full rounded-[2rem] bg-black/80 flex items-center justify-center backdrop-blur-xl relative z-10">
+                  <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <Church className="w-10 h-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
+                  </motion.div>
+                </div>
+             </motion.div>
              
              <h1 
-               className="text-4xl md:text-5xl font-serif tracking-[0.3em] leading-[1.1] uppercase ml-3"
+               className="text-4xl md:text-5xl font-serif tracking-[0.3em] leading-[1.1] uppercase ml-3 mt-2"
                style={{ 
                  fontFamily: '"Playfair Display", "Cinzel", serif',
                  fontWeight: 300,
-                 background: 'linear-gradient(135deg, #FFFFFF 0%, #B0B0B0 50%, #ECECEC 100%)',
+                 background: 'linear-gradient(135deg, #FFFFFF 0%, #E0E0E0 50%, #ECECEC 100%)',
                  WebkitBackgroundClip: 'text',
                  WebkitTextFillColor: 'transparent',
                  filter: 'drop-shadow(0 4px 12px rgba(255,255,255,0.15))',
@@ -95,63 +117,64 @@ export default function Login() {
                ÉCLÉSIA
              </h1>
              <div className="flex items-center gap-4 mt-2 mb-4 w-full px-8">
-               <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
-               <span className="text-[9px] font-bold tracking-[0.4em] uppercase text-white/50">Ministério</span>
-               <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+               <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
+               <span className="text-[10px] font-bold tracking-[0.4em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-300">Ministério</span>
+               <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
              </div>
            </motion.div>
            
            <div className="space-y-2">
              <h2 className="text-2xl font-bold tracking-tight text-white mb-2">Bem-vindo(a)</h2>
-             <p className="text-[15px] font-medium text-white/50">Acesse sua conta para continuar.</p>
+             <p className="text-[15px] font-medium text-white/60">Acesse sua conta para curtir a experiência.</p>
            </div>
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-5">
-          <div className="bg-black/40 backdrop-blur-3xl rounded-[2rem] p-3 border border-white/10 shadow-2xl space-y-3 relative overflow-hidden group">
-            {/* Ambient inner glow */}
-            <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+          <div className="bg-white/[0.03] backdrop-blur-3xl rounded-[1.5rem] p-3 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-3 relative overflow-hidden group">
+            {/* Ambient inner glow on hover */}
+            <div className="absolute -inset-10 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-pink-500/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
             
             <div className="relative">
               <input 
                 type="email" required value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="E-mail"
-                className="w-full h-[60px] pl-14 pr-6 bg-white/5 rounded-2xl outline-none text-[16px] font-medium placeholder:text-white/30 text-white transition-all focus:bg-white/10 border border-transparent focus:border-white/10"
+                className="w-full h-[60px] pl-14 pr-6 bg-black/40 rounded-xl outline-none text-[16px] font-medium placeholder:text-white/30 text-white transition-all focus:bg-white/10 border border-white/5 focus:border-purple-500/50 focus:shadow-[0_0_20px_rgba(168,85,247,0.2)]"
               />
-              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-purple-400 transition-colors" />
             </div>
 
             <div className="relative">
               <input 
                 type="password" required value={password} onChange={e => setPassword(e.target.value)}
                 placeholder="Senha"
-                className="w-full h-[60px] pl-14 pr-6 bg-white/5 rounded-2xl outline-none text-[16px] font-medium placeholder:text-white/30 text-white transition-all focus:bg-white/10 border border-transparent focus:border-white/10"
+                className="w-full h-[60px] pl-14 pr-6 bg-black/40 rounded-xl outline-none text-[16px] font-medium placeholder:text-white/30 text-white transition-all focus:bg-white/10 border border-white/5 focus:border-blue-500/50 focus:shadow-[0_0_20px_rgba(59,130,246,0.2)]"
               />
-              <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+              <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
             </div>
           </div>
 
-          <div className="pt-2 flex flex-col gap-3">
+          <div className="pt-4 flex flex-col gap-4">
             <button 
               type="submit"
               disabled={loading}
-              className="w-full h-[60px] bg-white text-black rounded-2xl font-bold text-[16px] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)]"
+              className="w-full h-[60px] bg-gradient-to-r from-purple-600 via-blue-500 to-pink-500 text-white rounded-xl font-bold text-[16px] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] relative overflow-hidden"
             >
-              {loading ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <span>{isRegister ? 'Criar Conta' : 'Entrar'}</span>}
+              <div className="absolute inset-0 bg-white/20 mix-blend-overlay opacity-0 hover:opacity-100 transition-opacity" />
+              {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span>{isRegister ? 'Criar Conta' : 'Entrar'}</span>}
             </button>
 
             <button 
               type="button"
               onClick={handleGoogleLogin}
-              className="w-full h-[60px] bg-white/5 backdrop-blur-md border border-white/10 text-white rounded-2xl font-bold text-[16px] active:scale-[0.98] transition-all flex items-center justify-center gap-3 hover:bg-white/10"
+              className="w-full h-[60px] bg-white/5 backdrop-blur-xl border border-white/10 text-white rounded-xl font-bold text-[16px] active:scale-[0.98] transition-all flex items-center justify-center gap-3 hover:bg-white/10 hover:border-white/20"
             >
-              <img src="https://www.google.com/favicon.ico" className="w-5 h-5 grayscale opacity-80" alt="Google" />
+              <img src="https://www.google.com/favicon.ico" className="w-5 h-5 opacity-90" alt="Google" />
               <span>Continuar com Google</span>
             </button>
           </div>
         </form>
 
-        <div className="text-center pt-2">
+        <div className="text-center pt-2 pb-6">
           <button 
             onClick={() => setIsRegister(!isRegister)}
             className="text-white/60 hover:text-white font-medium text-[15px] transition-colors"
@@ -172,10 +195,6 @@ export default function Login() {
             </motion.p>
           )}
         </AnimatePresence>
-
-        <footer className="pt-6 pb-2 text-center text-[11px] font-bold text-white/30 uppercase tracking-[0.3em]">
-          Sync Protocol v4.2.0 • 2026
-        </footer>
       </motion.div>
     </div>
   );
