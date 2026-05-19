@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
@@ -103,6 +103,7 @@ export default function Home() {
               { to: '/gallery', icon: Search, label: 'Grupos', color: 'from-emerald-600 to-emerald-400' },
               { to: '/prayers', icon: HandHeart, label: 'Oração', color: 'from-cyan-600 to-cyan-400' },
               { to: '/notes', icon: Edit3, label: 'Notas', color: 'from-yellow-600 to-yellow-400' },
+              { to: '/volunteer', icon: User, label: 'Voluntário', color: 'from-indigo-600 to-indigo-400' },
             ].map((cat, idx) => (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -185,6 +186,95 @@ export default function Home() {
                   </div>
                 </div>
              </div>
+          </div>
+        </section>
+
+        {/* Podcast Section */}
+        <section>
+          <div className="flex items-end justify-between mb-6">
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 rounded-full bg-[var(--theme-color)]/20 flex items-center justify-center">
+                 <Mic className="w-5 h-5 text-[var(--theme-color)]" />
+               </div>
+               <h2 className="text-2xl font-bold tracking-tight">Podcasts</h2>
+             </div>
+             <Link to="/podcast" className="text-sm font-bold text-[var(--theme-color)] uppercase tracking-widest flex items-center gap-1 hover:text-white transition-colors">Mais <ChevronRight className="w-4 h-4" /></Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { id: 1, title: 'Descobrindo o Propósito', host: 'Pr. Marcos Silva', duration: '45 min', img: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&q=80&w=800' },
+              { id: 2, title: 'Fé Inabalável', host: 'Pra. Sarah Oliveira', duration: '38 min', img: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?auto=format&fit=crop&q=80&w=800' },
+              { id: 3, title: 'Relacionamento com Deus', host: 'Pr. Lucas Ferreira', duration: '52 min', img: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?auto=format&fit=crop&q=80&w=800' },
+            ].map((podcast, idx) => (
+              <motion.div
+                key={podcast.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="bg-[#111111] border border-white/5 rounded-3xl p-4 flex gap-4 items-center group cursor-pointer hover:border-[var(--theme-color)]/30 transition-colors"
+              >
+                <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0">
+                  <img src={podcast.img} alt={podcast.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <Play className="w-8 h-8 text-white fill-current opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                  </div>
+                </div>
+                <div className="flex flex-col flex-1 overflow-hidden">
+                  <p className="text-[10px] text-[var(--theme-color)] font-bold uppercase tracking-widest mb-1">{podcast.duration}</p>
+                  <h4 className="text-white font-bold leading-tight line-clamp-2 mb-1">{podcast.title}</h4>
+                  <p className="text-white/50 text-xs">{podcast.host}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* Testimonials / Impact Section */}
+        <section>
+          <div className="text-center mb-10">
+            <h2 className="text-3xl lg:text-5xl font-serif font-bold tracking-tight mb-4 text-white">Vidas Transformadas</h2>
+            <p className="text-white/60 max-w-xl mx-auto">Ouça o que Deus tem feito através deste ministério na vida de nossos irmãos.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { id: 1, text: "Desde que comecei a participar dos cultos online, minha vida espiritual mudou completamente. Sinto a presença de Deus na minha casa!", author: "Carolina Mendes", role: "Membro", rating: 5 },
+              { id: 2, text: "A conferência Profética foi um marco na minha família. O avivamento prometido realmente aconteceu em nosso lar.", author: "João Batista", role: "Líder de Célula", rating: 5 },
+              { id: 3, text: "Os Devocionais diários pelo aplicativo têm sido meu alimento matinal. A palavra tem chegado sempre na hora exata.", author: "Mariana Souza", role: "Visitante", rating: 5 },
+            ].map((testimonial, idx) => (
+              <motion.div
+                key={testimonial.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.1 }}
+                className="bg-gradient-to-b from-[#1A1A1A] to-[#111111] p-8 rounded-[2rem] border border-white/5 relative group hover:border-white/10 transition-colors"
+              >
+                <div className="absolute top-6 right-6 text-[var(--theme-color)]/10 group-hover:text-[var(--theme-color)]/20 transition-colors">
+                  <MessageSquareQuote className="w-16 h-16" />
+                </div>
+                
+                <div className="flex gap-1 mb-6 relative z-10">
+                  {Array.from({ length: testimonial.rating }).map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-[var(--theme-color)] text-[var(--theme-color)]" />
+                  ))}
+                </div>
+                
+                <p className="text-white/80 font-medium italic mb-8 relative z-10 text-lg leading-relaxed">"{testimonial.text}"</p>
+                
+                <div className="flex items-center gap-4 relative z-10 border-t border-white/5 pt-6">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[var(--theme-color)] to-[var(--color-theme-purple)] p-[2px]">
+                    <div className="w-full h-full rounded-full bg-black flex items-center justify-center font-bold text-lg">
+                      {testimonial.author.charAt(0)}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white tracking-wide">{testimonial.author}</h4>
+                    <span className="text-[10px] uppercase font-bold text-[var(--theme-color)] tracking-widest">{testimonial.role}</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </section>
 

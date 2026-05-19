@@ -72,22 +72,33 @@ export default function Login() {
              initial={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
              transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-             className="flex items-center justify-center pt-8"
+             className="flex flex-col items-center justify-center pt-8 gap-4"
            >
+             <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-tr from-white/20 to-white/5 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.1)] rotate-3 hover:rotate-0 transition-transform duration-500">
+               <div className="w-16 h-16 rounded-[1.5rem] bg-white text-black flex items-center justify-center -rotate-3 hover:rotate-0 transition-transform duration-500">
+                  <span className="font-serif text-3xl font-bold">E</span>
+               </div>
+             </div>
+             
              <h1 
-               className="text-4xl md:text-5xl font-serif tracking-[0.15em] leading-[1.1] uppercase"
+               className="text-4xl md:text-5xl font-serif tracking-[0.3em] leading-[1.1] uppercase ml-3"
                style={{ 
                  fontFamily: '"Playfair Display", "Cinzel", serif',
-                 fontWeight: 400,
-                 background: 'linear-gradient(135deg, #FFFFFF 0%, #A0A0A0 100%)',
+                 fontWeight: 300,
+                 background: 'linear-gradient(135deg, #FFFFFF 0%, #B0B0B0 50%, #ECECEC 100%)',
                  WebkitBackgroundClip: 'text',
                  WebkitTextFillColor: 'transparent',
                  filter: 'drop-shadow(0 4px 12px rgba(255,255,255,0.15))',
                  fontVariantLigatures: 'common-ligatures'
                }}
              >
-               {churchName || 'ECCLESIA'}
+               ÉCLÉSIA
              </h1>
+             <div className="flex items-center gap-4 mt-2 mb-4 w-full px-8">
+               <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+               <span className="text-[9px] font-bold tracking-[0.4em] uppercase text-white/50">Ministério</span>
+               <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+             </div>
            </motion.div>
            
            <div className="space-y-2">

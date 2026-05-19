@@ -16,6 +16,8 @@ import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Notes from './pages/Notes';
 import Prayers from './pages/Prayers';
+import Podcast from './pages/Podcast';
+import Volunteer from './pages/Volunteer';
 import SettingsPage from './pages/Settings';
 
 // Components
@@ -25,6 +27,8 @@ import { User as UserIcon, Church } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLocation, Link } from 'react-router-dom';
 import { useTheme } from './lib/ThemeContext';
+import { PlayerProvider } from './lib/PlayerContext';
+import GlobalPlayer from './components/GlobalPlayer';
 
 function SplashScreen() {
   return (
@@ -101,9 +105,11 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <Router>
-        <AppContent user={user} isAdmin={isAdmin} />
-      </Router>
+      <PlayerProvider>
+        <Router>
+          <AppContent user={user} isAdmin={isAdmin} />
+        </Router>
+      </PlayerProvider>
     </ThemeProvider>
   );
 }
@@ -148,6 +154,8 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
             <Route path="/gallery" element={<PageWrapper><Gallery /></PageWrapper>} />
             <Route path="/notes" element={<PageWrapper><Notes /></PageWrapper>} />
             <Route path="/prayers" element={<PageWrapper><Prayers /></PageWrapper>} />
+            <Route path="/podcast" element={<PageWrapper><Podcast /></PageWrapper>} />
+            <Route path="/volunteer" element={<PageWrapper><Volunteer /></PageWrapper>} />
             <Route path="/profile" element={<PageWrapper><Profile user={user!} /></PageWrapper>} />
             <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
             <Route path="/admin" element={isAdmin ? <PageWrapper><Admin /></PageWrapper> : <Navigate to="/" />} />
@@ -156,6 +164,7 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
         </AnimatePresence>
       </main>
 
+      <GlobalPlayer />
       <BottomNav />
     </div>
   );

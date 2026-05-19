@@ -6,7 +6,7 @@ export interface YouTubeVideo {
   title: string;
   thumbnail: string;
   publishedAt: string;
-  type: 'video' | 'live';
+  type: 'video' | 'live' | 'music' | 'podcast';
   author?: string;
 }
 
