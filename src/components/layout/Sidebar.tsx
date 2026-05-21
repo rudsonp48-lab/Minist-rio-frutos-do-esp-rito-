@@ -45,23 +45,20 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
   }
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-black/40 backdrop-blur-3xl border-r border-white/5 z-40 hidden lg:flex flex-col overflow-hidden">
-      {/* Glow Effect */}
-      <div className="absolute top-0 left-0 w-full h-[500px] bg-[var(--theme-color)]/10 blur-[120px] rounded-full pointer-events-none -translate-y-1/2 -translate-x-1/2" />
-
+    <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-white/70 dark:bg-[#1C1C1E]/70 backdrop-blur-[40px] border-r border-black/5 dark:border-white/[0.04] z-40 hidden lg:flex flex-col overflow-hidden shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
       {/* Header */}
       <div className="p-8 pb-4 relative z-10 flex items-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(255,255,255,0.05)]">
-          <Church className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
+          <Church className="w-5 h-5 text-black dark:text-white" />
         </div>
         <div className="flex flex-col overflow-hidden">
           <span 
-            className="text-lg font-serif tracking-widest text-white uppercase truncate"
+            className="text-lg font-serif tracking-widest text-black dark:text-white uppercase truncate"
             style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}
           >
             {churchName || 'ECCLESIA'}
           </span>
-          <span className="text-[10px] font-medium text-white/40 tracking-[0.2em] uppercase">Ministério</span>
+          <span className="text-[10px] font-medium text-black/40 dark:text-white/40 tracking-[0.2em] uppercase">Ministério</span>
         </div>
       </div>
 
@@ -77,12 +74,12 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
               to={item.to}
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden",
-                isActive ? "text-white" : "text-white/50 hover:text-white"
+                isActive ? "text-black dark:text-white font-semibold" : "text-black/60 dark:text-white/50 hover:text-black dark:hover:text-white"
               )}
             >
               {isActive && (
                 <div 
-                  className="absolute inset-0 opacity-10" 
+                  className="absolute inset-0 opacity-10 dark:opacity-20 rounded-xl" 
                   style={{ backgroundColor: themeColor || '#8A2BE2' }} 
                 />
               )}
@@ -99,7 +96,7 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
                 )} 
                 style={isActive ? { color: themeColor || '#8A2BE2' } : {}}
               />
-              <span className="text-[14px] font-medium tracking-wide">
+              <span className="text-[14px] tracking-wide">
                 {item.label}
               </span>
             </Link>
@@ -109,7 +106,7 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
 
       {/* Divider */}
       <div className="px-8 py-2 relative z-10">
-        <div className="h-[1px] w-full bg-white/5" />
+        <div className="h-[1px] w-full bg-black/5 dark:bg-white/5" />
       </div>
 
       {/* Bottom Navigation */}
@@ -124,11 +121,11 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
               to={item.to}
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group",
-                isActive ? "text-white bg-white/5" : "text-white/50 hover:text-white hover:bg-white/5"
+                isActive ? "text-black dark:text-white bg-black/5 dark:bg-white/5 font-semibold" : "text-black/60 dark:text-white/50 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
               )}
             >
-              <Icon className={cn("w-5 h-5", isActive ? "text-white" : "")} />
-              <span className="text-[14px] font-medium tracking-wide">
+              <Icon className={cn("w-5 h-5", isActive ? "text-black dark:text-white" : "")} />
+              <span className="text-[14px] tracking-wide">
                 {item.label}
               </span>
             </Link>

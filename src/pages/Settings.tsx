@@ -1,11 +1,11 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRight, Moon, Globe, Terminal, Cpu, Share2, Youtube, ShieldAlert, LayoutDashboard, ChevronLeft, LogOut, User, Lock, Heart, Paintbrush, Camera, Loader2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { auth, db, storage } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { updateProfile, signOut } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { compressImage } from '../lib/imageUtils';
 import { useTheme } from '../lib/ThemeContext';
 import { Logo } from '../components/Logo';
 
@@ -52,9 +52,7 @@ export default function SettingsPage() {
       const file = e.target.files[0];
       setIsUploadingPhoto(true);
       try {
-        const storageRef = ref(storage, `users/${user.uid}/profile_${Date.now()}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
+        const downloadUrl = await compressImage(file);
         await updateProfile(user, { photoURL: downloadUrl });
         // Force re-render with new photo
         window.location.reload();

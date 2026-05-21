@@ -6,9 +6,9 @@ import {
   Zap, Globe, Cpu, CreditCard, ChevronRight, ChevronLeft, ShieldCheck, ImagePlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, db, storage } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc, getDocs, limit, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { compressImage } from '../lib/imageUtils';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { Link } from 'react-router-dom';
 
@@ -94,10 +94,8 @@ export default function Admin() {
       const file = e.target.files[0];
       setIsSaving(true);
       try {
-        const storageRef = ref(storage, `banners/banner_${Date.now()}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
-        setNewItem({ ...newItem, image: downloadUrl });
+        const base64Image = await compressImage(file);
+        setNewItem({ ...newItem, image: base64Image });
       } catch (err) {
         alert("Erro no upload do banner");
       } finally {
@@ -142,10 +140,8 @@ export default function Admin() {
       const file = e.target.files[0];
       setIsSaving(true);
       try {
-        const storageRef = ref(storage, `content/${activeMenu}_${Date.now()}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
-        setNewItem({ ...newItem, url: downloadUrl, image: downloadUrl });
+        const base64Image = await compressImage(file);
+        setNewItem({ ...newItem, url: base64Image, image: base64Image });
       } catch (err) {
         alert("Erro no upload");
       } finally {
@@ -195,10 +191,8 @@ export default function Admin() {
       const file = e.target.files[0];
       setIsSaving(true);
       try {
-        const storageRef = ref(storage, `config/logo_${Date.now()}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
-        setConfig(prev => ({ ...prev, logoUrl: downloadUrl }));
+        const base64Image = await compressImage(file);
+        setConfig(prev => ({ ...prev, logoUrl: base64Image }));
       } catch (err) {
         console.error("Failed to upload logo", err);
         alert("Erro no upload da logo");

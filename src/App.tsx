@@ -120,15 +120,17 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col relative z-0">
-      <div className="spline-container absolute inset-0 w-full h-full -z-10 pointer-events-none opacity-60">
-        <iframe src="https://my.spline.design/particlesmoment-kW3xyVny6weIhXJ3vbs2M2bB" frameBorder="0" width="100%" height="100%" id="aura-spline"></iframe>
+      {/* iOS 26 Abstract Background System */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-purple-600/10 blur-[120px] rounded-full mix-blend-screen animate-[pulse_8s_ease-in-out_infinite]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-blue-600/10 blur-[120px] rounded-full mix-blend-screen animate-[pulse_10s_ease-in-out_infinite_2s]" />
       </div>
       <Sidebar isAdmin={isAdmin} user={user} />
       
-      {/* Mobile Top Header */}
-      <div className="lg:hidden fixed top-0 w-full z-40 bg-black/50 backdrop-blur-3xl border-b border-white/5 py-4 px-6 flex items-center justify-between">
+      {/* Mobile Top Header (Apple iOS 26 style) */}
+      <div className="lg:hidden fixed top-0 w-full z-40 bg-white/70 dark:bg-[#1C1C1E]/70 backdrop-blur-[40px] border-b border-black/5 dark:border-white/[0.05] shadow-[0_4px_24px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)] py-3 px-6 flex items-center justify-between transition-colors">
         <span 
-          className="text-lg font-serif tracking-widest text-white uppercase"
+          className="text-lg font-serif tracking-widest text-black dark:text-white uppercase"
           style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}
         >
           {churchName || 'ECCLESIA'}

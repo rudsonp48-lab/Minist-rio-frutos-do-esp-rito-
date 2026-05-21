@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Camera, Heart, MessageCircle, Share2, Plus, Loader2, Zap, Globe, Target, ChevronLeft, LayoutGrid, ImagePlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, auth, storage } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc, increment } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { compressImage } from '../lib/imageUtils';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { Link } from 'react-router-dom';
 import { Logo } from '../components/Logo';
@@ -70,15 +70,14 @@ export default function Gallery() {
 
     setIsUploading(true);
     try {
-      // 1. Upload to Storage
-      const fileExtension = file.name.split('.').pop()?.toLowerCase();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-      const storageRef = ref(storage, `gallery/${auth.currentUser.uid}/${fileName}`);
+      if (file.type.startsWith('video/')) {
+        alert("Upload de vídeos não é suportado no momento.");
+        return;
+      }
       
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(snapshot.ref);
+      const downloadUrl = await compressImage(file);
       
-      const fileType = file.type.startsWith('video/') || fileExtension === 'mp4' ? 'video' : 'image';
+      const fileType = 'image';
 
       // 2. Save metadata to Firestore
       await addDoc(collection(db, 'photos'), {
@@ -96,7 +95,7 @@ export default function Gallery() {
       setShowUploadModal(false);
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
-      alert("Falha no upload. O Storage pode não estar configurado corretamente.");
+      alert("Falha no upload.");
     } finally {
       setIsUploading(false);
     }

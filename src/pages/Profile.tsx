@@ -1,9 +1,9 @@
 import { User, signOut, updateProfile } from 'firebase/auth';
-import { auth, db, storage } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { LogOut, User as UserIcon, Settings, Heart, Image as ImageIcon, Bell, ChevronRight, ShieldCheck, Trophy, Camera, Loader2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { compressImage } from '../lib/imageUtils';
 import { motion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -36,13 +36,7 @@ export default function Profile({ user }: ProfileProps) {
       const file = e.target.files[0];
       setIsUploading(true);
       try {
-        const fileExtension = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-        const storageRef = ref(storage, `profiles/${user.uid}/${fileName}`);
-        
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
-
+        const downloadUrl = await compressImage(file);
         await updateProfile(user, { photoURL: downloadUrl });
         window.location.reload();
       } catch (error) {

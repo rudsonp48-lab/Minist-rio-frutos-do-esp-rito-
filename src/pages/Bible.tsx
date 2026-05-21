@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Book, ChevronRight, ChevronLeft, Bookmark, Share2, Download, Wifi, WifiOff, Target, Zap, Globe, Cpu, BookOpen, List, PenTool, Highlighter, Edit3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BIBLE_STRUCTURE, SAMPLE_VERSES } from '../lib/bibleData';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../lib/ThemeContext';
 import Notes from './Notes';
 
@@ -15,6 +15,7 @@ interface Verse {
 
 export default function Bible() {
   const { themeColor } = useTheme();
+  const location = useLocation();
   const [translation, setTranslation] = useState('almeida');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +82,35 @@ export default function Bible() {
       setLoading(false);
     }
   }, [translation]);
+
+  useEffect(() => {
+    if (location.state && location.state.book && location.state.chapter) {
+      const bookData = BIBLE_STRUCTURE.find(b => b.book === location.state.book);
+      if (bookData) {
+        setSelectedBook(bookData);
+        setSelectedChapter(location.state.chapter);
+        setView('chapter');
+        fetchChapter(location.state.book, location.state.chapter);
+        // Clear state so it doesn't trigger again on back navigation if implemented that way, though we just check on mount/location change
+      }
+    }
+  }, [location.state, fetchChapter]);
+
+  useEffect(() => {
+    if (view === 'chapter' && !loading && chapterVerses.length > 0 && location.state?.verse) {
+      setTimeout(() => {
+        const el = document.getElementById(`verse-${location.state.verse}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Optional highlight effect
+          el.style.backgroundColor = 'rgba(138, 43, 226, 0.3)';
+          setTimeout(() => {
+            el.style.backgroundColor = '';
+          }, 2000);
+        }
+      }, 300);
+    }
+  }, [view, loading, chapterVerses, location.state]);
 
   const searchSingleVerse = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,6 +290,7 @@ export default function Bible() {
                     return (
                       <div 
                         key={v.verse} 
+                        id={`verse-${v.verse}`}
                         onClick={() => toggleHighlight(v.book_name, v.chapter, v.verse)}
                         className={`flex gap-4 p-3 rounded-2xl cursor-pointer transition-all ${isHighlighted ? 'bg-[var(--theme-color)]/20' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                       >

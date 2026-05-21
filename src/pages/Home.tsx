@@ -53,37 +53,38 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-transparent text-white font-sans w-full overflow-x-hidden pb-32">
       
-      {/* Hero Section (Netflix Style) */}
-      <div className="relative w-full h-[65vh] lg:h-[75vh] flex items-end justify-start overflow-hidden lg:rounded-b-[3rem] shadow-2xl">
+      {/* Hero Section (iOS 26 Style) */}
+      <div className="relative w-full h-[65vh] lg:h-[75vh] flex items-end justify-start overflow-hidden lg:rounded-b-[40px] ios-shadow">
         <div className="absolute inset-0 bg-black">
-          <img src={currentBanner.image} alt={currentBanner.title} className="w-full h-full object-cover opacity-80 scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent p-6"></div>
-          {/* Neon overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--color-theme-purple)]/10 to-black pointer-events-none"></div>
+          <img src={currentBanner.image} alt={currentBanner.title} className="w-full h-full object-cover opacity-90 scale-105" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-600/10 to-black pointer-events-none"></div>
+          {/* iOS 26 Frost bottom fade */}
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#F2F2F7] dark:from-[#000000] to-transparent z-[5]"></div>
         </div>
         
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: "easeOut" }}
-          className="relative z-10 p-6 lg:p-16 w-full max-w-7xl mx-auto"
+          className="relative z-10 p-6 lg:p-16 w-full max-w-7xl mx-auto mb-10"
         >
           <div className="flex gap-2 mb-4">
-            <span className="px-3 py-1 rounded bg-[var(--theme-color)]/20 backdrop-blur-md text-[var(--theme-color)] text-[10px] uppercase font-bold tracking-[0.2em] shadow-[0_0_15px_var(--theme-color)] border border-[var(--theme-color)]/30">Lançamento</span>
+            <span className="ios-pill text-white/90">Lançamento</span>
           </div>
-          <h1 className="text-5xl lg:text-7xl font-bold font-serif tracking-tight leading-[1.1] mb-4 text-white drop-shadow-2xl">
+          <h1 className="text-4xl lg:text-7xl font-bold font-display tracking-tight leading-[1.1] mb-4 text-white drop-shadow-md">
             {currentBanner.title}
           </h1>
-          <p className="text-lg lg:text-xl text-white/80 font-medium max-w-xl mb-8 leading-relaxed filter drop-shadow-lg">
+          <p className="text-lg lg:text-xl text-white/80 font-medium max-w-xl mb-8 leading-relaxed">
             {currentBanner.subtitle}
           </p>
           
           <div className="flex items-center gap-4">
-            <Link to="/media" className="flex items-center justify-center gap-2 px-8 py-4 bg-white text-black rounded-full font-bold transition-transform active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.4)]">
+            <Link to="/media" className="ios-button flex items-center justify-center gap-2 px-8 py-3.5 bg-white dark:bg-white text-black rounded-[24px]">
               <Play className="w-5 h-5 fill-current" />
               <span>Assistir</span>
             </Link>
-            <button className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center transition-transform active:scale-95 hover:bg-white/20">
+            <button className="w-14 h-14 rounded-[20px] bg-white/20 backdrop-blur-[30px] border border-white/20 flex items-center justify-center transition-all active:scale-95 hover:bg-white/30">
               <Bell className="w-6 h-6 text-white" />
             </button>
           </div>
@@ -126,9 +127,9 @@ export default function Home() {
 
         {/* Continue Watching / Recent */}
         <section>
-          <div className="flex items-end justify-between mb-6">
-             <h2 className="text-2xl font-bold tracking-tight">Em Alta Categoria</h2>
-             <Link to="/media" className="text-sm font-bold text-[var(--theme-color)] uppercase tracking-widest flex items-center gap-1 hover:text-white transition-colors">Ver Mais <ChevronRight className="w-4 h-4" /></Link>
+          <div className="flex items-end justify-between mb-6 px-2">
+             <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Em Alta</h2>
+             <Link to="/media" className="text-sm font-bold text-purple-600 dark:text-purple-400 tracking-widest flex items-center gap-1 hover:opacity-80 transition-opacity">Ver Mais <ChevronRight className="w-4 h-4" /></Link>
           </div>
           <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0">
             {RECENT_ITEMS.map((item, idx) => (
@@ -138,17 +139,17 @@ export default function Home() {
                 transition={{ delay: idx * 0.1 }}
                 key={item.id} 
               >
-                <Link to="/media" className="block w-64 lg:w-80 group relative">
-                  <div className="aspect-video rounded-xl bg-black overflow-hidden relative border border-white/10 group-hover:border-white/30 transition-colors">
-                    <img src={item.img} alt={item.title} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" />
+                <Link to="/media" className="block w-64 lg:w-80 group relative ios-card rounded-[32px] p-2">
+                  <div className="aspect-video rounded-[24px] bg-black overflow-hidden relative border border-white/5 group-hover:border-white/20 transition-colors shadow-inner">
+                    <img src={item.img} alt={item.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                    <div className="absolute bottom-3 left-3 right-3">
-                       <span className="text-[10px] font-bold text-[var(--theme-color)] uppercase tracking-wider mb-1 block">{item.category}</span>
-                       <h3 className="text-sm font-bold text-white truncate">{item.title}</h3>
+                    <div className="absolute bottom-4 left-4 right-4">
+                       <span className="text-[10px] font-bold text-white/80 backdrop-blur-md bg-black/30 px-2 py-1 rounded-full uppercase tracking-wider mb-2 inline-block border border-white/10">{item.category}</span>
+                       <h3 className="text-base font-bold text-white truncate drop-shadow-md">{item.title}</h3>
                     </div>
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm">
-                      <div className="w-12 h-12 rounded-full border-2 border-white flex items-center justify-center">
-                        <Play className="w-5 h-5 text-white ml-1 fill-current" />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-sm">
+                      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center shadow-lg">
+                        <Play className="w-6 h-6 text-white ml-1 fill-current" />
                       </div>
                     </div>
                   </div>
@@ -160,29 +161,29 @@ export default function Home() {
 
         {/* Modern Devotional Widget */}
         <section>
-          <div className="relative w-full rounded-[2.5rem] bg-gradient-to-br from-[#1C1C1E] to-[#2C2C2E] border border-white/5 overflow-hidden group">
+          <div className="ios-card relative w-full bg-gradient-to-br from-white to-[#F2F2F7] dark:from-[#1C1C1E] dark:to-[#111111] overflow-hidden group">
              {/* Abstract background */}
-             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-[var(--color-theme-purple)]/30 to-transparent rounded-full blur-[100px] translate-x-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-1000 group-hover:scale-110"></div>
+             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-1000 group-hover:scale-110"></div>
              
              <div className="relative z-10 p-8 lg:p-12 flex flex-col lg:flex-row gap-8 items-center lg:items-start justify-between">
                 <div className="flex-1 max-w-2xl">
-                  <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-[var(--theme-color)] mb-4 block">Devocional Diário</span>
-                  <h3 className="text-3xl lg:text-4xl font-serif font-bold text-white mb-6 leading-tight">{DEVOCIONAL.title}</h3>
-                  <div className="pl-6 border-l-2 border-[var(--theme-color)] mb-6">
-                    <p className="text-lg text-white/90 italic leading-relaxed">"{DEVOCIONAL.verse}"</p>
-                    <p className="text-xs text-[var(--theme-color)] font-bold mt-3 uppercase tracking-widest">{DEVOCIONAL.reference}</p>
+                  <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-purple-600 dark:text-purple-400 mb-4 block">Devocional Diário</span>
+                  <h3 className="text-3xl lg:text-4xl font-display tracking-tight font-bold text-black dark:text-white mb-6 leading-tight">{DEVOCIONAL.title}</h3>
+                  <div className="pl-6 border-l-[3px] border-purple-500/50 mb-6 rounded-sm">
+                    <p className="text-xl text-black/80 dark:text-white/90 italic leading-relaxed">"{DEVOCIONAL.verse}"</p>
+                    <p className="text-xs text-purple-600 dark:text-purple-400 font-bold mt-3 tracking-wider">{DEVOCIONAL.reference}</p>
                   </div>
-                  <p className="text-white/60 leading-relaxed mb-8">{DEVOCIONAL.text}</p>
-                  <Link to="/bible" className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-[var(--theme-color)] text-white rounded-full font-bold uppercase tracking-widest text-[12px] active:scale-95 transition-transform hover:bg-[var(--color-primary-focused)] shadow-[0_0_20px_var(--theme-color)]/30">
+                  <p className="text-black/60 dark:text-white/60 leading-relaxed mb-8 font-medium">{DEVOCIONAL.text}</p>
+                  <Link to="/bible" state={{ book: 'Filipenses', chapter: 4, verse: 7 }} className="ios-button inline-flex items-center justify-center gap-2">
                     <BookOpen className="w-4 h-4 fill-current" />
                     Ler Completo
                   </Link>
                 </div>
 
                 <div className="w-full lg:w-1/3 flex justify-center">
-                  <div className="w-48 h-64 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl flex items-center justify-center rotate-3 hover:rotate-0 transition-transform duration-500 shadow-2xl relative overflow-hidden">
-                     <div className="absolute inset-0 bg-gradient-to-tr from-[var(--theme-color)]/20 to-transparent"></div>
-                     <BookOpen className="w-20 h-20 text-white/20" />
+                  <div className="w-48 h-64 rounded-[32px] bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/10 backdrop-blur-3xl flex items-center justify-center rotate-3 hover:rotate-0 transition-transform duration-500 shadow-xl relative overflow-hidden">
+                     <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-blue-500/10"></div>
+                     <BookOpen className="w-20 h-20 text-black/20 dark:text-white/20 drop-shadow-sm" />
                   </div>
                 </div>
              </div>
@@ -191,14 +192,14 @@ export default function Home() {
 
         {/* Podcast Section */}
         <section>
-          <div className="flex items-end justify-between mb-6">
+          <div className="flex items-end justify-between mb-8 px-2">
              <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-full bg-[var(--theme-color)]/20 flex items-center justify-center">
-                 <Mic className="w-5 h-5 text-[var(--theme-color)]" />
+               <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                 <Mic className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                </div>
-               <h2 className="text-2xl font-bold tracking-tight">Podcasts</h2>
+               <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Podcasts</h2>
              </div>
-             <Link to="/podcast" className="text-sm font-bold text-[var(--theme-color)] uppercase tracking-widest flex items-center gap-1 hover:text-white transition-colors">Mais <ChevronRight className="w-4 h-4" /></Link>
+             <Link to="/podcast" className="text-sm font-bold text-purple-600 dark:text-purple-400 tracking-widest flex items-center gap-1 hover:opacity-80 transition-opacity">Mais <ChevronRight className="w-4 h-4" /></Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
@@ -211,18 +212,18 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className="bg-[#111111] border border-white/5 rounded-3xl p-4 flex gap-4 items-center group cursor-pointer hover:border-[var(--theme-color)]/30 transition-colors"
+                className="ios-card p-4 flex gap-5 items-center group cursor-pointer"
               >
-                <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0">
+                <div className="relative w-[100px] h-[100px] rounded-[24px] overflow-hidden shrink-0 ios-shadow">
                   <img src={podcast.img} alt={podcast.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <Play className="w-8 h-8 text-white fill-current opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <Play className="w-8 h-8 text-white fill-current opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all drop-shadow-md" />
                   </div>
                 </div>
-                <div className="flex flex-col flex-1 overflow-hidden">
-                  <p className="text-[10px] text-[var(--theme-color)] font-bold uppercase tracking-widest mb-1">{podcast.duration}</p>
-                  <h4 className="text-white font-bold leading-tight line-clamp-2 mb-1">{podcast.title}</h4>
-                  <p className="text-white/50 text-xs">{podcast.host}</p>
+                <div className="flex flex-col flex-1 overflow-hidden pr-2">
+                  <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold tracking-wider mb-1.5">{podcast.duration}</p>
+                  <h4 className="text-black dark:text-white font-semibold leading-tight line-clamp-2 mb-1.5 text-[15px]">{podcast.title}</h4>
+                  <p className="text-black/50 dark:text-white/50 text-xs font-medium">{podcast.host}</p>
                 </div>
               </motion.div>
             ))}
@@ -231,9 +232,9 @@ export default function Home() {
 
         {/* Testimonials / Impact Section */}
         <section>
-          <div className="text-center mb-10">
-            <h2 className="text-3xl lg:text-5xl font-serif font-bold tracking-tight mb-4 text-white">Vidas Transformadas</h2>
-            <p className="text-white/60 max-w-xl mx-auto">Ouça o que Deus tem feito através deste ministério na vida de nossos irmãos.</p>
+          <div className="text-center mb-10 px-4">
+            <h2 className="text-3xl lg:text-5xl font-display font-bold tracking-tight mb-4 text-black dark:text-white">Vidas Transformadas</h2>
+            <p className="text-black/60 dark:text-white/60 max-w-xl mx-auto font-medium">Ouça o que Deus tem feito através deste ministério na vida de nossos irmãos.</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -248,29 +249,29 @@ export default function Home() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
-                className="bg-gradient-to-b from-[#1A1A1A] to-[#111111] p-8 rounded-[2rem] border border-white/5 relative group hover:border-white/10 transition-colors"
+                className="ios-card bg-white/80 dark:bg-white/[0.03] backdrop-blur-3xl p-8 relative group"
               >
-                <div className="absolute top-6 right-6 text-[var(--theme-color)]/10 group-hover:text-[var(--theme-color)]/20 transition-colors">
+                <div className="absolute top-6 right-6 text-purple-500/10 dark:text-purple-400/10 group-hover:text-purple-500/20 transition-colors">
                   <MessageSquareQuote className="w-16 h-16" />
                 </div>
                 
                 <div className="flex gap-1 mb-6 relative z-10">
                   {Array.from({ length: testimonial.rating }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-[var(--theme-color)] text-[var(--theme-color)]" />
+                    <Star key={i} className="w-4 h-4 fill-purple-500 text-purple-500" />
                   ))}
                 </div>
                 
-                <p className="text-white/80 font-medium italic mb-8 relative z-10 text-lg leading-relaxed">"{testimonial.text}"</p>
+                <p className="text-black/80 dark:text-white/80 font-medium italic mb-8 relative z-10 text-lg leading-relaxed">"{testimonial.text}"</p>
                 
-                <div className="flex items-center gap-4 relative z-10 border-t border-white/5 pt-6">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[var(--theme-color)] to-[var(--color-theme-purple)] p-[2px]">
-                    <div className="w-full h-full rounded-full bg-black flex items-center justify-center font-bold text-lg">
+                <div className="flex items-center gap-4 relative z-10 border-t border-black/5 dark:border-white/5 pt-6">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 p-[2px]">
+                    <div className="w-full h-full rounded-full bg-white dark:bg-black flex items-center justify-center font-bold text-lg text-black dark:text-white">
                       {testimonial.author.charAt(0)}
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-bold text-white tracking-wide">{testimonial.author}</h4>
-                    <span className="text-[10px] uppercase font-bold text-[var(--theme-color)] tracking-widest">{testimonial.role}</span>
+                    <h4 className="font-bold text-black dark:text-white tracking-wide">{testimonial.author}</h4>
+                    <span className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 tracking-widest">{testimonial.role}</span>
                   </div>
                 </div>
               </motion.div>
@@ -280,23 +281,23 @@ export default function Home() {
 
         {/* Premium Donation / Give */}
         <section id="donate" className="pt-4">
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[var(--color-theme-wine)]/40 to-black border border-white/10 p-8 lg:p-12 text-center lg:text-left flex flex-col lg:flex-row items-center gap-12">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
+          <div className="ios-card relative bg-gradient-to-br from-white to-[#F2F2F7] dark:from-[#2a1318] dark:to-black p-8 lg:p-12 text-center lg:text-left flex flex-col lg:flex-row items-center gap-12 overflow-hidden">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 mix-blend-overlay"></div>
             
             <div className="flex-1 relative z-10 w-full">
-              <h2 className="text-4xl font-serif font-bold mb-4">Semear e Contribuir</h2>
-              <p className="text-white/60 text-lg mb-8 max-w-md mx-auto lg:mx-0">Faça sua contribuição de forma segura e rápida. Ajude-nos a continuar espalhando a palavra.</p>
+              <h2 className="text-4xl font-display font-bold mb-4 text-black dark:text-white">Semear e Contribuir</h2>
+              <p className="text-black/60 dark:text-white/60 text-lg mb-8 max-w-md mx-auto lg:mx-0 font-medium">Faça sua contribuição de forma segura e rápida. Ajude-nos a continuar espalhando a palavra.</p>
               
-              <div className="inline-flex p-1 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl mb-8 relative w-full max-w-sm">
+              <div className="inline-flex p-1 bg-black/5 dark:bg-black/40 backdrop-blur-xl border border-black/5 dark:border-white/10 rounded-2xl mb-8 relative w-full max-w-sm">
                 <button 
                   onClick={() => setGivingMethod('pix')}
-                  className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider rounded-xl transition-all ${givingMethod === 'pix' ? 'bg-white text-black' : 'text-white/50'}`}
+                  className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider rounded-xl transition-all ${givingMethod === 'pix' ? 'bg-white dark:bg-white text-black shadow-md' : 'text-black/50 dark:text-white/50'}`}
                 >
                   PIX
                 </button>
                 <button 
                   onClick={() => setGivingMethod('card')}
-                  className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider rounded-xl transition-all ${givingMethod === 'card' ? 'bg-white text-black' : 'text-white/50'}`}
+                  className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider rounded-xl transition-all ${givingMethod === 'card' ? 'bg-white dark:bg-white text-black shadow-md' : 'text-black/50 dark:text-white/50'}`}
                 >
                   Cartão
                 </button>
@@ -304,31 +305,31 @@ export default function Home() {
 
               {givingMethod === 'pix' ? (
                 <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 max-w-sm w-full mx-auto lg:mx-0">
-                  <div className="p-4 bg-white rounded-3xl flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.2)]">
-                    <QrCode className="w-24 h-24 text-black" />
+                  <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center border border-black/5 shadow-[0_4px_24px_rgba(0,0,0,0.06)] shrink-0">
+                    <QrCode className="w-16 h-16 text-black" />
                   </div>
                   <div className="w-full flex-1">
                     <button 
                       onClick={handleCopyPix}
-                      className="w-full h-14 bg-[var(--theme-color)] text-white rounded-xl flex items-center justify-center gap-2 font-bold active:scale-95 transition-all mb-3 text-sm hover:bg-[var(--color-primary-focused)] shadow-[0_0_20px_var(--theme-color)]/30"
+                      className="ios-button w-full flex items-center justify-center gap-2 mb-3 text-sm"
                     >
                       {copiedPix ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
                       <span>{copiedPix ? 'Copiada!' : 'Copiar Chave'}</span>
                     </button>
-                    <p className="text-[12px] font-mono text-white/50 text-center lg:text-left">{config?.pixKey || 'contato@frutosdoespirito.com.br'}</p>
+                    <p className="text-[12px] font-mono text-black/50 dark:text-white/50 text-center lg:text-left">{config?.pixKey || 'contato@frutosdoespirito.com.br'}</p>
                   </div>
                 </div>
               ) : (
-                <div className="p-8 bg-black/40 backdrop-blur-sm rounded-2xl border border-white/5 max-w-sm w-full mx-auto lg:mx-0 border-dashed text-center">
-                  <CreditCard className="w-8 h-8 text-white/30 mx-auto mb-4" />
-                  <p className="text-sm font-medium text-white/60">Em breve aceitaremos cartões de crédito online.</p>
+                <div className="p-8 bg-black/5 dark:bg-black/40 backdrop-blur-sm rounded-[24px] border border-black/10 dark:border-white/5 max-w-sm w-full mx-auto lg:mx-0 border-dashed text-center">
+                  <CreditCard className="w-8 h-8 text-black/30 dark:text-white/30 mx-auto mb-4" />
+                  <p className="text-sm font-medium text-black/60 dark:text-white/60">Em breve aceitaremos cartões de crédito online.</p>
                 </div>
               )}
             </div>
 
             <div className="hidden lg:flex w-1/3 relative z-10 justify-end">
-               <div className="w-64 h-64 bg-gradient-to-tr from-[var(--theme-color)] to-[var(--color-theme-neon)] rounded-full blur-[120px] opacity-20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
-               <Heart className="w-48 h-48 text-white/10" />
+               <div className="w-64 h-64 bg-gradient-to-tr from-rose-500 to-purple-500 rounded-full blur-[100px] opacity-20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+               <Heart className="w-48 h-48 text-rose-500/10 dark:text-white/10" />
             </div>
 
           </div>
