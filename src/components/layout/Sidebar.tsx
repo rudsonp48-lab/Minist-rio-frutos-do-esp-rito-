@@ -3,7 +3,7 @@ import { User } from 'firebase/auth';
 import { 
   Church, Home, BookOpen, Radio, Calendar, Heart, 
   Map, Headphones, Users, User as UserIcon, 
-  Settings, Info, Shield 
+  Settings, Info, Shield, Search 
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -19,6 +19,7 @@ interface SidebarProps {
 export default function Sidebar({ user, isAdmin }: SidebarProps) {
   const location = useLocation();
   const { themeColor, churchName } = useTheme();
+  const [searchQuery, setSearchQuery] = useState('');
 
   const menuItems = [
     { to: '/', label: 'Home', icon: Home },
@@ -59,6 +60,19 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
             {churchName || 'ECCLESIA'}
           </span>
           <span className="text-[10px] font-medium text-black/40 dark:text-white/40 tracking-[0.2em] uppercase">Ministério</span>
+        </div>
+      </div>
+
+      <div className="px-6 py-2 relative z-10">
+        <div className="flex items-center bg-black/5 dark:bg-white/5 rounded-full px-3 h-10 border border-black/5 dark:border-white/5 transition-colors group focus-within:border-black/20 dark:focus-within:border-white/20">
+          <Search className="w-4 h-4 text-black/40 dark:text-white/40 shrink-0 group-focus-within:text-[var(--theme-color)] transition-colors" />
+          <input
+            type="text"
+            placeholder="Pesquisar..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-transparent border-none outline-none w-full text-black dark:text-white text-sm ml-2 placeholder-black/40 dark:placeholder-white/40"
+          />
         </div>
       </div>
 

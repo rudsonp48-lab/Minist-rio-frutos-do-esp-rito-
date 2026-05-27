@@ -28,10 +28,26 @@ export default function Admin() {
     settingsTitles: { sync: '', security: '', core: '' } 
   });
   const [newItem, setNewItem] = useState<any>({});
+  const [adminEmailInput, setAdminEmailInput] = useState('');
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
   const contentFileInputRef = useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAddAdminByEmail = async () => {
+    if (!adminEmailInput) return;
+    try {
+      await setDoc(doc(db, 'admins', adminEmailInput.trim().toLowerCase()), {
+        role: 'admin',
+        updatedAt: serverTimestamp()
+      });
+      alert(`O email ${adminEmailInput} foi promovido a administrador! Ele terá acesso no próximo login.`);
+      setAdminEmailInput('');
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao adicionar admin.");
+    }
+  };
 
   const [stats, setStats] = useState([
     { label: 'Membros', value: '0', icon: Users, color: '#3B0944', text: '#FF00E5' },
@@ -42,8 +58,22 @@ export default function Admin() {
 
   useEffect(() => {
     const unsubAuth = auth.onAuthStateChanged(async (user) => {
-      if (user && user.email === ADMIN_EMAIL) {
-        setIsAdmin(true);
+      if (user) {
+        if (user.email === ADMIN_EMAIL) {
+          setIsAdmin(true);
+        } else {
+          try {
+            const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+            let hasAdminByEmail = false;
+            if (user.email) {
+               const adminDocEmail = await getDoc(doc(db, 'admins', user.email.toLowerCase()));
+               hasAdminByEmail = adminDocEmail.exists();
+            }
+            setIsAdmin(adminDoc.exists() || hasAdminByEmail);
+          } catch (e) {
+            setIsAdmin(false);
+          }
+        }
       } else {
         setIsAdmin(false);
       }
@@ -80,7 +110,12 @@ export default function Admin() {
     fetchCounts();
 
     if (activeMenu !== 'settings' && activeMenu !== 'dashboard' && activeMenu !== 'banners') {
-      const q = query(collection(db, activeMenu), orderBy('createdAt', 'desc'), limit(40));
+      let q;
+      if (activeMenu === 'users') {
+        q = query(collection(db, activeMenu), limit(40));
+      } else {
+        q = query(collection(db, activeMenu), orderBy('createdAt', 'desc'), limit(40));
+      }
       return onSnapshot(q, (snap) => {
         setContent(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       }, (err) => {
@@ -182,8 +217,29 @@ export default function Admin() {
   const deleteItem = async (id: string) => {
     if (!confirm("Remover permanentemente?")) return;
     try {
+      if (activeMenu === 'users') {
+        alert("Exclusão de usuários deve ser feita diretamente no Firebase console para segurança estrutural.");
+        return;
+      }
       await deleteDoc(doc(db, activeMenu, id));
     } catch (err) { console.error(err); }
+  };
+
+  const toggleAdminStatus = async (userId: string) => {
+    try {
+      const docRef = doc(db, 'admins', userId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        await deleteDoc(docRef);
+        alert("Privilégios administrativos removidos.");
+      } else {
+        await setDoc(docRef, { role: 'admin', updatedAt: serverTimestamp() });
+        alert("Privilégios administrativos concedidos com sucesso!");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao alterar privilégios. Verifique as permissões de acesso.");
+    }
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -330,6 +386,27 @@ export default function Admin() {
                      <input value={config.pixKey} onChange={e => setConfig({...config, pixKey: e.target.value})} placeholder="Email, CPF, CNPJ..." className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
                   </div>
                 </div>
+
+                <div className="space-y-4 relative z-10 pt-4 border-t border-white/10">
+                  <span className="text-xs font-bold text-[var(--theme-color)] uppercase tracking-[0.2em]">Corpo Eclesiástico</span>
+                  <div className="grid grid-cols-1 gap-6">
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2">Pastores</label>
+                       <textarea value={config.pastors || ''} onChange={e => setConfig({...config, pastors: e.target.value})} placeholder="Pr. João, Pra. Maria" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white min-h-[80px] resize-none" />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2">Missionários</label>
+                         <textarea value={config.missionaries || ''} onChange={e => setConfig({...config, missionaries: e.target.value})} placeholder="Miss. Ana" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white min-h-[80px] resize-none" />
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2">Diáconos</label>
+                         <textarea value={config.deacons || ''} onChange={e => setConfig({...config, deacons: e.target.value})} placeholder="Dc. Pedro, Dc. Paulo" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white min-h-[80px] resize-none" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
                 <button 
                   onClick={handleSaveConfig}
                   disabled={isSaving}
@@ -449,22 +526,55 @@ export default function Admin() {
                   </button>
                 </div>
               )}
+              
+              {activeMenu === 'users' && (
+                <div className="bg-[#111111] border border-white/10 rounded-[2rem] p-8 lg:p-10 space-y-6">
+                  <h3 className="text-xl font-serif font-bold tracking-wider uppercase flex items-center gap-3">
+                    <Users className="w-6 h-6 text-[var(--theme-color)]" />
+                    Gerenciar Acesso Administrativo
+                  </h3>
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <input 
+                      value={adminEmailInput} 
+                      onChange={(e) => setAdminEmailInput(e.target.value)} 
+                      placeholder="E-mail do novo administrador..." 
+                      className="flex-1 bg-black/40 border border-white/10 rounded-xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" 
+                    />
+                    <button 
+                      onClick={handleAddAdminByEmail}
+                      disabled={!adminEmailInput}
+                      className="px-10 h-12 bg-purple-600 text-white rounded-xl font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      Promover Admin
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 gap-3">
                 {content.map((item) => (
                   <div key={item.id} className="bg-[#111111] border border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:border-white/20 transition-colors">
                     <div className="flex items-center gap-5">
                       <div className="w-14 h-14 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                         {item.url || item.image ? <img src={item.url || item.image} className="w-full h-full object-cover" /> : <Database className="w-5 h-5 text-white/30" />}
+                         {item.url || item.image || item.photoURL ? <img src={item.url || item.image || item.photoURL} className="w-full h-full object-cover" /> : <Database className="w-5 h-5 text-white/30" />}
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-bold text-sm text-white truncate max-w-[200px] lg:max-w-[400px]">{item.title || item.name || item.email || 'Registro Anônimo'}</h4>
                         <p className="text-[10px] text-[var(--theme-color)] font-mono uppercase tracking-widest mt-0.5">{item.id.slice(0, 12)}</p>
                       </div>
                     </div>
-                    <button onClick={() => deleteItem(item.id)} className="w-10 h-10 rounded-full flex items-center justify-center text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {activeMenu === 'users' && (
+                        <button onClick={() => toggleAdminStatus(item.id)} className="px-4 py-2 rounded-full text-[10px] font-bold tracking-widest uppercase bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white transition-colors border border-purple-500/20">
+                          Toggle Admin
+                        </button>
+                      )}
+                      {activeMenu !== 'users' && (
+                        <button onClick={() => deleteItem(item.id)} className="w-10 h-10 rounded-full flex items-center justify-center text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all">
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

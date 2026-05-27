@@ -7,14 +7,14 @@ import { useTheme } from '../lib/ThemeContext';
 import { usePlayer } from '../lib/PlayerContext';
 
 const MUSIC_CATEGORIES = [
-  { name: 'Pop Coral', query: 'pop coral gospel cover', colors: 'from-pink-500 to-rose-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/cd1e23ec-0f27-4bd7-94aa-ec4a5e45ff55_320w.jpg' },
-  { name: 'Worship Rock', query: 'worship rock gospel', colors: 'from-orange-500 to-red-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/8830c989-0aa7-4a9b-a1fc-a81e75ddc91c_320w.jpg' },
-  { name: 'Hip-Hop Gospel', query: 'hip hop rap gospel', colors: 'from-green-500 to-emerald-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/0decebec-86b8-4a0b-8eae-9d59fc2cb6c0_320w.jpg' },
-  { name: 'Electronic', query: 'musica eletronica gospel', colors: 'from-purple-500 to-violet-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/0c3dbf33-c7e3-4e8b-98c2-2fa9aa8446c3_320w.jpg' },
-  { name: 'Jazz Cristão', query: 'jazz piano cristão', colors: 'from-blue-500 to-indigo-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/7dc1deaa-731d-47ce-a397-6b102ac413ee_320w.jpg' },
-  { name: 'Sertanejo', query: 'sertanejo gospel adoracao', colors: 'from-yellow-500 to-orange-500', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/68126ad8-98eb-4b55-bf1c-e7e1c245f0b1_320w.jpg' },
-  { name: 'R&B / Soul', query: 'r&b soul black gospel', colors: 'from-teal-500 to-cyan-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/e3feb627-3752-46af-9eea-dab3b32a4b2b_320w.jpg' },
-  { name: 'Música Clássica', query: 'instrumental classica hinos', colors: 'from-indigo-500 to-purple-600', img: 'https://hoirqrkdgbmvpwutwuwj-all.supabase.co/storage/v1/object/public/assets/assets/8da92894-10a2-4653-8a1e-6560bde45a33_320w.jpg' },
+  { name: 'Worship Rock', query: 'worship rock gospel', colors: 'from-orange-500/80 to-red-600/80', img: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=600&q=80', span: 'col-span-2 row-span-2 min-h-[160px]' },
+  { name: 'Pop Coral', query: 'pop coral gospel cover', colors: 'from-pink-500/80 to-rose-600/80', img: 'https://images.unsplash.com/photo-1516280440502-61f221464dbb?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Electronic', query: 'musica eletronica gospel', colors: 'from-purple-500/80 to-violet-600/80', img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Hip-Hop Gospel', query: 'hip hop rap gospel', colors: 'from-green-500/80 to-emerald-600/80', img: 'https://images.unsplash.com/photo-1493225457124-a1a2a5f5f9af?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Jazz Cristão', query: 'jazz piano cristão', colors: 'from-blue-500/80 to-indigo-600/80', img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Sertanejo', query: 'sertanejo gospel adoracao', colors: 'from-yellow-500/80 to-orange-500/80', img: 'https://images.unsplash.com/photo-1555543445-5d9dc05dc55e?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Música Clássica', query: 'instrumental classica hinos', colors: 'from-indigo-500/80 to-purple-600/80', img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'R&B / Soul', query: 'r&b soul black gospel', colors: 'from-teal-500/80 to-cyan-600/80', img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=600&q=80', span: 'col-span-2 row-span-1 min-h-[120px]' },
 ];
 
 export default function Media() {
@@ -185,16 +185,21 @@ export default function Media() {
 
                 {/* Browse All */}
                 <div className="mb-6">
-                  <h2 className="font-semibold text-white mb-4 font-sans text-lg">Navegar</h2>
-                  <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1 scrollbar-hide">
+                  <h2 className="font-semibold text-white mb-4 font-sans text-xl tracking-tight">Navegar</h2>
+                  <div className="grid grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-hide grid-flow-row-dense">
                     {MUSIC_CATEGORIES.map(cat => (
                       <div 
                         key={cat.name} 
                         onClick={() => { setSearchQuery(cat.name); fetchContent(cat.query); }}
-                        className={`p-4 bg-gradient-to-br ${cat.colors} rounded-xl shadow-lg relative overflow-hidden min-h-[100px] cursor-pointer active:scale-95 transition-transform`}
+                        className={`group rounded-[24px] shadow-lg relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform ${cat.span}`}
                       >
-                        <h3 className="text-white font-medium text-lg font-sans">{cat.name}</h3>
-                        <img src={cat.img} className="w-14 h-14 rounded-lg object-cover absolute bottom-2 right-2 rotate-12 shadow-lg" alt={cat.name} />
+                        <img src={cat.img} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" alt={cat.name} />
+                        <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent mix-blend-multiply opacity-80 group-hover:opacity-100 transition-opacity`}></div>
+                        <div className={`absolute inset-0 bg-gradient-to-br ${cat.colors} mix-blend-color opacity-90`}></div>
+                        
+                        <div className="absolute inset-0 p-5 flex flex-col justify-end">
+                          <h3 className="text-white font-bold text-xl lg:text-2xl font-sans tracking-tight drop-shadow-md">{cat.name}</h3>
+                        </div>
                       </div>
                     ))}
                   </div>

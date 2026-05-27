@@ -17,7 +17,8 @@ export default function GlobalPlayer() {
     isMuted, setIsMuted,
     playerRef,
     isMinimized, setIsMinimized,
-    addToPlaylist, playNext, playPrevious, seekTo
+    addToPlaylist, playNext, playPrevious, seekTo,
+    shuffleMode, setShuffleMode, repeatMode, setRepeatMode
   } = usePlayer();
 
   const [showPlaylist, setShowPlaylist] = useState(false);
@@ -87,7 +88,7 @@ export default function GlobalPlayer() {
             : "fixed top-0 left-0 w-[400px] max-w-[50vw] aspect-video opacity-[0.01] pointer-events-none z-[-1]"
         }
       >
-        {selectedVideo && (
+        {selectedVideo && selectedVideo.id !== 'radio-1' && (
           <YouTube
             videoId={selectedVideo.id}
             opts={{
@@ -105,20 +106,41 @@ export default function GlobalPlayer() {
             onReady={(e) => {
               playerRef.current = e.target;
               if (playing) {
-                e.target.playVideo();
+                try { e.target.playVideo(); } catch(err) {}
               }
             }}
             onStateChange={(e) => {
               if (e.data === YouTube.PlayerState.PLAYING) {
-                setPlaying(true);
-              } else if (e.data === YouTube.PlayerState.PAUSED) {
-                setPlaying(false);
+                if (!playing) setPlaying(true);
+              } else if (e.data === YouTube.PlayerState.PAUSED || e.data === YouTube.PlayerState.UNSTARTED || e.data === YouTube.PlayerState.CUED) {
+                if (playing) setPlaying(false);
               } else if (e.data === YouTube.PlayerState.ENDED) {
                 playNext();
               }
             }}
             className="w-full h-full"
             iframeClassName="w-full h-full"
+          />
+        )}
+        {selectedVideo && selectedVideo.id === 'radio-1' && (
+          <audio
+            ref={(audioEl) => {
+               if (audioEl) {
+                 playerRef.current = {
+                   playVideo: () => audioEl.play().catch(() => setPlaying(false)),
+                   pauseVideo: () => audioEl.pause(),
+                   seekTo: (time: number) => { audioEl.currentTime = time; },
+                   getCurrentTime: () => audioEl.currentTime,
+                   getDuration: () => audioEl.duration || 0,
+                 };
+                 if (playing) audioEl.play().catch(() => setPlaying(false));
+                 
+                 audioEl.onplay = () => setPlaying(true);
+                 audioEl.onpause = () => setPlaying(false);
+               }
+            }}
+            src={(selectedVideo as any).src || 'https://stream.zeno.fm/8x934z3m8mzuv'}
+            autoPlay={true}
           />
         )}
       </div>
@@ -130,44 +152,69 @@ export default function GlobalPlayer() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className={`fixed inset-0 z-[100] bg-black sm:max-w-md sm:mx-auto flex flex-col pt-[max(20px,env(safe-area-inset-top))]`}
+            className={`fixed inset-0 z-[100] bg-black sm:max-w-md sm:mx-auto flex flex-col pt-[max(20px,env(safe-area-inset-top))] overflow-hidden`}
           >
+            {/* Ambient Blurred Background from Thumbnail */}
+            <div className="absolute inset-0 z-0 overflow-hidden opacity-60">
+              <img src={selectedVideo.thumbnail} className="w-full h-full object-cover blur-[80px] scale-150 saturate-[1.5]" alt="bg" />
+              <div className="absolute inset-0 bg-black/40 mix-blend-overlay"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80"></div>
+            </div>
+
             {/* Navigation */}
-            <div className="flex px-6 pt-4 pb-6 items-center justify-between shrink-0">
-              <button onClick={() => setIsMinimized(true)} className="w-10 h-10 flex items-center justify-center p-2 -ml-2 text-white/80 hover:text-white active:scale-90 transition-all">
+            <div className="relative z-10 flex px-6 pt-4 pb-6 items-center justify-between shrink-0">
+              <button onClick={() => setIsMinimized(true)} className="w-10 h-10 flex items-center justify-center p-2 -ml-2 text-white/90 hover:text-white active:scale-90 transition-all drop-shadow-md">
                 <ChevronDown className="w-8 h-8" />
               </button>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] text-white/60 uppercase tracking-[0.2em] font-sans font-bold">Tocando Agora</span>
-                <span className="text-xs text-white font-medium font-sans mt-0.5">Sua Playlist</span>
+                <span className="text-[10px] text-white/60 uppercase tracking-[0.25em] font-sans font-bold drop-shadow-md">Tocando Agora</span>
+                <span className="text-xs text-white/90 font-medium font-sans mt-0.5 drop-shadow-md">Ecclesia Mídia</span>
               </div>
-              <button className="w-10 h-10 flex items-center justify-center p-2 -mr-2 text-white/80 hover:text-white active:scale-90 transition-all">
+              <button 
+                onClick={() => alert("Opções do player em desenvolvimento!")}
+                className="w-10 h-10 flex items-center justify-center p-2 -mr-2 text-white/90 hover:text-white active:scale-90 transition-all drop-shadow-md"
+              >
                 <MoreHorizontal className="w-6 h-6" />
               </button>
             </div>
 
             {/* Album/Video Container */}
-            <div className="px-8 pb-8 flex-none flex items-center justify-center">
+            <div className="relative z-10 px-8 pb-8 flex-none flex items-center justify-center">
                {selectedVideo.type === 'video' || selectedVideo.type === 'live' ? (
-                 <div className="w-full aspect-video bg-zinc-900 shadow-2xl rounded-2xl relative">
+                 <div className="w-full aspect-video bg-black/20 shadow-2xl rounded-2xl relative border border-white/10 backdrop-blur-md">
                      {/* The video is rendered above this via fixed positioning */}
                  </div>
                ) : (
-                 <div className="w-full aspect-square relative rounded-[2rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                 <div className="w-full aspect-[4/5] sm:aspect-square relative rounded-[2rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/10">
                    <img src={selectedVideo.thumbnail} alt={selectedVideo.title} className="w-full h-full object-cover" />
                  </div>
                )}
             </div>
 
             {/* Song Info */}
-            <div className="px-8 pb-6 shrink-0 flex flex-col flex-1">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex-1 min-w-0 pr-4">
-                  <h1 className="text-[28px] leading-tight text-white tracking-tight truncate font-sans font-bold">{selectedVideo.title}</h1>
-                  <p className="text-xl text-white/60 truncate mt-1 font-sans">{selectedVideo.author || 'Ecclesia Stream'}</p>
+            <div className="relative z-10 px-8 pb-6 shrink-0 flex flex-col flex-1">
+              <div className="flex justify-between items-start mb-8">
+                <div className="flex-1 min-w-0 pr-4 flex flex-col justify-center">
+                  <motion.h1 
+                    key={selectedVideo.title}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="text-[26px] sm:text-[30px] leading-tight text-white tracking-tight line-clamp-2 font-sans font-bold drop-shadow-lg"
+                  >
+                    {selectedVideo.title}
+                  </motion.h1>
+                  <motion.p 
+                    key={selectedVideo.author}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="text-lg text-white/70 truncate mt-1.5 font-sans font-medium drop-shadow-md"
+                  >
+                    {selectedVideo.author || 'Ecclesia Stream'}
+                  </motion.p>
                 </div>
                 <button 
-                  className="p-2 active:scale-90 transition-transform -mr-2" 
+                  className="p-3 active:scale-90 transition-transform -mr-3" 
                   onClick={(e) => { 
                     e.stopPropagation(); 
                     if (!playlist.find(v => v.id === selectedVideo.id)) {
@@ -177,14 +224,14 @@ export default function GlobalPlayer() {
                     }
                   }}
                 >
-                  <Heart className={`w-7 h-7 ${playlist.find(v => v.id === selectedVideo.id) ? 'text-[#FF2D55] fill-[#FF2D55]' : 'text-white/70'}`} />
+                  <Heart className={`w-8 h-8 drop-shadow-md transition-colors duration-300 ${playlist.find(v => v.id === selectedVideo.id) ? 'text-red-500 fill-red-500 scale-110' : 'text-white/80'}`} />
                 </button>
               </div>
 
               {/* Progress Bar */}
-              <div className="w-full mb-8">
+              <div className="w-full mb-10">
                 <div 
-                  className="w-full h-1.5 bg-white/20 rounded-full mb-3 cursor-pointer relative"
+                  className="w-full h-2 bg-white/20 rounded-full mb-3.5 cursor-pointer relative overflow-hidden backdrop-blur-md"
                   onClick={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     const x = e.clientX - rect.left;
@@ -195,31 +242,33 @@ export default function GlobalPlayer() {
                     }
                   }}
                 >
-                  <div className="h-full bg-[var(--theme-color)] rounded-full relative" style={{ width: `${(played / (duration || 1)) * 100}%` }}>
-                    <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow" />
+                  <div className="h-full bg-white rounded-full relative shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all duration-300 ease-out" style={{ width: `${(played / (duration || 1)) * 100}%` }}>
                   </div>
                 </div>
-                <div className="flex justify-between text-xs text-white/50 font-medium font-sans tracking-wide">
+                <div className="flex justify-between text-[11px] text-white/70 font-semibold font-mono tracking-wider drop-shadow-md">
                   <span>{formatTime(played)}</span>
                   <span>-{formatTime(duration - played > 0 ? duration - played : 0)}</span>
                 </div>
               </div>
 
               {/* Controls */}
-              <div className="flex gap-6 items-center justify-center mb-8">
-                <button className="text-white/60 hover:text-white active:scale-90 transition-all p-2">
+              <div className="flex gap-4 sm:gap-6 items-center justify-center mb-8">
+                <button 
+                  onClick={() => setShuffleMode(!shuffleMode)}
+                  className={`active:scale-90 transition-all p-3 ${shuffleMode ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/50 hover:text-white/80'}`}
+                >
                   <Shuffle className="w-6 h-6" />
                 </button>
                 
                 <button 
                   onClick={playPrevious} 
-                  className="text-white active:scale-90 transition-all p-2"
+                  className="text-white active:scale-90 transition-all p-3 drop-shadow-lg"
                 >
                   <SkipBack className="w-10 h-10 fill-current" />
                 </button>
                 
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-[#0084ff] blur-2xl opacity-40 group-active:opacity-20 transition-opacity rounded-full"></div>
+                <div className="relative group mx-2">
+                  <div className="absolute inset-0 bg-white/20 blur-xl opacity-0 group-active:opacity-100 transition-opacity rounded-full"></div>
                   <button 
                     onClick={() => {
                       if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
@@ -233,30 +282,36 @@ export default function GlobalPlayer() {
                       }
                       setPlaying(!playing);
                     }}
-                    className="relative w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center text-black active:scale-[0.92] transition-all shadow-xl"
+                    className="relative w-[80px] h-[80px] rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white active:scale-[0.92] transition-all shadow-xl hover:bg-white/20"
                   >
-                    {playing ? <Pause className="w-8 h-8 fill-current translate-x-px" /> : <Play className="w-8 h-8 fill-current ml-1" />}
+                    {playing ? <Pause className="w-9 h-9 fill-current" /> : <Play className="w-9 h-9 fill-current ml-1.5" />}
                   </button>
                 </div>
                 
-                <button onClick={playNext} className="text-white active:scale-90 transition-all p-2">
+                <button onClick={playNext} className="text-white active:scale-90 transition-all p-3 drop-shadow-lg">
                   <SkipForward className="w-10 h-10 fill-current" />
                 </button>
                 
-                <button className="text-white/60 hover:text-white active:scale-90 transition-all p-2">
+                <button 
+                  onClick={() => setRepeatMode(!repeatMode)}
+                  className={`active:scale-90 transition-all p-3 ${repeatMode ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/50 hover:text-white/80'}`}
+                >
                   <Repeat className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="mt-auto pb-8 space-y-8">
+              <div className="mt-auto pb-4 space-y-8">
                 <div className="flex items-center justify-between">
-                  <button className="flex items-center gap-2 p-2 -ml-2 active:opacity-50 transition-opacity">
-                    <Cast className="w-5 h-5 text-white/80" />
+                  <button 
+                    onClick={() => alert("Procurando dispositivos para transmitir (Chromecast/AirPlay)...")}
+                    className="flex items-center gap-2 p-3 -ml-3 active:opacity-50 transition-opacity"
+                  >
+                    <Volume2 className="w-5 h-5 text-white/80 hover:text-white drop-shadow-md" />
                   </button>
-                  <button onClick={() => setShowPlaylist(true)} className="p-2 -mr-2 relative active:opacity-50 transition-opacity">
-                    <List className="w-6 h-6 text-white/80" />
+                  <button onClick={() => setShowPlaylist(true)} className="p-3 -mr-3 relative active:opacity-50 transition-opacity">
+                    <List className="w-6 h-6 text-white/80 drop-shadow-md" />
                     {playlist.length > 0 && (
-                       <span className="absolute top-1.5 right-1 w-2.5 h-2.5 bg-[#FF3B30] rounded-full border-2 border-black" />
+                       <span className="absolute top-2.5 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-black/50 drop-shadow-sm" />
                     )}
                   </button>
                 </div>

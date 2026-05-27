@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Book, ChevronRight, ChevronLeft, Bookmark, Share2, Download, Wifi, WifiOff, Target, Zap, Globe, Cpu, BookOpen, List, PenTool, Highlighter, Edit3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BIBLE_STRUCTURE, SAMPLE_VERSES } from '../lib/bibleData';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../lib/ThemeContext';
 import Notes from './Notes';
 
@@ -16,6 +16,7 @@ interface Verse {
 export default function Bible() {
   const { themeColor } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const [translation, setTranslation] = useState('almeida');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,9 +109,10 @@ export default function Bible() {
             el.style.backgroundColor = '';
           }, 2000);
         }
+        navigate(location.pathname, { replace: true, state: {} });
       }, 300);
     }
-  }, [view, loading, chapterVerses, location.state]);
+  }, [view, loading, chapterVerses, location.state, navigate, location.pathname]);
 
   const searchSingleVerse = async (e: React.FormEvent) => {
     e.preventDefault();

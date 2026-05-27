@@ -23,6 +23,10 @@ interface PlayerContextType {
   playNext: () => void;
   playPrevious: () => void;
   seekTo: (amount: number) => void;
+  shuffleMode: boolean;
+  setShuffleMode: (shuffle: boolean) => void;
+  repeatMode: boolean;
+  setRepeatMode: (repeat: boolean) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -36,6 +40,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [shuffleMode, setShuffleMode] = useState(false);
+  const [repeatMode, setRepeatMode] = useState(false);
   const playerRef = useRef<any>(null);
 
   const addToPlaylist = (video: YouTubeVideo) => {
@@ -48,10 +54,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const playNext = () => {
+    if (repeatMode && selectedVideo) {
+      if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+        playerRef.current.seekTo(0);
+      }
+      setPlaying(true);
+      return;
+    }
+
     if (playlist.length > 0) {
-      const nextVid = playlist[0];
+      let nextIndex = 0;
+      if (shuffleMode) {
+         nextIndex = Math.floor(Math.random() * playlist.length);
+      }
+      const nextVid = playlist[nextIndex];
       setSelectedVideo(nextVid);
-      setPlaylist(prev => prev.slice(1));
+      setPlaylist(prev => prev.filter((_, i) => i !== nextIndex));
       setPlaying(true);
     } else {
       setPlaying(false);
@@ -59,7 +77,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   };
   
   const playPrevious = () => {
-     if (playerRef.current) {
+     if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
         playerRef.current.seekTo(0);
      }
   };
@@ -93,7 +111,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isMuted, setIsMuted,
       playerRef,
       isMinimized, setIsMinimized,
-      addToPlaylist, playNext, playPrevious, seekTo
+      addToPlaylist, playNext, playPrevious, seekTo,
+      shuffleMode, setShuffleMode,
+      repeatMode, setRepeatMode
     }}>
       {children}
     </PlayerContext.Provider>

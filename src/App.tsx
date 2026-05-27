@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ThemeProvider } from './lib/ThemeContext';
 
 // Pages
@@ -19,10 +19,13 @@ import Prayers from './pages/Prayers';
 import Podcast from './pages/Podcast';
 import Volunteer from './pages/Volunteer';
 import SettingsPage from './pages/Settings';
+import WebRadio from './pages/WebRadio';
+import Give from './pages/Give';
 
 // Components
 import Sidebar from './components/layout/Sidebar';
 import BottomNav from './components/layout/BottomNav';
+import TopBar from './components/layout/TopBar';
 import { User as UserIcon, Church } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLocation, Link } from 'react-router-dom';
@@ -68,12 +71,29 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
+        try {
+          await setDoc(doc(db, 'users', user.uid), {
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName || '',
+            photoURL: user.photoURL || '',
+            lastLogin: serverTimestamp()
+          }, { merge: true });
+        } catch (err) {
+          console.error("Erro ao sincronizar usuário", err);
+        }
+
         if (user.email === 'rudson.p48@gmail.com') {
           setIsAdmin(true);
         } else {
           try {
             const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-            setIsAdmin(adminDoc.exists());
+            let hasAdminByEmail = false;
+            if (user.email) {
+               const adminDocEmail = await getDoc(doc(db, 'admins', user.email.toLowerCase()));
+               hasAdminByEmail = adminDocEmail.exists();
+            }
+            setIsAdmin(adminDoc.exists() || hasAdminByEmail);
           } catch (e) {
             setIsAdmin(false);
           }
@@ -126,27 +146,9 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
         <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-blue-600/10 blur-[120px] rounded-full mix-blend-screen animate-[pulse_10s_ease-in-out_infinite_2s]" />
       </div>
       <Sidebar isAdmin={isAdmin} user={user} />
+      <TopBar />
       
-      {/* Mobile Top Header (Apple iOS 26 style) */}
-      <div className="lg:hidden fixed top-0 w-full z-40 bg-white/70 dark:bg-[#1C1C1E]/70 backdrop-blur-[40px] border-b border-black/5 dark:border-white/[0.05] shadow-[0_4px_24px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)] py-3 px-6 flex items-center justify-between transition-colors">
-        <span 
-          className="text-lg font-serif tracking-widest text-black dark:text-white uppercase"
-          style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}
-        >
-          {churchName || 'ECCLESIA'}
-        </span>
-        <Link to="/profile" className="flex items-center gap-2">
-          {user?.photoURL ? (
-            <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-white/20 object-cover" />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
-              <UserIcon className="w-4 h-4 text-white" />
-            </div>
-          )}
-        </Link>
-      </div>
-
-      <main className="flex-1 w-full lg:ml-[280px] px-0 lg:px-4 py-0 lg:py-6 lg:mb-0 lg:max-w-[calc(100%-280px)] overflow-x-hidden pt-16 lg:pt-6 pb-24 lg:pb-6">
+      <main className="flex-1 w-full lg:ml-[280px] px-0 lg:px-4 py-0 lg:py-6 lg:mb-0 lg:max-w-[calc(100%-280px)] overflow-x-hidden pt-0 lg:pt-6 pb-24 lg:pb-6">
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
@@ -157,6 +159,8 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
             <Route path="/notes" element={<PageWrapper><Notes /></PageWrapper>} />
             <Route path="/prayers" element={<PageWrapper><Prayers /></PageWrapper>} />
             <Route path="/podcast" element={<PageWrapper><Podcast /></PageWrapper>} />
+            <Route path="/webradio" element={<PageWrapper><WebRadio /></PageWrapper>} />
+            <Route path="/give" element={<PageWrapper><Give /></PageWrapper>} />
             <Route path="/volunteer" element={<PageWrapper><Volunteer /></PageWrapper>} />
             <Route path="/profile" element={<PageWrapper><Profile user={user!} /></PageWrapper>} />
             <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />

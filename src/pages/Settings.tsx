@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRight, Moon, Globe, Terminal, Cpu, Share2, Youtube, ShieldAlert, LayoutDashboard, ChevronLeft, LogOut, User, Lock, Heart, Paintbrush, Camera, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRight, Moon, Globe, Terminal, Cpu, Share2, Youtube, ShieldAlert, LayoutDashboard, ChevronLeft, LogOut, User, Lock, Heart, Paintbrush, Camera, Loader2, Users } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
@@ -65,28 +65,84 @@ export default function SettingsPage() {
     }
   };
 
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [darkMode, setDarkMode] = useState('auto');
+  const [showLeadership, setShowLeadership] = useState(false);
+  const [isEditingLeadership, setIsEditingLeadership] = useState(false);
+  const [editLeadershipState, setEditLeadershipState] = useState({ pastors: '', missionaries: '', deacons: '' });
+
+  const handleEditLeadershipClick = () => {
+    setIsEditingLeadership(!isEditingLeadership);
+    setEditLeadershipState({
+       pastors: config?.pastors || '',
+       missionaries: config?.missionaries || '',
+       deacons: config?.deacons || ''
+    });
+  };
+
+  const handleSaveLeadership = async () => {
+    try {
+      // import { setDoc } is needed from firestore if not there, but doc is imported so I can use setDoc. Let me check if setDoc is imported. I will just update the firebase/firestore imports at the top.
+      const { setDoc } = await import('firebase/firestore');
+      await setDoc(doc(db, 'app_config', 'main'), { ...config, ...editLeadershipState }, { merge: true });
+      setIsEditingLeadership(false);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar o corpo eclesiástico.");
+    }
+  };
+
+  const handleSettingClick = (actionName: string) => {
+    switch (actionName) {
+      case 'notifications':
+        setNotificationsEnabled(!notificationsEnabled);
+        break;
+      case 'darkmode':
+        setDarkMode(prev => ({'auto': 'dark', 'dark': 'light', 'light': 'auto'}[prev] || 'auto'));
+        break;
+      case 'leadership':
+        setShowLeadership(true);
+        break;
+      case 'language':
+      case 'privacy':
+      case 'security':
+      case 'storage':
+        alert(`Configuração de ${actionName} em desenvolvimento.`);
+        break;
+      case 'about':
+        alert("Ecclesia App - Gestão e Comunhão.\nVersão 3.5.0");
+        break;
+      case 'support':
+        alert("Obrigado pelo seu apoio!");
+        break;
+      default:
+        break;
+    }
+  };
+
   const menuGroups = [
     {
       title: 'Preferências',
       items: [
-        { icon: Bell, label: 'Notificações', color: 'bg-[#FF3B30]', value: 'Ativo' },
-        { icon: Moon, label: 'Modo Escuro', color: 'bg-[#5856D6]', value: 'Automático' },
-        { icon: Globe, label: 'Idioma', color: 'bg-[#007AFF]', value: 'Português' },
+        { icon: Bell, label: 'Notificações', color: 'bg-[#FF3B30]', value: notificationsEnabled ? 'Ativo' : 'Inativo', action: 'notifications' },
+        { icon: Moon, label: 'Modo Escuro', color: 'bg-[#5856D6]', value: darkMode === 'auto' ? 'Automático' : darkMode === 'dark' ? 'Ativo' : 'Inativo', action: 'darkmode' },
+        { icon: Globe, label: 'Idioma', color: 'bg-[#007AFF]', value: 'Português', action: 'language' },
       ]
     },
     {
       title: 'Segurançca & Dados',
       items: [
-        { icon: Shield, label: 'Privacidade', color: 'bg-[#34C759]' },
-        { icon: Lock, label: 'Senha e Segurança', color: 'bg-[#AF52DE]' },
-        { icon: Database, label: 'Armazenamento', color: 'bg-[#8E8E93]' },
+        { icon: Shield, label: 'Privacidade', color: 'bg-[#34C759]', action: 'privacy' },
+        { icon: Lock, label: 'Senha e Segurança', color: 'bg-[#AF52DE]', action: 'security' },
+        { icon: Database, label: 'Armazenamento', color: 'bg-[#8E8E93]', action: 'storage' },
       ]
     },
     {
-      title: 'Suporte',
+      title: 'Suporte & Comunidade',
       items: [
-        { icon: Info, label: 'Sobre o Ecclesia', color: 'bg-[#8E8E93]' },
-        { icon: Heart, label: 'Apoie o Projeto', color: 'bg-[#FF2D55]' },
+        { icon: Users, label: 'Corpo Eclesiástico', color: 'bg-[#FF9500]', action: 'leadership' },
+        { icon: Info, label: 'Sobre o Ecclesia', color: 'bg-[#8E8E93]', action: 'about' },
+        { icon: Heart, label: 'Apoie o Projeto', color: 'bg-[#FF2D55]', action: 'support' },
       ]
     }
   ];
@@ -171,6 +227,7 @@ export default function SettingsPage() {
               {group.items.map((item, iIdx) => (
                 <button
                   key={iIdx}
+                  onClick={() => handleSettingClick(item.action)}
                   className="w-full flex items-center gap-4 p-4 active:bg-black/5 dark:active:bg-white/5 transition-colors"
                 >
                   <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center text-white`}>
@@ -202,6 +259,97 @@ export default function SettingsPage() {
           </p>
         </footer>
       </div>
+
+      <AnimatePresence>
+        {showLeadership && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="w-full max-w-sm bg-white dark:bg-[#1C1C1E] rounded-3xl overflow-hidden shadow-2xl relative"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold font-serif text-black dark:text-white">Corpo Eclesiástico</h3>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
+                        <button 
+                          onClick={isEditingLeadership ? handleSaveLeadership : handleEditLeadershipClick}
+                          className="px-3 py-1.5 rounded-full bg-[var(--theme-color)] text-white text-xs font-bold uppercase tracking-widest hover:bg-[var(--color-primary-focused)] transition-colors"
+                        >
+                          {isEditingLeadership ? 'Salvar' : 'Editar'}
+                        </button>
+                    )}
+                    <button onClick={() => setShowLeadership(false)} className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center">
+                      <ChevronLeft className="w-5 h-5 text-black/60 dark:text-white/60 -rotate-90" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-6 max-h-[60vh] overflow-y-auto scrollbar-hide">
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-bold text-[var(--theme-color)] uppercase tracking-widest">Pastores</h4>
+                    {isEditingLeadership ? (
+                        <textarea 
+                          value={editLeadershipState.pastors} 
+                          onChange={e => setEditLeadershipState({...editLeadershipState, pastors: e.target.value})}
+                          placeholder="Nomes divididos por linha ou vírgula"
+                          className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl p-3 text-sm text-black dark:text-white min-h-[80px] focus:ring-1 focus:ring-[var(--theme-color)]"
+                        />
+                    ) : (
+                        <p className="text-sm font-medium text-black/80 dark:text-white/80 whitespace-pre-wrap">
+                          {config?.pastors || 'Não informado.'}
+                        </p>
+                    )}
+                  </div>
+                  
+                  <div className="h-px w-full bg-black/5 dark:bg-white/5" />
+                  
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-bold text-[#FF9500] uppercase tracking-widest">Missionários</h4>
+                    {isEditingLeadership ? (
+                        <textarea 
+                          value={editLeadershipState.missionaries} 
+                          onChange={e => setEditLeadershipState({...editLeadershipState, missionaries: e.target.value})}
+                          placeholder="Nomes divididos por linha ou vírgula"
+                          className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl p-3 text-sm text-black dark:text-white min-h-[80px] focus:ring-1 focus:ring-[#FF9500]"
+                        />
+                    ) : (
+                        <p className="text-sm font-medium text-black/80 dark:text-white/80 whitespace-pre-wrap">
+                          {config?.missionaries || 'Não informado.'}
+                        </p>
+                    )}
+                  </div>
+                  
+                  <div className="h-px w-full bg-black/5 dark:bg-white/5" />
+                  
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-bold text-[#34C759] uppercase tracking-widest">Diáconos</h4>
+                    {isEditingLeadership ? (
+                        <textarea 
+                          value={editLeadershipState.deacons} 
+                          onChange={e => setEditLeadershipState({...editLeadershipState, deacons: e.target.value})}
+                          placeholder="Nomes divididos por linha ou vírgula"
+                          className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl p-3 text-sm text-black dark:text-white min-h-[80px] focus:ring-1 focus:ring-[#34C759]"
+                        />
+                    ) : (
+                        <p className="text-sm font-medium text-black/80 dark:text-white/80 whitespace-pre-wrap">
+                          {config?.deacons || 'Não informado.'}
+                        </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
