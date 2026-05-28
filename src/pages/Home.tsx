@@ -58,7 +58,7 @@ export default function Home() {
     <div className="min-h-screen bg-transparent text-white font-sans w-full overflow-x-hidden pb-32">
       
       {/* Hero Section (iOS 26 Style) */}
-      <div className="relative w-full h-[75vh] lg:h-[80vh] flex items-end justify-start overflow-hidden lg:rounded-b-[40px] ios-shadow bg-black">
+      <div className="relative w-full h-[88vh] lg:h-[95vh] flex items-end justify-start overflow-hidden lg:rounded-b-[40px] ios-shadow bg-black">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentBannerIndex}
@@ -83,29 +83,29 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -30 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="relative z-10 p-6 lg:p-16 w-full max-w-7xl mx-auto mb-10"
+            className="relative z-10 p-6 lg:p-16 w-full max-w-7xl mx-auto mb-12"
           >
-            <div className="flex gap-2 mb-4">
-              <span className="ios-pill text-white/90">Lançamento</span>
-            </div>
-            <h1 className="text-5xl md:text-7xl lg:text-[100px] font-black font-display tracking-[-0.04em] leading-[0.9] mb-4 text-white drop-shadow-2xl">
-              {currentBanner.title}
-            </h1>
-            <p className="text-lg lg:text-xl text-white/80 font-medium max-w-xl mb-8 leading-relaxed">
-              {currentBanner.subtitle}
-            </p>
-            
-            <div className="flex items-center gap-4">
+
+            <div className="flex items-center gap-4 mb-4">
               <button 
                 onClick={() => setSelectedBanner(currentBanner)} 
-                className="ios-button flex items-center justify-center gap-2 px-8 py-3.5 bg-white dark:bg-white text-black rounded-[24px]"
+                className="ios-button flex items-center justify-center gap-2 px-8 py-3.5 bg-white dark:bg-white text-black rounded-[24px] font-bold text-[15px]"
               >
                 <Play className="w-5 h-5 fill-current" />
                 <span>Visualizar</span>
               </button>
-              <button className="w-14 h-14 rounded-[20px] bg-white/20 backdrop-blur-[30px] border border-white/20 flex items-center justify-center transition-all active:scale-95 hover:bg-white/30">
-                <Bell className="w-6 h-6 text-white" />
+              <button className="w-12 h-12 rounded-[20px] bg-white/20 backdrop-blur-[30px] border border-white/20 flex items-center justify-center transition-all active:scale-95 hover:bg-white/30">
+                <Bell className="w-5 h-5 text-white" />
               </button>
+            </div>
+
+            <div className="flex flex-col gap-1 max-w-xl">
+              <h1 className="text-2xl md:text-3xl font-black font-display tracking-tight text-white drop-shadow-lg uppercase">
+                {currentBanner.title}
+              </h1>
+              <p className="text-sm border-l-2 border-[var(--theme-color)] pl-3 text-white/80 font-medium uppercase drop-shadow-md line-clamp-2">
+                {currentBanner.subtitle}
+              </p>
             </div>
           </motion.div>
         </AnimatePresence>

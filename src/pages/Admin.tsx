@@ -187,13 +187,30 @@ export default function Admin() {
   };
 
   const handleAddContent = async () => {
+    if (!newItem.image && !newItem.url) {
+      alert("Selecione uma imagem primeiro!");
+      return;
+    }
     setIsSaving(true);
     try {
       const newDocRef = doc(collection(db, activeMenu));
-      await setDoc(newDocRef, {
+      let payload: any = {
         ...newItem,
         createdAt: serverTimestamp()
-      });
+      };
+      
+      if (activeMenu === 'photos') {
+        payload = {
+          ...payload,
+          category: payload.category || 'Eventos',
+          user: 'Admin',
+          userId: 'admin',
+          likes: 0,
+          type: 'image'
+        };
+      }
+      
+      await setDoc(newDocRef, payload);
       setNewItem({});
     } catch (err) {
       alert("Erro ao salvar");
@@ -519,6 +536,11 @@ export default function Admin() {
                       <div className="flex flex-col md:flex-row gap-4">
                          <input value={newItem.date || ''} onChange={e => setNewItem({...newItem, date: e.target.value})} placeholder="Data Ex: 12 DEZ 20:00" className="flex-1 bg-black/40 border border-white/10 rounded-xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
                          <input value={newItem.location || ''} onChange={e => setNewItem({...newItem, location: e.target.value})} placeholder="Local Institucional" className="flex-1 bg-black/40 border border-white/10 rounded-xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
+                      </div>
+                    )}
+                    {activeMenu === 'photos' && (
+                      <div className="flex flex-col gap-4">
+                         <input value={newItem.category || ''} onChange={e => setNewItem({...newItem, category: e.target.value})} placeholder="Categoria (ex: Cultos, Eventos, Jovens)" className="w-full bg-black/40 border border-white/10 rounded-xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
                       </div>
                     )}
                   </div>

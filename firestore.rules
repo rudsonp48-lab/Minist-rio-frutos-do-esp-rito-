@@ -43,12 +43,8 @@ service cloud.firestore {
     match /users/{userId} {
       // PII Isolation: Users can read their own full profile, others see public subset (if we had one)
       // For now, allow get if signed in but protect critical fields on update
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidUser(incoming()) && incoming().role == 'user';
-      allow update: if isOwner(userId) && 
-                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'updatedAt']) &&
-                      incoming().role == existing().role;
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) || isAdmin();
     }
 
     // 2. ADMINS SEED

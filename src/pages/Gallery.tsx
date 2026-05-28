@@ -11,6 +11,8 @@ import { Logo } from '../components/Logo';
 interface Photo {
   id: string;
   url: string;
+  image?: string;
+  type?: string;
   category: string;
   likes: number;
   user: string;
@@ -111,7 +113,7 @@ export default function Gallery() {
     }
   };
 
-  const filteredPhotos = photos.filter(p => activeCategory === 'Tudo' || p.category === activeCategory);
+  const filteredPhotos = photos.filter(p => (activeCategory === 'Tudo' || p.category === activeCategory) && (p.url || p.image));
 
   return (
     <div className="min-h-screen pb-32">
@@ -168,10 +170,10 @@ export default function Gallery() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   className="ios-card aspect-[4/5] md:aspect-square group relative overflow-hidden"
                 >
-                  {photo.type === 'video' || photo.url.includes('.mp4') || photo.url.includes('video%2F') ? (
-                    <video src={photo.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" autoPlay muted loop playsInline />
+                  {photo.type === 'video' || (photo.url && typeof photo.url === 'string' && (photo.url.includes('.mp4') || photo.url.includes('video%2F'))) ? (
+                    <video src={photo.url || photo.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" autoPlay muted loop playsInline />
                   ) : (
-                    <img src={photo.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Gallery" />
+                    <img src={photo.url || photo.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Gallery" />
                   )}
                   <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-end justify-between text-white drop-shadow-md pb-4 pt-12">
                     <button 
