@@ -36,7 +36,7 @@ service cloud.firestore {
 
     function isValidPhoto(data) {
       return data.userId == request.auth.uid &&
-             data.imageUrl is string && data.imageUrl.size() <= 1000;
+             (data.url is string || data.imageUrl is string);
     }
 
     // 1. USERS COLLECTION
@@ -68,11 +68,11 @@ service cloud.firestore {
     // 4. PHOTOS
     match /photos/{photoId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidPhoto(incoming());
+      allow create: if isSignedIn() && (isValidPhoto(incoming()) || isAdmin());
       allow update: if isSignedIn() && (
         (isOwner(existing().userId) && isValidPhoto(incoming())) ||
         (incoming().diff(existing()).affectedKeys().hasOnly(['likes']) && 
-         incoming().likes == (existing().likes + 1)) // Atomic increment verification
+         incoming().likes == (existing().likes + 1)) || isAdmin()
       );
       allow delete: if isOwner(existing().userId) || isAdmin();
     }

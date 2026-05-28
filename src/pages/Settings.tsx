@@ -3,7 +3,7 @@ import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRig
 import { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { updateProfile, signOut } from 'firebase/auth';
 import { compressImage } from '../lib/imageUtils';
 import { useTheme } from '../lib/ThemeContext';
@@ -71,6 +71,10 @@ export default function SettingsPage() {
   const [isEditingLeadership, setIsEditingLeadership] = useState(false);
   const [editLeadershipState, setEditLeadershipState] = useState({ pastors: '', missionaries: '', deacons: '' });
 
+  const [showBankData, setShowBankData] = useState(false);
+  const [isEditingBankData, setIsEditingBankData] = useState(false);
+  const [editBankDataState, setEditBankDataState] = useState({ pixKey: '', bankDetails: '', cardUrl: '' });
+
   const handleEditLeadershipClick = () => {
     setIsEditingLeadership(!isEditingLeadership);
     setEditLeadershipState({
@@ -82,13 +86,30 @@ export default function SettingsPage() {
 
   const handleSaveLeadership = async () => {
     try {
-      // import { setDoc } is needed from firestore if not there, but doc is imported so I can use setDoc. Let me check if setDoc is imported. I will just update the firebase/firestore imports at the top.
-      const { setDoc } = await import('firebase/firestore');
       await setDoc(doc(db, 'app_config', 'main'), { ...config, ...editLeadershipState }, { merge: true });
       setIsEditingLeadership(false);
     } catch (err) {
       console.error(err);
       alert("Erro ao salvar o corpo eclesiástico.");
+    }
+  };
+
+  const handleEditBankDataClick = () => {
+    setIsEditingBankData(!isEditingBankData);
+    setEditBankDataState({
+       pixKey: config?.pixKey || '',
+       bankDetails: config?.bankDetails || '',
+       cardUrl: config?.cardUrl || ''
+    });
+  };
+
+  const handleSaveBankData = async () => {
+    try {
+      await setDoc(doc(db, 'app_config', 'main'), { ...config, ...editBankDataState }, { merge: true });
+      setIsEditingBankData(false);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar dados bancários.");
     }
   };
 
@@ -102,6 +123,9 @@ export default function SettingsPage() {
         break;
       case 'leadership':
         setShowLeadership(true);
+        break;
+      case 'bankData':
+        if (isAdmin) setShowBankData(true);
         break;
       case 'language':
       case 'privacy':
@@ -138,9 +162,15 @@ export default function SettingsPage() {
       ]
     },
     {
-      title: 'Suporte & Comunidade',
+      title: 'Administrativo',
       items: [
         { icon: Users, label: 'Corpo Eclesiástico', color: 'bg-[#FF9500]', action: 'leadership' },
+        ...(isAdmin ? [{ icon: Database, label: 'Dados Bancários', color: 'bg-[#34C759]', action: 'bankData' }] : []),
+      ]
+    },
+    {
+      title: 'Suporte & Comunidade',
+      items: [
         { icon: Info, label: 'Sobre o Ecclesia', color: 'bg-[#8E8E93]', action: 'about' },
         { icon: Heart, label: 'Apoie o Projeto', color: 'bg-[#FF2D55]', action: 'support' },
       ]
@@ -341,6 +371,99 @@ export default function SettingsPage() {
                     ) : (
                         <p className="text-sm font-medium text-black/80 dark:text-white/80 whitespace-pre-wrap">
                           {config?.deacons || 'Não informado.'}
+                        </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showBankData && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="w-full max-w-sm bg-white dark:bg-[#1C1C1E] rounded-3xl overflow-hidden shadow-2xl relative"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold font-serif text-black dark:text-white">Dados Bancários</h3>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
+                        <button 
+                          onClick={isEditingBankData ? handleSaveBankData : handleEditBankDataClick}
+                          className="px-3 py-1.5 rounded-full bg-[var(--theme-color)] text-white text-xs font-bold uppercase tracking-widest hover:bg-[var(--color-primary-focused)] transition-colors"
+                        >
+                          {isEditingBankData ? 'Salvar' : 'Editar'}
+                        </button>
+                    )}
+                    <button onClick={() => setShowBankData(false)} className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center">
+                      <ChevronLeft className="w-5 h-5 text-black/60 dark:text-white/60 -rotate-90" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-6 max-h-[60vh] overflow-y-auto scrollbar-hide">
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-bold text-[#34C759] uppercase tracking-widest">Chave PIX</h4>
+                    {isEditingBankData ? (
+                        <input 
+                          type="text"
+                          value={editBankDataState.pixKey} 
+                          onChange={e => setEditBankDataState({...editBankDataState, pixKey: e.target.value})}
+                          placeholder="e.g. 00.000.000/0001-00"
+                          className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl p-3 text-sm text-black dark:text-white focus:ring-1 focus:ring-[#34C759]"
+                        />
+                    ) : (
+                        <p className="text-sm font-medium text-black/80 dark:text-white/80 whitespace-pre-wrap font-mono">
+                          {config?.pixKey || 'Não configurada.'}
+                        </p>
+                    )}
+                  </div>
+                  
+                  <div className="h-px w-full bg-black/5 dark:bg-white/5" />
+                  
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-bold text-[#FF9500] uppercase tracking-widest">Dados Bancários</h4>
+                    {isEditingBankData ? (
+                        <textarea 
+                          value={editBankDataState.bankDetails} 
+                          onChange={e => setEditBankDataState({...editBankDataState, bankDetails: e.target.value})}
+                          placeholder="Agência: 0001&#10;Conta: 123456-7&#10;Banco..."
+                          className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl p-3 text-sm text-black dark:text-white min-h-[100px] focus:ring-1 focus:ring-[#FF9500]"
+                        />
+                    ) : (
+                        <p className="text-sm font-medium text-black/80 dark:text-white/80 whitespace-pre-wrap font-mono">
+                          {config?.bankDetails || 'Não configurados.'}
+                        </p>
+                    )}
+                  </div>
+
+                  <div className="h-px w-full bg-black/5 dark:bg-white/5" />
+                  
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-bold text-[#007AFF] uppercase tracking-widest">Link de Pagamento (Cartão)</h4>
+                    {isEditingBankData ? (
+                        <input 
+                          type="url"
+                          value={editBankDataState.cardUrl} 
+                          onChange={e => setEditBankDataState({...editBankDataState, cardUrl: e.target.value})}
+                          placeholder="https://..."
+                          className="w-full bg-black/5 dark:bg-white/5 border-none rounded-xl p-3 text-sm text-black dark:text-white focus:ring-1 focus:ring-[#007AFF]"
+                        />
+                    ) : (
+                        <p className="text-sm font-medium text-black/80 dark:text-white/80 whitespace-pre-wrap font-mono truncate">
+                          {config?.cardUrl || 'Não configurado.'}
                         </p>
                     )}
                   </div>

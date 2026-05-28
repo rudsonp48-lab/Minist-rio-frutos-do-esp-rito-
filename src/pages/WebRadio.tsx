@@ -86,7 +86,7 @@ export default function WebRadio() {
                      className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors group"
                    >
                      <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform shadow-xl">
-                       {isPlaying ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white fill-current ml-1" />}
+                       {isPlayingRadio ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white fill-current ml-1" />}
                      </div>
                    </button>
                 </div>
@@ -107,7 +107,7 @@ export default function WebRadio() {
                      onClick={handlePlayRadio}
                      className="flex-1 max-w-[200px] h-14 rounded-full bg-[var(--theme-color)] text-white font-bold flex items-center justify-center shadow-lg shadow-[var(--theme-color)]/30 hover:scale-105 transition-transform"
                    >
-                     {isPlaying ? 'Pausar' : 'Ouvir Agora'}
+                     {isPlayingRadio ? 'Pausar' : 'Ouvir Agora'}
                    </button>
                    
                    <button className="w-12 h-12 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition-colors">

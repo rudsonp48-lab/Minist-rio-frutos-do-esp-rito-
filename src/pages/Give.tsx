@@ -1,12 +1,26 @@
 import { motion } from 'motion/react';
 import { Heart, CreditCard, QrCode, ArrowRight, Building, Copy, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function Give() {
   const [copiedPix, setCopiedPix] = useState(false);
   const [copiedBanco, setCopiedBanco] = useState(false);
+  
+  const [config, setConfig] = useState<any>(null);
 
-  const pixKey = "00.000.000/0001-00";
+  useEffect(() => {
+    const unsubscribe = onSnapshot(doc(db, 'app_config', 'main'), (snapshot) => {
+      if (snapshot.exists()) {
+        setConfig(snapshot.data());
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const pixKey = config?.pixKey || "00.000.000/0001-00";
+  const bankDetails = config?.bankDetails || "Agência: 0001\nConta: 12345-6\nBanco Inter";
 
   const handleCopyPix = () => {
     navigator.clipboard.writeText(pixKey);
@@ -15,7 +29,7 @@ export default function Give() {
   };
 
   const handleCopyBanco = () => {
-    navigator.clipboard.writeText("Agência: 0001\nConta: 12345-6\nBanco Inter");
+    navigator.clipboard.writeText(bankDetails);
     setCopiedBanco(true);
     setTimeout(() => setCopiedBanco(false), 2000);
   };
@@ -70,7 +84,16 @@ export default function Give() {
                    <p className="text-sm text-black/60 dark:text-white/60 font-medium">Contribua de forma rápida e segura</p>
                  </div>
               </div>
-              <button className="w-full flex items-center justify-center gap-2 h-14 rounded-full bg-black dark:bg-white text-white dark:text-black font-bold text-[15px] hover:scale-[1.02] transition-transform shadow-lg">
+              <button 
+                onClick={() => {
+                  if (config?.cardUrl) {
+                    window.open(config.cardUrl, '_blank');
+                  } else {
+                    alert("Link de pagamento não configurado no painel de controle.");
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 h-14 rounded-full bg-black dark:bg-white text-white dark:text-black font-bold text-[15px] hover:scale-[1.02] transition-transform shadow-lg"
+              >
                 <CreditCard className="w-5 h-5" />
                 Contribuir com Cartão
               </button>
@@ -97,7 +120,7 @@ export default function Give() {
               
               <div className="flex flex-col gap-4">
                  <div className="bg-black/5 dark:bg-white/5 p-6 rounded-[24px] text-center border border-black/5 dark:border-white/5">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=00000000000100" alt="QR Code PIX" className="w-32 h-32 mx-auto mix-blend-darken dark:mix-blend-screen opacity-90 mb-4" />
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(pixKey)}`} alt="QR Code PIX" className="w-32 h-32 mx-auto mix-blend-darken dark:mix-blend-screen opacity-90 mb-4" />
                     <p className="text-[13px] font-mono text-black/60 dark:text-white/60 mb-1">Chave CNPJ</p>
                     <p className="text-xl font-bold font-mono tracking-wider text-black dark:text-white mb-4">{pixKey}</p>
                     <button 
@@ -128,19 +151,8 @@ export default function Give() {
               </div>
               
               <div className="bg-black/5 dark:bg-white/5 p-5 rounded-[20px] flex flex-col gap-3 font-mono text-sm border border-black/5 dark:border-white/5">
-                <div className="flex justify-between items-center pb-3 border-b border-black/5 dark:border-white/5">
-                  <span className="text-black/50 dark:text-white/50">Banco</span>
-                  <span className="font-bold text-black dark:text-white">Banco Inter (077)</span>
-                </div>
-                <div className="flex justify-between items-center pb-3 border-b border-black/5 dark:border-white/5">
-                  <span className="text-black/50 dark:text-white/50">Agência</span>
-                  <span className="font-bold text-black dark:text-white">0001</span>
-                </div>
-                <div className="flex justify-between items-center pb-3 border-b border-black/5 dark:border-white/5">
-                  <span className="text-black/50 dark:text-white/50">Conta Corrente</span>
-                  <span className="font-bold text-black dark:text-white">12345-6</span>
-                </div>
-                <div className="flex justify-between items-center">
+                <p className="text-black dark:text-white whitespace-pre-wrap font-bold leading-relaxed">{bankDetails}</p>
+                <div className="flex justify-between items-center pt-2">
                   <span className="text-black/50 dark:text-white/50">CNPJ</span>
                   <span className="font-bold text-black dark:text-white">{pixKey}</span>
                 </div>

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
@@ -15,6 +15,7 @@ export default function Home() {
   const [copiedPix, setCopiedPix] = useState(false);
   const [givingMethod, setGivingMethod] = useState<'pix' | 'card'>('pix');
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [selectedBanner, setSelectedBanner] = useState<any>(null);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
   const { themeColor, churchName } = useTheme();
   const { scrollY } = useScroll();
@@ -50,7 +51,7 @@ export default function Home() {
     setTimeout(() => setCopiedPix(false), 2000);
   };
 
-  const currentBanner = banners[currentBannerIndex];
+  const currentBanner = banners[currentBannerIndex] || banners[0];
   const currentDevotional = getDailyDevotional();
 
   return (
@@ -95,10 +96,13 @@ export default function Home() {
             </p>
             
             <div className="flex items-center gap-4">
-              <Link to="/media" className="ios-button flex items-center justify-center gap-2 px-8 py-3.5 bg-white dark:bg-white text-black rounded-[24px]">
+              <button 
+                onClick={() => setSelectedBanner(currentBanner)} 
+                className="ios-button flex items-center justify-center gap-2 px-8 py-3.5 bg-white dark:bg-white text-black rounded-[24px]"
+              >
                 <Play className="w-5 h-5 fill-current" />
-                <span>Assistir</span>
-              </Link>
+                <span>Visualizar</span>
+              </button>
               <button className="w-14 h-14 rounded-[20px] bg-white/20 backdrop-blur-[30px] border border-white/20 flex items-center justify-center transition-all active:scale-95 hover:bg-white/30">
                 <Bell className="w-6 h-6 text-white" />
               </button>
@@ -472,6 +476,57 @@ export default function Home() {
         </section>
 
       </div>
+
+      {/* Banner Modal */}
+      <AnimatePresence>
+        {selectedBanner && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+            onClick={() => setSelectedBanner(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="w-full max-w-2xl bg-[#09090B] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl relative"
+              onClick={e => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setSelectedBanner(null)}
+                className="absolute top-4 right-4 z-10 w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="w-full aspect-[4/3] sm:aspect-video relative">
+                <img src={selectedBanner.image} alt={selectedBanner.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+              </div>
+              
+              <div className="p-6 md:p-8 -mt-24 md:-mt-28 relative z-10">
+                <h2 className="text-xl md:text-2xl font-black font-display tracking-tight text-white drop-shadow-md mb-1">{selectedBanner.title}</h2>
+                <p className="text-sm md:text-base text-white/90 font-medium mb-5">{selectedBanner.subtitle}</p>
+                
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 text-[13px] md:text-sm text-white/90 leading-relaxed font-medium mb-6 shadow-xl border border-white/10">
+                  {selectedBanner.description || "As informações completas sobre este item estão sendo atualizadas. Fique ligado para mais novidades e detalhes na nossa programação!"}
+                </div>
+                
+                <div className="mt-4 flex justify-end">
+                  <button 
+                    onClick={() => setSelectedBanner(null)}
+                    className="px-6 py-2.5 rounded-full bg-[var(--theme-color)] text-white text-sm font-bold hover:scale-105 transition-transform"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

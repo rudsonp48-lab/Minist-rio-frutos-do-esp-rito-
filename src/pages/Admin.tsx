@@ -146,7 +146,8 @@ export default function Admin() {
       const newBanners = [...(config.banners || []), { 
         id: Date.now(), 
         title: newItem.title, 
-        subtitle: newItem.subtitle || '', 
+        subtitle: newItem.subtitle || '',
+        description: newItem.description || '',
         image: newItem.image 
       }];
       await setDoc(doc(db, 'app_config', 'main'), { banners: newBanners }, { merge: true });
@@ -457,6 +458,7 @@ export default function Admin() {
                   <div className="space-y-4 flex flex-col justify-center">
                     <input value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} placeholder="Título Principal" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
                     <input value={newItem.subtitle || ''} onChange={e => setNewItem({...newItem, subtitle: e.target.value})} placeholder="Subtítulo Descritivo" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
+                    <textarea value={newItem.description || ''} onChange={e => setNewItem({...newItem, description: e.target.value})} placeholder="Descrição Completa (opcional)" className="w-full min-h-[100px] bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white resize-none" />
                     <button onClick={handleAddBanner} disabled={isSaving} className="w-full h-14 mt-4 bg-[var(--theme-color)] text-white shadow-[0_0_20px_var(--theme-color)]/30 rounded-2xl font-bold uppercase tracking-widest text-[12px] flex items-center justify-center gap-3 transition-transform active:scale-95 hover:bg-[var(--color-primary-focused)]">
                       {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Publicar Banner</span>}
                     </button>
