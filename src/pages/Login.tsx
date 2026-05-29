@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../lib/ThemeContext';
 
 export default function Login() {
-  const { churchName, themeColor } = useTheme();
+  const { churchName, themeColor, logoUrl } = useTheme();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
@@ -79,48 +79,58 @@ export default function Login() {
              transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
              className="flex flex-col items-center justify-center pt-8 gap-5"
            >
-             {/* Animated Church Logo */}
-             <motion.div 
-                animate={{
-                  boxShadow: [
-                    "0 0 20px rgba(168, 85, 247, 0.3)",
-                    "0 0 50px rgba(59, 130, 246, 0.5)",
-                    "0 0 20px rgba(168, 85, 247, 0.3)"
-                  ]
-                }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="w-24 h-24 rounded-[2rem] bg-gradient-to-tr from-purple-500 via-blue-500 to-pink-500 p-[2px] shadow-2xl relative"
-              >
-                <div className="absolute inset-0 bg-gradient-to-tr from-purple-500 via-blue-500 to-pink-500 blur-xl opacity-50 rounded-[2rem]" />
-                <div className="w-full h-full rounded-[2rem] bg-black/80 flex items-center justify-center backdrop-blur-xl relative z-10">
-                  <motion.div
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+             {logoUrl ? (
+               <div className="w-full h-auto max-w-[280px] flex items-center justify-center relative mb-4">
+                 <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/20 via-blue-500/20 to-pink-500/20 blur-[50px] -z-10" />
+                 <img src={logoUrl} alt="Logo" className="w-full h-auto object-contain drop-shadow-2xl mix-blend-screen" />
+               </div>
+             ) : (
+               <>
+                 {/* Animated Church Logo */}
+                 <motion.div 
+                    animate={{
+                      boxShadow: [
+                        "0 0 20px rgba(168, 85, 247, 0.3)",
+                        "0 0 50px rgba(59, 130, 246, 0.5)",
+                        "0 0 20px rgba(168, 85, 247, 0.3)"
+                      ]
+                    }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="w-24 h-24 rounded-[2rem] bg-gradient-to-tr from-purple-500 via-blue-500 to-pink-500 p-[2px] shadow-2xl relative"
                   >
-                    <Church className="w-10 h-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
-                  </motion.div>
-                </div>
-             </motion.div>
-             
-             <h1 
-               className="text-4xl md:text-5xl font-serif tracking-[0.3em] leading-[1.1] uppercase ml-3 mt-2"
-               style={{ 
-                 fontFamily: '"Playfair Display", "Cinzel", serif',
-                 fontWeight: 300,
-                 background: 'linear-gradient(135deg, #FFFFFF 0%, #E0E0E0 50%, #ECECEC 100%)',
-                 WebkitBackgroundClip: 'text',
-                 WebkitTextFillColor: 'transparent',
-                 filter: 'drop-shadow(0 4px 12px rgba(255,255,255,0.15))',
-                 fontVariantLigatures: 'common-ligatures'
-               }}
-             >
-               ÉCLÉSIA
-             </h1>
-             <div className="flex items-center gap-4 mt-2 mb-4 w-full px-8">
-               <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
-               <span className="text-[10px] font-bold tracking-[0.4em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-300">Ministério</span>
-               <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
-             </div>
+                    <div className="absolute inset-0 bg-gradient-to-tr from-purple-500 via-blue-500 to-pink-500 blur-xl opacity-50 rounded-[2rem]" />
+                    <div className="w-full h-full rounded-[2rem] bg-black/80 flex items-center justify-center backdrop-blur-xl relative z-10 p-2">
+                      <motion.div
+                        animate={{ scale: [1, 1.05, 1] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                        className="w-full h-full flex items-center justify-center"
+                      >
+                        <Church className="w-10 h-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
+                      </motion.div>
+                    </div>
+                 </motion.div>
+                 
+                 <h1 
+                   className="text-4xl md:text-5xl font-serif tracking-[0.3em] leading-[1.1] uppercase ml-3 mt-2"
+                   style={{ 
+                     fontFamily: '"Playfair Display", "Cinzel", serif',
+                     fontWeight: 300,
+                     background: 'linear-gradient(135deg, #FFFFFF 0%, #E0E0E0 50%, #ECECEC 100%)',
+                     WebkitBackgroundClip: 'text',
+                     WebkitTextFillColor: 'transparent',
+                     filter: 'drop-shadow(0 4px 12px rgba(255,255,255,0.15))',
+                     fontVariantLigatures: 'common-ligatures'
+                   }}
+                 >
+                   ÉCLÉSIA
+                 </h1>
+                 <div className="flex items-center gap-4 mt-2 mb-4 w-full px-8">
+                   <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
+                   <span className="text-[10px] font-bold tracking-[0.4em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-300">Ministério</span>
+                   <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
+                 </div>
+               </>
+             )}
            </motion.div>
            
            <div className="space-y-2">

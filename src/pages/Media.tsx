@@ -30,14 +30,19 @@ export default function Media() {
   useEffect(() => {
     const liveId = searchParams.get('live');
     if (liveId) {
-      setSelectedVideo({
-        id: liveId,
-        title: 'Transmissão ao Vivo',
-        thumbnail: '',
-        publishedAt: new Date().toISOString(),
-        type: 'live'
-      });
-      setIsMinimized(false);
+      if (liveId === '1') {
+        setActiveTab('live');
+      } else {
+        setSelectedVideo({
+          id: liveId,
+          title: 'Transmissão ao Vivo',
+          thumbnail: '',
+          publishedAt: new Date().toISOString(),
+          type: 'live'
+        });
+        setIsMinimized(false);
+        setActiveTab('live');
+      }
     }
   }, [searchParams]);
 
@@ -58,7 +63,19 @@ export default function Media() {
       return;
     }
 
-    const vids = await searchGospelContent(query);
+    let vids: YouTubeVideo[] = [];
+    if (activeTab === 'live' && !customQuery) {
+      const { checkChannelLive } = await import('../services/youtube');
+      const liveStreams = await checkChannelLive();
+      if (liveStreams && liveStreams.length > 0) {
+        vids = liveStreams;
+      } else {
+        // Fallback to recent services if no live stream available
+        vids = await searchGospelContent('culto ao vivo');
+      }
+    } else {
+      vids = await searchGospelContent(query);
+    }
     setYtVideos(vids);
     setLoading(false);
   };

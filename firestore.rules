@@ -63,7 +63,7 @@ service cloud.firestore {
 
     // 4. PHOTOS
     match /photos/{photoId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn() && (isValidPhoto(incoming()) || isAdmin());
       allow update: if isSignedIn() && (
         (isOwner(existing().userId) && isValidPhoto(incoming())) ||
@@ -89,6 +89,10 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
     match /devotionals/{devId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+    match /prayers/{prayerId} {
       allow read: if true;
       allow write: if isSignedIn();
     }

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePlayer } from '../lib/PlayerContext';
-import { ChevronDown, MoreHorizontal, Shuffle, Pause, Play, SkipBack, SkipForward, Repeat, Volume1, Volume2, Cast, List, ListVideo, X, Heart } from 'lucide-react';
+import { ChevronDown, MoreHorizontal, Shuffle, Pause, Play, SkipBack, SkipForward, Repeat, Volume1, Volume2, Cast, List, ListVideo, X, Heart, Mic2 } from 'lucide-react';
 import YouTube from 'react-youtube';
 import { useTheme } from '../lib/ThemeContext';
 
@@ -23,7 +23,7 @@ export default function GlobalPlayer() {
   } = usePlayer();
 
   const [showPlaylist, setShowPlaylist] = useState(false);
-  const [playbackTime, setPlaybackTime] = useState(0);
+  const [showLyrics, setShowLyrics] = useState(false);
 
   useEffect(() => {
     let interval: any;
@@ -79,13 +79,26 @@ export default function GlobalPlayer() {
     e.stopPropagation();
     setPlaylist(prev => prev.filter((_, i) => i !== index));
   };
+  
+  // Dummy lyrics logic
+  const DUMMY_LYRICS = [
+    "Santo, Santo é o Senhor",
+    "Poderoso e grande Eu Sou",
+    "Toda a terra está cheia da sua glória",
+    "Os anjos cantam em louvor",
+    "A criação se prostra a ti",
+    "Majestade e glória e poder",
+    "(Instrumental)",
+    "Tu és digno de receber",
+    "Toda a honra e todo o louvor"
+  ];
 
   return (
     <>
       <div 
         className={
-          selectedVideo && !isMinimized && (selectedVideo.type === 'video' || selectedVideo.type === 'live')
-            ? "fixed top-[calc(max(20px,env(safe-area-inset-top))+80px)] sm:top-[calc(max(20px,env(safe-area-inset-top))+80px)] left-1/2 -translate-x-1/2 w-[calc(100%-4rem)] max-w-[384px] aspect-video z-[105] rounded-2xl overflow-hidden shadow-2xl"
+          selectedVideo && !isMinimized && (!showLyrics) && (selectedVideo.type === 'video' || selectedVideo.type === 'live')
+            ? "fixed top-[calc(max(20px,env(safe-area-inset-top))+80px)] sm:top-[calc(max(20px,env(safe-area-inset-top))+80px)] left-1/2 -translate-x-1/2 w-[calc(100%-4rem)] max-w-[384px] aspect-video z-[105] rounded-2xl overflow-hidden shadow-2xl transition-all"
             : "fixed top-0 left-0 w-[400px] max-w-[50vw] aspect-video opacity-[0.01] pointer-events-none z-[-1]"
         }
       >
@@ -157,7 +170,7 @@ export default function GlobalPlayer() {
           >
             {/* Ambient Blurred Background from Thumbnail */}
             <div className="absolute inset-0 z-0 overflow-hidden opacity-60">
-              <img src={selectedVideo.thumbnail} className="w-full h-full object-cover blur-[80px] scale-150 saturate-[1.5]" alt="bg" />
+              <img src={selectedVideo.thumbnail} className={`w-full h-full object-cover scale-150 saturate-[1.5] transition-all duration-[3s] ${showLyrics ? 'blur-[100px] scale-[2] rotate-12' : 'blur-[80px]'}`} alt="bg" />
               <div className="absolute inset-0 bg-black/40 mix-blend-overlay"></div>
               <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80"></div>
             </div>
@@ -168,7 +181,7 @@ export default function GlobalPlayer() {
                 <ChevronDown className="w-8 h-8" />
               </button>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] text-white/60 uppercase tracking-[0.25em] font-sans font-bold drop-shadow-md">Tocando Agora</span>
+                <span className="text-[10px] text-white/60 uppercase tracking-[0.25em] font-sans font-bold drop-shadow-md">{showLyrics ? 'Modo Imersivo' : 'Tocando Agora'}</span>
                 <span className="text-xs text-white/90 font-medium font-sans mt-0.5 drop-shadow-md">Ecclesia Mídia</span>
               </div>
               <button 
@@ -179,17 +192,48 @@ export default function GlobalPlayer() {
               </button>
             </div>
 
-            {/* Album/Video Container */}
-            <div className="relative z-10 px-8 pb-8 flex-none flex items-center justify-center">
-               {selectedVideo.type === 'video' || selectedVideo.type === 'live' ? (
-                 <div className="w-full aspect-video bg-black/20 shadow-2xl rounded-2xl relative border border-white/10 backdrop-blur-md">
-                     {/* The video is rendered above this via fixed positioning */}
-                 </div>
-               ) : (
-                 <div className="w-full aspect-[4/5] sm:aspect-square relative rounded-[2rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/10">
-                   <img src={selectedVideo.thumbnail} alt={selectedVideo.title} className="w-full h-full object-cover" />
-                 </div>
-               )}
+            {/* Main Content Area: Album OR Lyrics */}
+            <div className="relative z-10 px-8 pb-8 flex-none flex items-center justify-center transition-all duration-500" style={{ height: showLyrics ? '45vh' : 'auto' }}>
+               <AnimatePresence mode="wait">
+                 {showLyrics ? (
+                   <motion.div 
+                     key="lyrics"
+                     initial={{ opacity: 0, scale: 0.95 }}
+                     animate={{ opacity: 1, scale: 1 }}
+                     exit={{ opacity: 0, scale: 0.95 }}
+                     className="w-full h-full flex flex-col items-center justify-center space-y-6 overflow-hidden relative"
+                   >
+                     {/* Floating Lyrics Effect - Sync to playback time visually if needed */}
+                     <div className="absolute inset-0 flex flex-col justify-center gap-6 py-12 mask-image-fade" style={{ transform: `translateY(${-((played / (duration || 1)) * 300 - 150)}px)`, transition: 'transform 1s linear' }}>
+                       {DUMMY_LYRICS.map((line, i) => (
+                         <div key={i} className={`text-center transition-all duration-700 ${playing ? 'scale-100' : 'scale-95 opacity-80'}`}>
+                           <p className={`text-xl sm:text-2xl font-bold font-display drop-shadow-lg leading-relaxed ${i === Math.floor((played / (duration || 1)) * DUMMY_LYRICS.length) ? 'text-white scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]' : 'text-white/40'}`}>
+                             {line}
+                           </p>
+                         </div>
+                       ))}
+                     </div>
+                   </motion.div>
+                 ) : (
+                   <motion.div 
+                     key="album"
+                     initial={{ opacity: 0, scale: 0.9 }}
+                     animate={{ opacity: 1, scale: 1 }}
+                     exit={{ opacity: 0, scale: 0.9 }}
+                     className="w-full"
+                   >
+                     {selectedVideo.type === 'video' || selectedVideo.type === 'live' ? (
+                       <div className="w-full aspect-video bg-black/20 shadow-2xl rounded-2xl relative border border-white/10 backdrop-blur-md">
+                           {/* The video is rendered above this via fixed positioning */}
+                       </div>
+                     ) : (
+                       <div className="w-full aspect-[4/5] sm:aspect-square relative rounded-[2rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/10">
+                         <img src={selectedVideo.thumbnail} alt={selectedVideo.title} className="w-full h-full object-cover" />
+                       </div>
+                     )}
+                   </motion.div>
+                 )}
+               </AnimatePresence>
             </div>
 
             {/* Song Info */}
@@ -298,17 +342,29 @@ export default function GlobalPlayer() {
               </div>
 
               <div className="mt-auto pb-4 space-y-8">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between px-2">
+                  <button 
+                    onClick={() => setShowLyrics(!showLyrics)}
+                    className={`flex flex-col items-center gap-1.5 p-2 active:scale-95 transition-all ${showLyrics ? 'text-white' : 'text-white/50 hover:text-white/80'}`}
+                  >
+                    <div className={`p-2 rounded-full ${showLyrics ? 'bg-white text-black' : ''} transition-colors`}>
+                      <Mic2 className="w-5 h-5 drop-shadow-md" />
+                    </div>
+                  </button>
                   <button 
                     onClick={() => alert("Procurando dispositivos para transmitir (Chromecast/AirPlay)...")}
-                    className="flex items-center gap-2 p-3 -ml-3 active:opacity-50 transition-opacity"
+                    className="flex flex-col items-center gap-1.5 p-2 active:scale-95 transition-all text-white/50 hover:text-white/80"
                   >
-                    <Volume2 className="w-5 h-5 text-white/80 hover:text-white drop-shadow-md" />
+                    <div className="p-2 rounded-full transition-colors">
+                      <Volume2 className="w-5 h-5 drop-shadow-md" />
+                    </div>
                   </button>
-                  <button onClick={() => setShowPlaylist(true)} className="p-3 -mr-3 relative active:opacity-50 transition-opacity">
-                    <List className="w-6 h-6 text-white/80 drop-shadow-md" />
+                  <button onClick={() => setShowPlaylist(true)} className="flex flex-col items-center gap-1.5 p-2 relative active:scale-95 transition-all text-white/50 hover:text-white/80">
+                    <div className="p-2 rounded-full transition-colors">
+                      <List className="w-5 h-5 drop-shadow-md" />
+                    </div>
                     {playlist.length > 0 && (
-                       <span className="absolute top-2.5 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-black/50 drop-shadow-sm" />
+                       <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-[#FF2D55] rounded-full border-2 border-black/50 drop-shadow-sm" />
                     )}
                   </button>
                 </div>

@@ -101,3 +101,8 @@
 @utility animate-float {
   animation: float 6s ease-in-out infinite;
 }
+
+@utility mask-image-fade {
+  mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+}

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
@@ -9,6 +9,7 @@ import { Logo } from '../components/Logo';
 import { useTheme } from '../lib/ThemeContext';
 import { getDailyDevotional } from '../lib/devotionalsData';
 import { DEFAULT_BANNERS, RECENT_ITEMS, TESTIMONIALS, PODCASTS, CONTINUE_WATCHING, GALLERY_IMAGES } from '../lib/data';
+import { YouTubeVideo } from '../services/youtube';
 
 export default function Home() {
   const [config, setConfig] = useState<any>(null);
@@ -18,6 +19,7 @@ export default function Home() {
   const [selectedBanner, setSelectedBanner] = useState<any>(null);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
   const [recentPhotos, setRecentPhotos] = useState<any[]>([]);
+  const [liveStream, setLiveStream] = useState<YouTubeVideo | null>(null);
   const { themeColor, churchName } = useTheme();
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 500], [0, 150]);
@@ -27,6 +29,16 @@ export default function Home() {
       if (snapshot.exists()) setConfig(snapshot.data());
     }, (error) => handleFirestoreError(error, OperationType.GET, 'app_config/main'));
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    import('../services/youtube').then(({ checkChannelLive }) => {
+      checkChannelLive().then(streams => {
+        if (streams && streams.length > 0) {
+          setLiveStream(streams[0]);
+        }
+      });
+    });
   }, []);
 
   useEffect(() => {
@@ -131,8 +143,31 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto px-6 mt-16 space-y-16 pb-24">
+      <div className="w-full max-w-7xl mx-auto px-6 mt-8 space-y-12 pb-24">
         
+        {/* Live Alert Banner */}
+        {liveStream && (
+          <section>
+            <Link to={`/media?live=${liveStream.id}`} className="group relative w-full rounded-[28px] overflow-hidden ios-shadow flex items-center gap-4 lg:gap-6 p-4 lg:p-6 bg-red-600 border border-red-500 active:scale-[0.98] transition-all">
+               <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
+               <div className="relative w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 border border-white/20 backdrop-blur-md">
+                 <Radio className="w-8 h-8 text-white animate-pulse" />
+               </div>
+               <div className="relative flex-1 min-w-0">
+                 <div className="flex items-center gap-2 mb-1">
+                   <div className="w-2 h-2 rounded-full bg-white animate-ping"></div>
+                   <span className="text-[11px] lg:text-xs font-bold text-white uppercase tracking-widest">Transmissão ao Vivo</span>
+                 </div>
+                 <h3 className="text-lg lg:text-xl font-bold font-sans text-white truncate">{liveStream.title}</h3>
+                 <p className="text-xs lg:text-sm text-white/80 line-clamp-1">{liveStream.author}</p>
+               </div>
+               <div className="relative w-12 h-12 rounded-full bg-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-lg">
+                  <Play className="w-5 h-5 text-red-600 fill-red-600 ml-1" />
+               </div>
+            </Link>
+          </section>
+        )}
+
         {/* Categories / Quick Access */}
         <section>
           <motion.div 
@@ -481,6 +516,50 @@ export default function Home() {
             </div>
 
           </div>
+        </section>
+
+        {/* Location / Map Section */}
+        <section id="location" className="pt-4">
+           <div className="ios-card overflow-hidden p-6 md:p-8 flex flex-col md:flex-row gap-8 items-center bg-white dark:bg-[#1C1C1E]">
+             <div className="flex-1 w-full text-center md:text-left">
+                <div className="w-12 h-12 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto md:mx-0 mb-6 font-bold">
+                   <Navigation className="w-6 h-6 text-red-500" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-display font-bold mb-3 text-black dark:text-white">Onde Estamos</h2>
+                <p className="text-black/60 dark:text-white/60 mb-6">Venha nos fazer uma visita e participe dos nossos encontros abertos a toda a comunidade.</p>
+                
+                <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-5 mb-6 text-left border border-black/5 dark:border-white/5">
+                   <h3 className="font-bold text-sm text-black dark:text-white mb-1 uppercase tracking-wider">Ministério Frutos do Espírito</h3>
+                   <p className="text-black/70 dark:text-white/70 text-sm leading-relaxed">
+                     QR 407 - Samambaia<br />
+                     Brasília - DF<br />
+                     CEP: 72321-106
+                   </p>
+                </div>
+
+                <a 
+                  href="https://maps.app.goo.gl/XQxnqawktgfX1mxf9" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="ios-button inline-flex w-full md:w-auto justify-center gap-2"
+                >
+                  <MapPin className="w-5 h-5" />
+                  Abrir no Google Maps
+                </a>
+             </div>
+             <div className="w-full md:w-1/2 aspect-square md:aspect-video rounded-[24px] overflow-hidden bg-black/5 border border-black/10 dark:border-white/5 relative">
+                {/* Embed Map URL matching the provided location info. Since we just want the easiest representation without an API key, we can construct a basic map via iframe query. "QR 407 - Samambaia, Brasília - DF" */}
+                <iframe 
+                  src="https://maps.google.com/maps?width=100%25&amp;height=600&amp;hl=en&amp;q=Minist%C3%A9rio%20Frutos%20do%20Esp%C3%ADrito,%20QR%20407%20-%20Samambaia,%20Bras%C3%ADlia%20-%20DF,%2072321-106+(Minist%C3%A9rio%20Frutos%20do%20Esp%C3%ADrito)&amp;t=&amp;z=15&amp;ie=UTF8&amp;iwloc=B&amp;output=embed" 
+                  width="100%" 
+                  height="100%" 
+                  className="absolute inset-0 border-0"
+                  allowFullScreen={false}
+                  loading="lazy" 
+                  referrerPolicy="no-referrer-when-downgrade" 
+                />
+             </div>
+           </div>
         </section>
 
       </div>

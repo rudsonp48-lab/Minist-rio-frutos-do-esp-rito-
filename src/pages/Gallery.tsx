@@ -20,6 +20,60 @@ interface Photo {
   createdAt: any;
 }
 
+function GalleryItem({ photo, handleLike }: { photo: Photo, handleLike: (id: string) => void }) {
+  const [showHeart, setShowHeart] = useState(false);
+
+  const onDoubleTap = () => {
+    handleLike(photo.id);
+    setShowHeart(true);
+    setTimeout(() => setShowHeart(false), 1000);
+  };
+
+  const isVideo = photo.type === 'video' || (photo.url && typeof photo.url === 'string' && (photo.url.includes('.mp4') || photo.url.includes('video%2F')));
+
+  return (
+    <motion.div 
+      layout
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="ios-card aspect-[4/5] md:aspect-square group relative overflow-hidden"
+      onDoubleClick={onDoubleTap}
+    >
+      {isVideo ? (
+        <video src={photo.url || photo.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none" autoPlay muted loop playsInline />
+      ) : (
+        <img src={photo.url || photo.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none select-none" alt="Gallery" />
+      )}
+      
+      {/* Interactive Heart Animation Overlay for Double Tap */}
+      <AnimatePresence>
+        {showHeart && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1.5 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
+          >
+             <Heart className="w-16 h-16 text-white fill-white drop-shadow-2xl" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-end justify-between text-white drop-shadow-md pb-4 pt-12">
+        <button 
+          onClick={(e) => { e.stopPropagation(); handleLike(photo.id); }}
+          className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-bold active:scale-90 transition-transform"
+        >
+          <Heart className={`w-3 h-3 ${photo.likes > 0 ? 'fill-red-500 text-red-500' : ''}`} />
+          {photo.likes}
+        </button>
+        <span className="text-[10px] text-white/80 font-medium">@{photo.user}</span>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Gallery() {
   const [activeCategory, setActiveCategory] = useState('Tudo');
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -161,30 +215,7 @@ export default function Gallery() {
           ) : (
             <AnimatePresence mode="popLayout">
               {filteredPhotos.map((photo) => (
-                <motion.div 
-                  key={photo.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="ios-card aspect-[4/5] md:aspect-square group relative overflow-hidden"
-                >
-                  {photo.type === 'video' || (photo.url && typeof photo.url === 'string' && (photo.url.includes('.mp4') || photo.url.includes('video%2F'))) ? (
-                    <video src={photo.url || photo.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" autoPlay muted loop playsInline />
-                  ) : (
-                    <img src={photo.url || photo.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Gallery" />
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-end justify-between text-white drop-shadow-md pb-4 pt-12">
-                    <button 
-                      onClick={() => handleLike(photo.id)}
-                      className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-bold"
-                    >
-                      <Heart className={`w-3 h-3 ${photo.likes > 0 ? 'fill-red-500 text-red-500' : ''}`} />
-                      {photo.likes}
-                    </button>
-                    <span className="text-[10px] text-white/80 font-medium">@{photo.user}</span>
-                  </div>
-                </motion.div>
+                <GalleryItem key={photo.id} photo={photo} handleLike={handleLike} />
               ))}
             </AnimatePresence>
           )}

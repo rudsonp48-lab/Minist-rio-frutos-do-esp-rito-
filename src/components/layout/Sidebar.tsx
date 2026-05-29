@@ -18,7 +18,7 @@ interface SidebarProps {
 
 export default function Sidebar({ user, isAdmin }: SidebarProps) {
   const location = useLocation();
-  const { themeColor, churchName } = useTheme();
+  const { themeColor, churchName, logoUrl } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
 
   const menuItems = [
@@ -49,9 +49,15 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
     <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-white/70 dark:bg-[#1C1C1E]/70 backdrop-blur-[40px] border-r border-black/5 dark:border-white/[0.04] z-40 hidden lg:flex flex-col overflow-hidden shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
       {/* Header */}
       <div className="p-8 pb-4 relative z-10 flex items-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-          <Church className="w-5 h-5 text-black dark:text-white" />
-        </div>
+        {logoUrl ? (
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+            <img src={logoUrl} alt="Logo" className="max-w-full max-h-full object-contain drop-shadow-md dark:mix-blend-screen" />
+          </div>
+        ) : (
+          <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
+            <Church className="w-5 h-5 text-black dark:text-white" />
+          </div>
+        )}
         <div className="flex flex-col overflow-hidden">
           <span 
             className="text-lg font-serif tracking-widest text-black dark:text-white uppercase truncate"

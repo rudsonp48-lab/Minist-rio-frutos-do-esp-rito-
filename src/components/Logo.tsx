@@ -8,7 +8,7 @@ export function Logo({ className, textClassName }: { className?: string, textCla
   if (logoUrl) {
     return (
       <div className={cn("flex flex-col items-center justify-center", className)}>
-        <img src={logoUrl} alt={churchName || "Logo"} className="w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-xl" />
+        <img src={logoUrl} alt={churchName || "Logo"} className="w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-xl dark:mix-blend-screen" />
       </div>
     );
   }
