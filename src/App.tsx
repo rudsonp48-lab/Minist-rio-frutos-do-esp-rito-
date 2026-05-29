@@ -32,6 +32,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { useTheme } from './lib/ThemeContext';
 import { PlayerProvider } from './lib/PlayerContext';
 import GlobalPlayer from './components/GlobalPlayer';
+import { DailyDevotionalNotification } from './components/DailyDevotionalNotification';
 
 function SplashScreen() {
   return (
@@ -149,6 +150,7 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
       <TopBar />
       
       <main className="flex-1 w-full lg:ml-[280px] px-0 lg:px-4 py-0 lg:py-6 lg:mb-0 lg:max-w-[calc(100%-280px)] overflow-x-hidden pt-0 lg:pt-6 pb-24 lg:pb-6">
+        <DailyDevotionalNotification user={user as User} />
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />

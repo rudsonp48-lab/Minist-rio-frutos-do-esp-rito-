@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { YouTubeVideo } from '../services/youtube';
+import { auth, db } from './firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 interface PlayerContextType {
   selectedVideo: YouTubeVideo | null;
@@ -27,6 +29,8 @@ interface PlayerContextType {
   setShuffleMode: (shuffle: boolean) => void;
   repeatMode: boolean;
   setRepeatMode: (repeat: boolean) => void;
+  likedSongs: YouTubeVideo[];
+  toggleLike: (video: YouTubeVideo) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -42,10 +46,50 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [shuffleMode, setShuffleMode] = useState(false);
   const [repeatMode, setRepeatMode] = useState(false);
+  const [likedSongs, setLikedSongs] = useState<YouTubeVideo[]>([]);
   const playerRef = useRef<any>(null);
 
+  useEffect(() => {
+    const unsubAuth = auth.onAuthStateChanged(user => {
+      if (user) {
+        const unsubscribe = onSnapshot(doc(db, 'user_playlists', user.uid), (docSnap) => {
+          if (docSnap.exists() && docSnap.data().songs) {
+            setLikedSongs(docSnap.data().songs);
+          } else {
+            setLikedSongs([]);
+          }
+        });
+        return () => unsubscribe();
+      } else {
+        setLikedSongs([]);
+      }
+    });
+    return () => unsubAuth();
+  }, []);
+
+  const toggleLike = async (video: YouTubeVideo) => {
+    if (!auth.currentUser) {
+      alert("Faça login para salvar em sua playlist!");
+      return;
+    }
+    const exists = likedSongs.find(v => v.id === video.id);
+    const newList = exists 
+      ? likedSongs.filter(v => v.id !== video.id)
+      : [...likedSongs, video];
+    
+    setLikedSongs(newList);
+    try {
+      await setDoc(doc(db, 'user_playlists', auth.currentUser.uid), { songs: newList }, { merge: true });
+    } catch (err) {
+      console.error("Erro ao salvar playlist", err);
+    }
+  };
+
   const addToPlaylist = (video: YouTubeVideo) => {
-    setPlaylist(prev => [...prev, video]);
+    setPlaylist(prev => {
+      if (prev.find(v => v.id === video.id)) return prev;
+      return [...prev, video];
+    });
     if (!selectedVideo) {
       setSelectedVideo(video);
       setPlaying(true);
@@ -53,7 +97,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const playNext = () => {
+  const playNext = async () => {
     if (repeatMode && selectedVideo) {
       if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
         playerRef.current.seekTo(0);
@@ -72,6 +116,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setPlaylist(prev => prev.filter((_, i) => i !== nextIndex));
       setPlaying(true);
     } else {
+      if (selectedVideo && selectedVideo.id !== 'radio-1' && selectedVideo.id) {
+        const { fetchRelatedVideo } = await import('../services/youtube');
+        const nextVid = await fetchRelatedVideo(selectedVideo.id);
+        if (nextVid) {
+          setSelectedVideo(nextVid);
+          setPlaying(true);
+          return;
+        }
+      }
       setPlaying(false);
     }
   };
@@ -113,7 +166,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isMinimized, setIsMinimized,
       addToPlaylist, playNext, playPrevious, seekTo,
       shuffleMode, setShuffleMode,
-      repeatMode, setRepeatMode
+      repeatMode, setRepeatMode,
+      likedSongs, toggleLike
     }}>
       {children}
     </PlayerContext.Provider>

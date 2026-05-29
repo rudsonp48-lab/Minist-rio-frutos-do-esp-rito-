@@ -18,7 +18,8 @@ export default function GlobalPlayer() {
     playerRef,
     isMinimized, setIsMinimized,
     addToPlaylist, playNext, playPrevious, seekTo,
-    shuffleMode, setShuffleMode, repeatMode, setRepeatMode
+    shuffleMode, setShuffleMode, repeatMode, setRepeatMode,
+    likedSongs, toggleLike
   } = usePlayer();
 
   const [showPlaylist, setShowPlaylist] = useState(false);
@@ -217,14 +218,10 @@ export default function GlobalPlayer() {
                   className="p-3 active:scale-90 transition-transform -mr-3" 
                   onClick={(e) => { 
                     e.stopPropagation(); 
-                    if (!playlist.find(v => v.id === selectedVideo.id)) {
-                      addToPlaylist(selectedVideo); 
-                    } else {
-                      setPlaylist(prev => prev.filter(v => v.id !== selectedVideo.id));
-                    }
+                    toggleLike(selectedVideo);
                   }}
                 >
-                  <Heart className={`w-8 h-8 drop-shadow-md transition-colors duration-300 ${playlist.find(v => v.id === selectedVideo.id) ? 'text-red-500 fill-red-500 scale-110' : 'text-white/80'}`} />
+                  <Heart className={`w-8 h-8 drop-shadow-md transition-colors duration-300 ${likedSongs.find(v => v.id === selectedVideo.id) ? 'text-red-500 fill-red-500 scale-110' : 'text-white/80'}`} />
                 </button>
               </div>
 
@@ -373,60 +370,112 @@ export default function GlobalPlayer() {
       {/* Playlist Drawer */}
       <AnimatePresence>
         {showPlaylist && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowPlaylist(false)}
-              className="fixed inset-0 bg-black/60 z-[200] backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              className="fixed inset-x-0 bottom-0 z-[210] bg-white dark:bg-[#1C1C1E] rounded-t-[2rem] max-h-[80vh] flex flex-col ios-shadow"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-black/5 dark:border-white/5 shrink-0">
-                <div>
-                  <h3 className="font-bold text-xl dark:text-white">Fila de Reprodução</h3>
-                  <p className="text-xs text-[#8E8E93] mt-1">{playlist.length} faixas na sequência</p>
-                </div>
-                <button onClick={() => setShowPlaylist(false)} className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center">
-                  <X className="w-5 h-5 text-[#8E8E93]" />
-                </button>
-              </div>
-              
-              <div className="p-6 overflow-y-auto space-y-4 flex-1">
-                {playlist.length === 0 ? (
-                  <div className="text-center py-10 opacity-50 dark:text-white">
-                    <ListVideo className="w-12 h-12 mx-auto mb-4" />
-                    <p className="font-medium">Nenhuma mídia na fila.</p>
-                  </div>
-                ) : (
-                  playlist.map((video, idx) => (
-                    <div key={idx} className="flex items-center gap-4 group">
-                      <span className="text-[#8E8E93] text-xs font-bold w-4 text-right shrink-0">{idx + 1}</span>
-                      <div className="w-16 h-12 rounded-lg overflow-hidden shrink-0">
-                        <img src={video.thumbnail} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-sm truncate dark:text-white">{video.title}</h4>
-                      </div>
-                      <button 
-                        onClick={(e) => removeFromPlaylist(idx, e)}
-                        className="w-8 h-8 flex items-center justify-center text-[#8E8E93] group-hover:text-[#FF3B30] active:scale-95"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </>
+          <PlaylistDrawer 
+            onClose={() => setShowPlaylist(false)} 
+            playlist={playlist} 
+            likedSongs={likedSongs} 
+            removeFromPlaylist={removeFromPlaylist}
+            toggleLike={toggleLike}
+            addToPlaylist={addToPlaylist}
+          />
         )}
       </AnimatePresence>
+    </>
+  );
+}
+
+function PlaylistDrawer({ onClose, playlist, likedSongs, removeFromPlaylist, toggleLike, addToPlaylist }: any) {
+  const [activeTab, setActiveTab] = useState<'queue'|'liked'>('queue');
+  
+  return (
+    <>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 z-[200] backdrop-blur-sm"
+      />
+      <motion.div 
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        className="fixed inset-x-0 bottom-0 z-[210] bg-white dark:bg-[#1C1C1E] rounded-t-[2rem] h-[80vh] flex flex-col ios-shadow"
+      >
+        <div className="flex flex-col border-b border-black/5 dark:border-white/5 shrink-0 px-6 pt-6 pb-2">
+          <div className="flex items-center justify-between mb-4">
+             <h3 className="font-bold text-2xl dark:text-white">Músicas</h3>
+             <button onClick={onClose} className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center">
+               <X className="w-5 h-5 text-[#8E8E93]" />
+             </button>
+          </div>
+          <div className="flex gap-4">
+             <button onClick={() => setActiveTab('queue')} className={`pb-2 font-bold transition-colors ${activeTab === 'queue' ? 'text-[var(--theme-color)] border-b-2 border-[var(--theme-color)]' : 'text-[#8E8E93]'}`}>
+                Fila ({playlist.length})
+             </button>
+             <button onClick={() => setActiveTab('liked')} className={`pb-2 font-bold transition-colors ${activeTab === 'liked' ? 'text-[var(--theme-color)] border-b-2 border-[var(--theme-color)]' : 'text-[#8E8E93]'}`}>
+                Minha Playlist ({likedSongs.length})
+             </button>
+          </div>
+        </div>
+        
+        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+          {activeTab === 'queue' ? (
+            playlist.length === 0 ? (
+              <div className="text-center py-10 opacity-50 dark:text-white">
+                <ListVideo className="w-12 h-12 mx-auto mb-4" />
+                <p className="font-medium">Nenhuma mídia na fila.</p>
+              </div>
+            ) : (
+              playlist.map((video: any, idx: number) => (
+                <div key={idx} className="flex items-center gap-4 group">
+                  <span className="text-[#8E8E93] text-xs font-bold w-4 text-right shrink-0">{idx + 1}</span>
+                  <div className="w-16 h-12 rounded-lg overflow-hidden shrink-0 bg-black/10">
+                    <img src={video.thumbnail} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-sm truncate dark:text-white">{video.title}</h4>
+                  </div>
+                  <button 
+                    onClick={(e) => removeFromPlaylist(idx, e)}
+                    className="w-10 h-10 flex items-center justify-center text-[#8E8E93] group-hover:text-[#FF3B30] active:scale-95 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              ))
+            )
+          ) : (
+            likedSongs.length === 0 ? (
+              <div className="text-center py-10 opacity-50 dark:text-white">
+                <Heart className="w-12 h-12 mx-auto mb-4" />
+                <p className="font-medium">Não há músicas salvas.</p>
+              </div>
+            ) : (
+              likedSongs.map((video: any, idx: number) => (
+                <div key={video.id} className="flex items-center gap-4 group">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-black/10 relative">
+                    <img src={video.thumbnail} className="w-full h-full object-cover" />
+                    <div onClick={() => addToPlaylist(video)} className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                      <Play className="w-6 h-6 fill-white text-white ml-0.5" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-sm truncate dark:text-white">{video.title}</h4>
+                    <p className="text-xs text-[#8E8E93] truncate">{video.author}</p>
+                  </div>
+                  <button 
+                    onClick={() => toggleLike(video)}
+                    className="w-10 h-10 flex items-center justify-center active:scale-95 transition-colors"
+                  >
+                    <Heart className="w-6 h-6 text-red-500 fill-red-500" />
+                  </button>
+                </div>
+              ))
+            )
+          )}
+        </div>
+      </motion.div>
     </>
   );
 }

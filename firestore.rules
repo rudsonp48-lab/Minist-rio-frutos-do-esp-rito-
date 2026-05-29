@@ -92,5 +92,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isSignedIn();
     }
+    
+    // 7. USER PLAYLISTS
+    match /user_playlists/{userId} {
+      allow read, write: if isOwner(userId);
+    }
   }
 }

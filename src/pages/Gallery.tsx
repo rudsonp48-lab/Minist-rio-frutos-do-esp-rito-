@@ -12,12 +12,11 @@ interface Photo {
   id: string;
   url: string;
   image?: string;
-  type?: string;
   category: string;
   likes: number;
   user: string;
   userId: string;
-  type?: 'image' | 'video';
+  type?: 'image' | 'video' | string;
   createdAt: any;
 }
 

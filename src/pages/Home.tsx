@@ -36,7 +36,7 @@ export default function Home() {
         id: doc.id,
         ...doc.data()
       }));
-      setRecentPhotos(photoData.filter(p => p.url || p.image));
+      setRecentPhotos(photoData.filter((p: any) => p.url || p.image));
     });
     return () => unsubscribe();
   }, []);
@@ -167,40 +167,6 @@ export default function Home() {
             ))}
           </motion.div>
         </section>
-
-        {/* Recent Photos / Gallery */}
-        {(recentPhotos.length > 0 || GALLERY_IMAGES.length > 0) && (
-        <section>
-          <div className="flex items-end justify-between mb-6 px-2">
-             <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Galeria</h2>
-             <Link to="/gallery" className="text-sm font-bold text-[var(--theme-color)] tracking-widest flex items-center gap-1 hover:opacity-80 transition-opacity">Ver Mais <ChevronRight className="w-4 h-4" /></Link>
-          </div>
-          <motion.div 
-            className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory"
-          >
-            {(recentPhotos.length > 0 ? recentPhotos : GALLERY_IMAGES.slice(0, 5)).map((item, idx) => (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                key={item.id} 
-              >
-                <Link to="/gallery" className="block w-48 lg:w-64 group relative ios-card rounded-[24px] p-2">
-                  <div className="aspect-[4/5] rounded-[18px] bg-black overflow-hidden relative border border-white/5 group-hover:border-white/20 transition-colors shadow-inner">
-                    <img loading="lazy" src={item.url || item.image || item.src} alt={item.category || "Galeria"} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-                    <div className="absolute bottom-4 left-4 right-4">
-                       <span className="text-[10px] font-bold text-white/90 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full tracking-wider mb-2 inline-block shadow-sm">
-                         {item.category || 'Galeria'}
-                       </span>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        </section>
-        )}
 
         {/* Continue Watching / Recent */}
         <section>
@@ -436,7 +402,7 @@ export default function Home() {
           
           <div className="grid grid-cols-12 gap-3 lg:gap-4 px-2">
              <div className="col-span-12 md:col-span-8 lg:col-span-6 row-span-2 ios-card rounded-[24px] lg:rounded-[32px] overflow-hidden aspect-video lg:aspect-auto lg:h-[400px] xl:h-[480px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src="https://images.unsplash.com/photo-1544427920-c49ccfb85579" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt="Culto" />
+                <img loading="lazy" src={(recentPhotos[0]?.url || recentPhotos[0]?.image) || "https://images.unsplash.com/photo-1544427920-c49ccfb85579"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt={recentPhotos[0]?.category || "Culto"} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                    <Heart className="w-10 h-10 text-white fill-white drop-shadow-md scale-75 group-hover:scale-100 transition-transform duration-500 delay-100" />
@@ -444,19 +410,19 @@ export default function Home() {
              </div>
              
              <div className="col-span-6 md:col-span-4 lg:col-span-3 ios-card rounded-[20px] lg:rounded-[28px] overflow-hidden aspect-square lg:h-[192px] xl:h-[232px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src="https://images.unsplash.com/photo-1510076857177-7470076d4098" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Igreja" />
+                <img loading="lazy" src={(recentPhotos[1]?.url || recentPhotos[1]?.image) || "https://images.unsplash.com/photo-1510076857177-7470076d4098"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={recentPhotos[1]?.category || "Igreja"} />
              </div>
              
              <div className="col-span-6 md:col-span-4 lg:col-span-3 ios-card rounded-[20px] lg:rounded-[28px] overflow-hidden aspect-square lg:h-[192px] xl:h-[232px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src="https://images.unsplash.com/photo-1516450360452-9312f5e86fc7" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Comunhão" />
+                <img loading="lazy" src={(recentPhotos[2]?.url || recentPhotos[2]?.image) || "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={recentPhotos[2]?.category || "Comunhão"} />
              </div>
              
              <div className="col-span-6 md:col-span-4 lg:col-span-3 ios-card rounded-[20px] lg:rounded-[28px] overflow-hidden aspect-square lg:h-[192px] xl:h-[232px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src="https://images.unsplash.com/photo-1438232992991-995b7058bbb3" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Kids" />
+                <img loading="lazy" src={(recentPhotos[3]?.url || recentPhotos[3]?.image) || "https://images.unsplash.com/photo-1438232992991-995b7058bbb3"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={recentPhotos[3]?.category || "Kids"} />
              </div>
              
              <div className="col-span-6 md:col-span-8 lg:col-span-3 ios-card rounded-[20px] lg:rounded-[28px] overflow-hidden aspect-square lg:h-[192px] xl:h-[232px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src="https://images.unsplash.com/photo-1529070538774-1843cb3265df" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Louvor" />
+                <img loading="lazy" src={(recentPhotos[4]?.url || recentPhotos[4]?.image) || "https://images.unsplash.com/photo-1529070538774-1843cb3265df"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={recentPhotos[4]?.category || "Louvor"} />
              </div>
           </div>
         </section>

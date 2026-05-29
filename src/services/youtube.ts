@@ -60,6 +60,41 @@ export async function fetchVideosFromPlaylist(playlistId: string): Promise<YouTu
   }
 }
 
+export async function fetchRelatedVideo(videoId: string): Promise<YouTubeVideo | null> {
+  if (!API_KEY) {
+    const randomFallback = MOCK_VIDEOS[Math.floor(Math.random() * MOCK_VIDEOS.length)];
+    return randomFallback;
+  }
+
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&relatedToVideoId=${videoId}&type=video&maxResults=5&key=${API_KEY}`
+    );
+    const data = await response.json();
+
+    if (data.items && data.items.length > 0) {
+      // Get the first valid related video
+      for (const item of data.items) {
+        if (item.id?.videoId && item.id.videoId !== videoId) {
+          return {
+            id: item.id.videoId,
+            title: item.snippet.title,
+            thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url,
+            publishedAt: item.snippet.publishedAt,
+            type: 'music',
+            author: item.snippet.channelTitle
+          };
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching related video:', error);
+  }
+  
+  // Fallback to random mock if fails
+  return MOCK_VIDEOS[Math.floor(Math.random() * MOCK_VIDEOS.length)];
+}
+
 export const MOCK_VIDEOS: YouTubeVideo[] = [
   {
     id: 'kQOOS35sBhc',
