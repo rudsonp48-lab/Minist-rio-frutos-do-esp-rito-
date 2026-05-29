@@ -3,7 +3,7 @@ import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, Chev
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { Logo } from '../components/Logo';
 import { useTheme } from '../lib/ThemeContext';
@@ -17,6 +17,7 @@ export default function Home() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [selectedBanner, setSelectedBanner] = useState<any>(null);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
+  const [recentPhotos, setRecentPhotos] = useState<any[]>([]);
   const { themeColor, churchName } = useTheme();
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 500], [0, 150]);
@@ -25,6 +26,18 @@ export default function Home() {
     const unsubscribe = onSnapshot(doc(db, 'app_config', 'main'), (snapshot) => {
       if (snapshot.exists()) setConfig(snapshot.data());
     }, (error) => handleFirestoreError(error, OperationType.GET, 'app_config/main'));
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'photos'), orderBy('createdAt', 'desc'), limit(10));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const photoData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setRecentPhotos(photoData.filter(p => p.url || p.image));
+    });
     return () => unsubscribe();
   }, []);
 
@@ -123,12 +136,11 @@ export default function Home() {
         {/* Categories / Quick Access */}
         <section>
           <motion.div 
-            drag="x" 
-            dragConstraints={{ left: -300, right: 0 }}
-            className="flex gap-4 lg:gap-6 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 scroll-smooth cursor-grab active:cursor-grabbing"
+            className="flex gap-4 lg:gap-6 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 scroll-smooth snap-x snap-mandatory"
           >
             {[
               { to: '/bible', icon: BookOpen, label: 'Bíblia', color: 'from-blue-600 to-blue-400' },
+              { to: '/gallery', icon: Camera, label: 'Galeria', color: 'from-emerald-600 to-emerald-400' },
               { to: '/events', icon: Calendar, label: 'Agenda', color: 'from-orange-600 to-orange-400' },
               { to: '/media?live=1', icon: Radio, label: 'Ao Vivo', color: 'from-pink-600 to-rose-400' },
               { to: '/webradio', icon: Headphones, label: 'Web Rádio', color: 'from-purple-600 to-purple-400' },
@@ -156,6 +168,40 @@ export default function Home() {
           </motion.div>
         </section>
 
+        {/* Recent Photos / Gallery */}
+        {(recentPhotos.length > 0 || GALLERY_IMAGES.length > 0) && (
+        <section>
+          <div className="flex items-end justify-between mb-6 px-2">
+             <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Galeria</h2>
+             <Link to="/gallery" className="text-sm font-bold text-[var(--theme-color)] tracking-widest flex items-center gap-1 hover:opacity-80 transition-opacity">Ver Mais <ChevronRight className="w-4 h-4" /></Link>
+          </div>
+          <motion.div 
+            className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory"
+          >
+            {(recentPhotos.length > 0 ? recentPhotos : GALLERY_IMAGES.slice(0, 5)).map((item, idx) => (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                key={item.id} 
+              >
+                <Link to="/gallery" className="block w-48 lg:w-64 group relative ios-card rounded-[24px] p-2">
+                  <div className="aspect-[4/5] rounded-[18px] bg-black overflow-hidden relative border border-white/5 group-hover:border-white/20 transition-colors shadow-inner">
+                    <img loading="lazy" src={item.url || item.image || item.src} alt={item.category || "Galeria"} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+                    <div className="absolute bottom-4 left-4 right-4">
+                       <span className="text-[10px] font-bold text-white/90 bg-white/20 backdrop-blur-md px-2 py-1 rounded-full tracking-wider mb-2 inline-block shadow-sm">
+                         {item.category || 'Galeria'}
+                       </span>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+        </section>
+        )}
+
         {/* Continue Watching / Recent */}
         <section>
           <div className="flex items-end justify-between mb-6 px-2">
@@ -163,9 +209,7 @@ export default function Home() {
              <Link to="/media" className="text-sm font-bold text-[var(--theme-color)] tracking-widest flex items-center gap-1 hover:opacity-80 transition-opacity">Ver Mais <ChevronRight className="w-4 h-4" /></Link>
           </div>
           <motion.div 
-            drag="x" 
-            dragConstraints={{ left: -1000, right: 0 }}
-            className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 cursor-grab active:cursor-grabbing"
+            className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory"
           >
             {RECENT_ITEMS.map((item, idx) => (
               <motion.div 
@@ -202,9 +246,7 @@ export default function Home() {
              </div>
           </div>
           <motion.div 
-            drag="x" 
-            dragConstraints={{ left: -1000, right: 0 }}
-            className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 cursor-grab active:cursor-grabbing"
+            className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory"
           >
             {CONTINUE_WATCHING.map((item, idx) => (
               <motion.div 
