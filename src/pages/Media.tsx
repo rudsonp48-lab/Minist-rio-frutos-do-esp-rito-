@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Radio, Mic, Tv, ChevronRight, Volume2, Volume1, Share2, Heart, Search, ChevronLeft, LayoutGrid, RadioTower, ListPlus, ListVideo, SkipForward, SkipBack, X, Clock, ChevronDown, MoreHorizontal, Shuffle, Pause, Repeat, Cast, List } from 'lucide-react';
+import { Play, Radio, Mic, Tv, ChevronRight, Volume2, Volume1, Share2, Heart, Search, ChevronLeft, LayoutGrid, RadioTower, ListPlus, ListVideo, SkipForward, SkipBack, X, Clock, ChevronDown, MoreHorizontal, Shuffle, Pause, Repeat, Cast, List, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { searchGospelContent, YouTubeVideo } from '../services/youtube';
@@ -24,6 +24,112 @@ export default function Media() {
   const [ytVideos, setYtVideos] = useState<YouTubeVideo[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isVoiceSearchActive, setIsVoiceSearchActive] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  const startVoiceSearch = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("A pesquisa por voz não é suportada neste navegador.");
+      return;
+    }
+
+    setVoiceError(null);
+    setIsVoiceSearchActive(true);
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setVoiceError(null);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+      
+      // Handle the 'network' error and others beautifully
+      switch (event.error) {
+        case 'network':
+          setVoiceError('Não foi possível conectar ao serviço de voz. Por favor, verifique sua conexão ou tente digitar.');
+          break;
+        case 'not-allowed':
+          setVoiceError('Permissão recusada. Ative o acesso ao microfone nas configurações do seu navegador para usar a voz.');
+          break;
+        case 'no-speech':
+          setVoiceError('Nenhuma voz detectada. Fale um pouco mais alto ou mais próximo do microfone.');
+          break;
+        case 'audio-capture':
+          setVoiceError('Erro ao capturar áudio. Verifique se o microfone está conectado e funcionando.');
+          break;
+        case 'aborted':
+          // Don't show abort error if manually cancelled
+          break;
+        default:
+          setVoiceError('Ocorreu um erro ao escutar. Se o problema persistir, por favor, digite sua busca.');
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      if (transcript) {
+        setSearchQuery(transcript);
+        fetchContent(transcript);
+        setIsVoiceSearchActive(false);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error(e);
+      setIsListening(false);
+      setVoiceError('Erro ao iniciar o microfone.');
+    }
+  };
+
+  const stopVoiceSearch = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    setIsListening(false);
+    setIsVoiceSearchActive(false);
+    setVoiceError(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    };
+  }, []);
   
   const { setSelectedVideo, addToPlaylist, setIsMinimized, playlist, selectedVideo } = usePlayer();
 
@@ -165,18 +271,32 @@ export default function Media() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={activeTab === 'music' ? "Artistas, louvores ou playlists..." : "Buscar vídeos ou louvores..."}
-                className="w-full bg-transparent py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 transition-all rounded-2xl"
+                className="w-full bg-transparent py-3 pl-10 pr-12 text-sm focus:outline-none focus:ring-2 transition-all rounded-2xl"
                 style={{ '--tw-ring-color': themeColor } as any}
               />
-              {searchQuery && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {searchQuery && (
+                  <button 
+                    type="button" 
+                    onClick={() => { setSearchQuery(''); fetchContent(''); }} 
+                    className="text-[#8E8E93] hover:text-black dark:hover:text-white transition-all p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
                 <button 
                   type="button" 
-                  onClick={() => { setSearchQuery(''); fetchContent(''); }} 
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-black dark:hover:text-white transition-all p-1"
+                  onClick={startVoiceSearch} 
+                  className={`transition-all p-1.5 rounded-full flex items-center justify-center ${
+                    isListening 
+                      ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/30' 
+                      : 'text-[#8E8E93] hover:text-black dark:hover:text-white active:scale-95'
+                  }`}
+                  title="Pesquisar por voz"
                 >
-                  <X className="w-4 h-4" />
+                  <Mic className="w-4 h-4" />
                 </button>
-              )}
+              </div>
             </form>
           )}
         </header>
@@ -215,7 +335,7 @@ export default function Media() {
                 {/* Search Bar for Music */}
                 <div className="mb-6">
                   <h1 className="text-white tracking-tight mb-4 font-sans font-semibold text-3xl">Música</h1>
-                  <form onSubmit={(e) => { e.preventDefault(); fetchContent(searchQuery || 'louvores adoração'); }} className="relative">
+                  <form onSubmit={(e) => { e.preventDefault(); fetchContent(searchQuery || 'louvores adoração'); }} className="relative flex items-center bg-gray-900 border border-gray-800 rounded-xl pr-2">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Search className="w-5 h-5 text-gray-400" />
                     </div>
@@ -224,8 +344,31 @@ export default function Media() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Artistas, louvores ou playlists" 
-                      className="w-full placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--theme-color)] focus:border-transparent text-white bg-gray-900 border-gray-800 border rounded-xl py-3 pl-12 pr-4 transition-all" 
+                      className="w-full placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--theme-color)] focus:border-transparent text-white bg-transparent py-3 pl-12 pr-12 transition-all rounded-xl" 
                     />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      {searchQuery && (
+                        <button 
+                          type="button" 
+                          onClick={() => { setSearchQuery(''); fetchContent(''); }} 
+                          className="text-gray-400 hover:text-white transition-all p-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button 
+                        type="button" 
+                        onClick={startVoiceSearch} 
+                        className={`transition-all p-1.5 rounded-full flex items-center justify-center ${
+                          isListening 
+                            ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/30' 
+                            : 'text-gray-400 hover:text-white active:scale-95'
+                        }`}
+                        title="Pesquisar por voz"
+                      >
+                        <Mic className="w-4 h-4" />
+                      </button>
+                    </div>
                   </form>
                 </div>
 
@@ -315,6 +458,74 @@ export default function Media() {
           )}
         </div>
       </div>
+
+      {/* Modern, Premium Voice Recognition Ambient Overlay */}
+      <AnimatePresence>
+        {isVoiceSearchActive && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-zinc-900 border border-zinc-800 p-8 rounded-[36px] flex flex-col items-center space-y-6 max-w-sm text-center shadow-2xl mx-4"
+            >
+              {voiceError ? (
+                <>
+                  <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center shadow-lg">
+                    <AlertCircle className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-white text-lg font-bold">Pesquisa por Voz</h3>
+                    <p className="text-[#8E8E93] text-xs mt-2 leading-relaxed">{voiceError}</p>
+                  </div>
+                  <div className="flex gap-3 w-full justify-center">
+                    <button 
+                      onClick={startVoiceSearch}
+                      className="px-5 py-2.5 bg-red-500 text-white text-xs font-semibold rounded-full hover:bg-red-600 transition-all active:scale-95 shadow-md shadow-red-500/20"
+                    >
+                      Tentar Novamente
+                    </button>
+                    <button 
+                      onClick={stopVoiceSearch}
+                      className="px-5 py-2.5 bg-zinc-800 text-white text-xs font-semibold rounded-full hover:bg-zinc-700 transition-all active:scale-95"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="relative">
+                    <motion.div 
+                      animate={{ scale: [1, 1.4, 1] }}
+                      transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                      className="absolute inset-0 bg-red-500/20 rounded-full blur-md"
+                    />
+                    <div className="w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-red-500/30">
+                      <Mic className="w-8 h-8 animate-pulse" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white text-lg font-bold">Ouvindo...</h3>
+                    <p className="text-[#8E8E93] text-xs mt-1">Fale o nome do louvor, artista ou tema para pesquisar</p>
+                  </div>
+                  <button 
+                    onClick={stopVoiceSearch}
+                    className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-full hover:bg-zinc-700 transition-all active:scale-95"
+                  >
+                    Cancelar
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
