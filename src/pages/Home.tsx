@@ -11,12 +11,20 @@ import { getDailyDevotional } from '../lib/devotionalsData';
 import { DEFAULT_BANNERS, RECENT_ITEMS, TESTIMONIALS, PODCASTS, CONTINUE_WATCHING, GALLERY_IMAGES } from '../lib/data';
 import { YouTubeVideo } from '../services/youtube';
 
+function getYouTubeId(url: string) {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : url;
+}
+
 export default function Home() {
   const [config, setConfig] = useState<any>(null);
   const [copiedPix, setCopiedPix] = useState(false);
   const [givingMethod, setGivingMethod] = useState<'pix' | 'card'>('pix');
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [selectedBanner, setSelectedBanner] = useState<any>(null);
+  const [isCinematicMode, setIsCinematicMode] = useState(true);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
   const [recentPhotos, setRecentPhotos] = useState<any[]>([]);
   const [liveStream, setLiveStream] = useState<YouTubeVideo | null>(null);
@@ -85,19 +93,50 @@ export default function Home() {
       {/* Hero Section (iOS 26 Style) */}
       <div className="relative w-full h-[88vh] lg:h-[95vh] flex items-end justify-start overflow-hidden lg:rounded-b-[40px] ios-shadow bg-black">
         <AnimatePresence mode="wait">
-          <motion.div
-            key={currentBannerIndex}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
-            className="absolute inset-0"
-          >
-            <motion.img style={{ y: y1 }} src={currentBanner.image} alt={currentBanner.title} className="w-full h-[120%] object-cover opacity-90" />
-          </motion.div>
+          {!isCinematicMode ? (
+            <motion.div
+              key={`image-${currentBannerIndex}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1 }}
+              className="absolute inset-0"
+            >
+              <motion.img style={{ y: y1 }} src={currentBanner.image} alt={currentBanner.title} className="w-full h-[120%] object-cover opacity-90" />
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`video-${currentBannerIndex}-${currentBanner.videoUrl || config?.churchVideoUrl || "u31qwQUeGuM"}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1 }}
+              className="absolute inset-0 overflow-hidden"
+            >
+              <iframe
+                src={`https://www.youtube.com/embed/${getYouTubeId(currentBanner.videoUrl || config?.churchVideoUrl || "u31qwQUeGuM")}?autoplay=1&mute=1&controls=0&loop=1&playlist=${getYouTubeId(currentBanner.videoUrl || config?.churchVideoUrl || "u31qwQUeGuM")}&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3&showinfo=0&disablekb=1&enablejsapi=1`}
+                title="Church Video Loop"
+                className="pointer-events-none select-none border-0"
+                style={{
+                  pointerEvents: 'none',
+                  width: '100vw',
+                  height: '56.25vw',
+                  minHeight: '100%',
+                  minWidth: '177.77vh',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                }}
+                allow="autoplay; encrypted-media"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute inset-0 bg-black/45 mix-blend-multiply" />
+            </motion.div>
+          )}
         </AnimatePresence>
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--theme-color)]/10 to-black pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent z-[2]"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--theme-color)]/10 to-black pointer-events-none z-[2]"></div>
         {/* iOS 26 Frost bottom fade */}
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#F2F2F7] dark:from-[#000000] to-transparent z-[5]"></div>
         
@@ -135,11 +174,21 @@ export default function Home() {
           </motion.div>
         </AnimatePresence>
         
-        {/* Carousel Indicators */}
-        <div className="absolute bottom-6 right-6 lg:right-16 z-20 flex gap-2">
-          {banners.map((_, i) => (
-            <button key={i} onClick={() => setCurrentBannerIndex(i)} className={`h-1.5 focus:outline-none rounded-full transition-all duration-500 ${i === currentBannerIndex ? 'w-8 bg-white' : 'w-2 bg-white/30 hover:bg-white/50'}`} />
-          ))}
+        {/* Carousel Indicators & Cinematic Toggle */}
+        <div className="absolute bottom-6 right-6 lg:right-16 z-20 flex flex-wrap justify-end items-center gap-3 lg:gap-4">
+          <button 
+            onClick={() => setIsCinematicMode(!isCinematicMode)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/10 text-xs font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-lg"
+            title="Alternar Modo de Exibição"
+          >
+            <div className={`w-2 h-2 rounded-full ${isCinematicMode ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-400'}`} />
+            <span>{isCinematicMode ? 'Cinematográfico' : 'Estático'}</span>
+          </button>
+          <div className="flex gap-2">
+            {banners.map((_, i) => (
+              <button key={i} onClick={() => setCurrentBannerIndex(i)} className={`h-1.5 focus:outline-none rounded-full transition-all duration-500 ${i === currentBannerIndex ? 'w-8 bg-white' : 'w-2 bg-white/30 hover:bg-white/50'}`} />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -598,9 +647,19 @@ export default function Home() {
                 <X className="w-5 h-5" />
               </button>
               
-              <div className="w-full aspect-[4/3] sm:aspect-video relative">
-                <img src={selectedBanner.image} alt={selectedBanner.title} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+              <div className="w-full aspect-[4/3] sm:aspect-video relative bg-black">
+                {selectedBanner.videoUrl ? (
+                  <iframe 
+                    src={`https://www.youtube.com/embed/${getYouTubeId(selectedBanner.videoUrl)}?autoplay=1&controls=1&rel=0`}
+                    className="w-full h-full border-0"
+                    allow="autoplay; encrypted-media"
+                    allowFullScreen
+                    title={selectedBanner.title}
+                  />
+                ) : (
+                  <img src={selectedBanner.image} alt={selectedBanner.title} className="w-full h-full object-cover" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
               </div>
               
               <div className="p-6 md:p-8 -mt-24 md:-mt-28 relative z-10">

@@ -11,6 +11,66 @@ export interface YouTubeVideo {
 }
 
 export const MOCK_VIDEOS: YouTubeVideo[] = [
+  // --- LIVE FEEDS ---
+  {
+    id: "u31qwQUeGuM",
+    title: "Culto de Domingo - Tempo de Semear",
+    thumbnail: "https://i.ytimg.com/vi/u31qwQUeGuM/hqdefault.jpg",
+    publishedAt: new Date().toISOString(),
+    type: "live",
+    author: "Ministério Frutos do Espírito"
+  },
+  {
+    id: "gNfTfU-H-00",
+    title: "Culto de Celebração - O Poder da Palavra",
+    thumbnail: "https://i.ytimg.com/vi/gNfTfU-H-00/hqdefault.jpg",
+    publishedAt: new Date().toISOString(),
+    type: "live",
+    author: "Ministério Frutos do Espírito"
+  },
+  {
+    id: "mXW9R_U8M5k",
+    title: "Transmissão Especial - Noite de Louvor e Milagres",
+    thumbnail: "https://i.ytimg.com/vi/mXW9R_U8M5k/hqdefault.jpg",
+    publishedAt: new Date().toISOString(),
+    type: "live",
+    author: "Ministério Frutos do Espírito"
+  },
+
+  // --- PODCASTS ---
+  {
+    id: "A8g_O4pGfO8",
+    title: "TIAGO BRUNET: COMO ADQUIRIR SABEDORIA E INTELIGÊNCIA EMOCIONAL",
+    thumbnail: "https://i.ytimg.com/vi/A8g_O4pGfO8/hqdefault.jpg",
+    publishedAt: new Date().toISOString(),
+    type: "podcast",
+    author: "Brunet Cast"
+  },
+  {
+    id: "zN8q-Z8O7l0",
+    title: "JESUSCOPY PODCAST - DEIVE LEONARDO",
+    thumbnail: "https://i.ytimg.com/vi/zN8q-Z8O7l0/hqdefault.jpg",
+    publishedAt: new Date().toISOString(),
+    type: "podcast",
+    author: "JesusCopy"
+  },
+  {
+    id: "Y9f8K_R7oF8",
+    title: "HUB PODCAST - ALINE BARROS: UMA VIDA DE ADORAÇÃO",
+    thumbnail: "https://i.ytimg.com/vi/Y9f8K_R7oF8/hqdefault.jpg",
+    publishedAt: new Date().toISOString(),
+    type: "podcast",
+    author: "Hub Podcast"
+  },
+  {
+    id: "I-S-O9e4F0o",
+    title: "PODCAST GOSPEL - TESTEMUNHO IMPACTANTE DE TRANSFORMAÇÃO",
+    thumbnail: "https://i.ytimg.com/vi/I-S-O9e4F0o/hqdefault.jpg",
+    publishedAt: new Date().toISOString(),
+    type: "podcast",
+    author: "Fé e Ação"
+  },
+
   // --- Gabriela Rocha ---
   {
     id: 'tN8pA0L_q8c',
@@ -203,14 +263,15 @@ export async function checkChannelLive(channelId: string = CHANNEL_ID || ''): Pr
     const response = await fetch(`/api/youtube-live?channelId=${encodeURIComponent(channelId)}`);
     if (response.ok) {
       const data = await response.json();
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         return data;
       }
     }
   } catch (error) {
     console.error('Error checking live status via api:', error);
   }
-  return [];
+  // Client-side fallback for static/Vercel hosting
+  return MOCK_VIDEOS.filter(v => v.type === 'live');
 }
 
 export async function fetchVideosFromPlaylist(playlistId: string): Promise<YouTubeVideo[]> {
@@ -218,14 +279,15 @@ export async function fetchVideosFromPlaylist(playlistId: string): Promise<YouTu
     const response = await fetch(`/api/youtube-playlist?playlistId=${encodeURIComponent(playlistId)}`);
     if (response.ok) {
       const data = await response.json();
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         return data;
       }
     }
   } catch (error) {
     console.error('Error fetching playlist items via api:', error);
   }
-  return [];
+  // Client-side fallback for static/Vercel hosting
+  return MOCK_VIDEOS.filter(v => v.type === 'music').slice(0, 15);
 }
 
 export async function fetchRelatedVideo(videoId: string): Promise<YouTubeVideo | null> {
@@ -242,7 +304,8 @@ export async function fetchRelatedVideo(videoId: string): Promise<YouTubeVideo |
   }
   
   // Fallback to random mock if fails
-  return MOCK_VIDEOS[Math.floor(Math.random() * MOCK_VIDEOS.length)];
+  const candidates = MOCK_VIDEOS.filter(v => v.id !== videoId);
+  return candidates[Math.floor(Math.random() * candidates.length)] || MOCK_VIDEOS[0];
 }
 
 function normalizeText(text: string): string {

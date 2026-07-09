@@ -577,6 +577,8 @@ app.get("/api/youtube-related", async (req, res) => {
   res.json(filteredFallback[randomIdx] || FALLBACK_VIDEOS[0]);
 });
 
+export default app;
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -597,4 +599,6 @@ async function startServer() {
   });
 }
 
-startServer();
+if (process.env.VERCEL !== "1" && !process.env.NOW_REGION) {
+  startServer();
+}

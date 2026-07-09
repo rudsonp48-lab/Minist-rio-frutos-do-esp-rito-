@@ -148,7 +148,8 @@ export default function Admin() {
         title: newItem.title, 
         subtitle: newItem.subtitle || '',
         description: newItem.description || '',
-        image: newItem.image 
+        image: newItem.image,
+        videoUrl: newItem.videoUrl || ''
       }];
       await setDoc(doc(db, 'app_config', 'main'), { banners: newBanners }, { merge: true });
       setConfig({ ...config, banners: newBanners });
@@ -445,6 +446,34 @@ export default function Admin() {
             </motion.div>
           ) : activeMenu === 'banners' ? (
             <motion.div key="b" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 max-w-6xl">
+              
+              {/* Global Cinematic Church Video Loop Card */}
+              <div className="bg-[#111111] border border-white/10 rounded-[2rem] p-8 lg:p-10 space-y-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--theme-color)]/10 blur-[80px] rounded-full pointer-events-none" />
+                <h3 className="text-xl font-serif font-bold tracking-wider uppercase flex items-center gap-3">
+                  <Radio className="w-6 h-6 text-[var(--theme-color)]" />
+                  Vídeo de Loop Geral da Igreja
+                </h3>
+                <p className="text-sm text-white/60">
+                  Insira uma URL do YouTube (como tomadas de drone da igreja, cultos de louvor ou momentos especiais) para servir como fundo dinâmico padrão para os banners da página inicial.
+                </p>
+                <div className="flex flex-col md:flex-row gap-4 relative z-10">
+                  <input 
+                    value={config.churchVideoUrl || ''} 
+                    onChange={e => setConfig({...config, churchVideoUrl: e.target.value})} 
+                    placeholder="Cole a URL do vídeo do YouTube aqui (Ex: https://www.youtube.com/watch?v=...)" 
+                    className="flex-1 bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" 
+                  />
+                  <button 
+                    onClick={handleSaveConfig} 
+                    disabled={isSaving}
+                    className="px-8 bg-[var(--theme-color)] text-white shadow-[0_0_20px_var(--theme-color)]/40 rounded-2xl font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-transform shrink-0"
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Vídeo'}
+                  </button>
+                </div>
+              </div>
+
               <div className="bg-[#111111] border border-white/10 rounded-[2rem] p-8 lg:p-10 space-y-8">
                 <h3 className="text-xl font-serif font-bold tracking-wider uppercase flex items-center gap-3">
                   <ImagePlus className="w-6 h-6 text-[var(--theme-color)]" />
@@ -475,6 +504,7 @@ export default function Admin() {
                   <div className="space-y-4 flex flex-col justify-center">
                     <input value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} placeholder="Título Principal" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
                     <input value={newItem.subtitle || ''} onChange={e => setNewItem({...newItem, subtitle: e.target.value})} placeholder="Subtítulo Descritivo" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
+                    <input value={newItem.videoUrl || ''} onChange={e => setNewItem({...newItem, videoUrl: e.target.value})} placeholder="URL do Vídeo de Loop para este slide (YouTube - Opcional)" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
                     <textarea value={newItem.description || ''} onChange={e => setNewItem({...newItem, description: e.target.value})} placeholder="Descrição Completa (opcional)" className="w-full min-h-[100px] bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white resize-none" />
                     <button onClick={handleAddBanner} disabled={isSaving} className="w-full h-14 mt-4 bg-[var(--theme-color)] text-white shadow-[0_0_20px_var(--theme-color)]/30 rounded-2xl font-bold uppercase tracking-widest text-[12px] flex items-center justify-center gap-3 transition-transform active:scale-95 hover:bg-[var(--color-primary-focused)]">
                       {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Publicar Banner</span>}
@@ -482,25 +512,33 @@ export default function Admin() {
                   </div>
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {config.banners?.map((b: any) => (
-                  <div key={b.id} className="relative bg-[#111111] border border-white/10 rounded-2xl overflow-hidden group flex aspect-[21/9]">
-                    <img src={b.image} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
-                    <div className="relative z-10 p-6 flex flex-col justify-end w-full">
-                      <h4 className="font-serif font-bold text-lg lg:text-xl text-white tracking-wide truncate">{b.title}</h4>
-                      <p className="text-xs text-white/70 font-medium truncate mt-1">{b.subtitle}</p>
-                    </div>
-                    <div className="absolute top-4 right-4 z-20">
-                      <button onClick={() => removeBanner(b.id)} className="w-10 h-10 rounded-full flex items-center justify-center text-red-400 bg-red-400/10 hover:bg-red-400 hover:text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all border border-red-400/20">
-                         <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
+ 
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 {config.banners?.map((b: any) => (
+                   <div key={b.id} className="relative bg-[#111111] border border-white/10 rounded-2xl overflow-hidden group flex aspect-[21/9]">
+                     <img src={b.image} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
+                     <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
+                     <div className="absolute top-4 left-4 z-20 flex gap-2">
+                       {b.videoUrl && (
+                         <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/90 text-white font-bold rounded-full text-[10px] tracking-wider uppercase backdrop-blur-md shadow-md border border-emerald-400/30">
+                           <Radio className="w-3 h-3 animate-pulse" />
+                           Loop Vídeo Ativo
+                         </span>
+                       )}
+                     </div>
+                     <div className="relative z-10 p-6 flex flex-col justify-end w-full">
+                       <h4 className="font-serif font-bold text-lg lg:text-xl text-white tracking-wide truncate">{b.title}</h4>
+                       <p className="text-xs text-white/70 font-medium truncate mt-1">{b.subtitle}</p>
+                     </div>
+                     <div className="absolute top-4 right-4 z-20">
+                       <button onClick={() => removeBanner(b.id)} className="w-10 h-10 rounded-full flex items-center justify-center text-red-400 bg-red-400/10 hover:bg-red-400 hover:text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all border border-red-400/20">
+                          <Trash2 className="w-4 h-4" />
+                       </button>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </motion.div>
           ) : (
             <motion.div key="l" className="space-y-8 max-w-4xl">
               {(activeMenu === 'events' || activeMenu === 'photos') && (
