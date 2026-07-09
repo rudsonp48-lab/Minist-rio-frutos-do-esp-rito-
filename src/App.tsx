@@ -136,6 +136,10 @@ export default function App() {
   );
 }
 
+import LiveStream from './pages/LiveStream';
+
+import Cells from './pages/Cells';
+
 function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) {
   const location = useLocation();
   const { churchName } = useTheme();
@@ -157,6 +161,8 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
             <Route path="/bible" element={<PageWrapper><Bible /></PageWrapper>} />
+            <Route path="/live" element={<PageWrapper><LiveStream /></PageWrapper>} />
+            <Route path="/cells" element={<PageWrapper><Cells /></PageWrapper>} />
             <Route path="/media" element={<PageWrapper><Media /></PageWrapper>} />
             <Route path="/events" element={<PageWrapper><Events /></PageWrapper>} />
             <Route path="/gallery" element={<PageWrapper><Gallery /></PageWrapper>} />

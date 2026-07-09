@@ -224,6 +224,28 @@ export default function Bible() {
         <AnimatePresence mode="wait">
           {view === 'books' && (
             <motion.div key="books" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="ios-card bg-[var(--theme-color)] p-6 rounded-[24px] relative overflow-hidden group mb-8">
+                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
+                 <div className="relative z-10 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-white pb-2 border-b border-white/20">
+                      <Target className="w-4 h-4" />
+                      <span className="text-xs font-bold uppercase tracking-widest leading-none">Plano de Leitura</span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <h4 className="text-2xl font-bold tracking-tight text-white mb-1">Evangelho de João</h4>
+                        <p className="text-sm text-white/80 font-medium">Capítulos 1 ao 3</p>
+                      </div>
+                      <button className="h-10 px-6 rounded-full bg-white text-[var(--theme-color)] font-bold text-sm shadow-xl active:scale-95 transition-transform" onClick={() => {
+                        const book = BIBLE_STRUCTURE.find(b => b.book === 'João');
+                        if (book) {
+                          handleBookSelect(book);
+                        }
+                      }}>Ler Agora</button>
+                    </div>
+                 </div>
+              </div>
+
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-[#8E8E93] uppercase tracking-widest pl-2">Velho Testamento</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">

@@ -24,6 +24,133 @@ export default function GlobalPlayer() {
 
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
+  const failedVideoIds = useRef<Set<string>>(new Set());
+
+  const handlePlayerError = async (e: any) => {
+    console.warn("YouTube Player error:", e.data);
+    if (selectedVideo && selectedVideo.id) {
+      if (failedVideoIds.current.has(selectedVideo.id)) {
+        console.warn("Alternative fallback video also failed, playing next...");
+        playNext();
+        return;
+      }
+      failedVideoIds.current.add(selectedVideo.id);
+
+      const titleLower = selectedVideo.title.toLowerCase();
+      
+      let fallbackId = '';
+      let fallbackTitle = selectedVideo.title;
+      let fallbackAuthor = selectedVideo.author;
+
+      if (titleLower.includes('poder do teu') || titleLower.includes('poder do teu amor')) {
+        fallbackId = '_6S_Z_O-P1g';
+        fallbackTitle = 'ALINE BARROS - O PODER DO TEU AMOR';
+        fallbackAuthor = 'Aline Barros';
+      } else if (titleLower.includes('me atraiu') || titleLower.includes('atraiu')) {
+        fallbackId = 'tN8pA0L_q8c';
+        fallbackTitle = 'GABRIELA ROCHA - ME ATRAIU (AO VIVO)';
+        fallbackAuthor = 'Gabriela Rocha';
+      } else if (titleLower.includes('lugar secreto')) {
+        fallbackId = 'Y4NfX7C_m0U';
+        fallbackTitle = 'GABRIELA ROCHA - LUGAR SECRETO';
+        fallbackAuthor = 'Gabriela Rocha';
+      } else if (titleLower.includes('podes morar') || titleLower.includes('morar aqui')) {
+        fallbackId = 'U74H-q2YpB0'; // Highly playable and embeddable alternative ID for Podes Morar Aqui
+        fallbackTitle = 'Podes Morar Aqui - Livres Para Adorar';
+        fallbackAuthor = 'Livres Para Adorar';
+      } else if (titleLower.includes('vem me buscar') || titleLower.includes('buscar')) {
+        fallbackId = '9Yf-7K_rF0o';
+        fallbackTitle = 'JEFERSON E SUELLEN - VEM ME BUSCAR';
+        fallbackAuthor = 'Jeferson e Suellen';
+      } else if (titleLower.includes('deus cuida de mim') || titleLower.includes('cuida de mim')) {
+        fallbackId = 'I-M-oA5E440';
+        fallbackTitle = 'KLEBER LUCAS E CAETANO VELOSO - DEUS CUIDA DE MIM';
+        fallbackAuthor = 'Kleber Lucas';
+      } else if (titleLower.includes('ninguém explica') || titleLower.includes('ninguem explica')) {
+        fallbackId = 'ca84BfG_B_Y';
+        fallbackTitle = 'PRETO NO BRANCO - NINGUÉM EXPLICA DEUS (FT. GABRIELA ROCHA)';
+        fallbackAuthor = 'Preto no Branco';
+      } else if (titleLower.includes('a casa é sua') || titleLower.includes('casa e sua')) {
+        fallbackId = '2A8Z-gS5n10';
+        fallbackTitle = 'CASA WORSHIP - A CASA É SUA';
+        fallbackAuthor = 'Casa Worship';
+      } else if (titleLower.includes('galileu')) {
+        fallbackId = 'U94U7dM6I7M';
+        fallbackTitle = 'FERNANDINHO - GALILEU';
+        fallbackAuthor = 'Fernandinho';
+      } else if (titleLower.includes('sou humano')) {
+        fallbackId = 'h030oXyOfGg';
+        fallbackTitle = 'BRUNA KARLA - SOU HUMANO';
+        fallbackAuthor = 'Bruna Karla';
+      } else if (titleLower.includes('advogado fiel')) {
+        fallbackId = '_6p3M-M4K4Q';
+        fallbackTitle = 'BRUNA KARLA - ADVOGADO FIEL';
+        fallbackAuthor = 'Bruna Karla';
+      } else if (titleLower.includes('ressuscita-me')) {
+        fallbackId = '8y8Q1wBq8V8';
+        fallbackTitle = 'ALINE BARROS - RESSUSCITA-ME (AO VIVO)';
+        fallbackAuthor = 'Aline Barros';
+      } else if (titleLower.includes('sonda-me')) {
+        fallbackId = '483oU47M_E4';
+        fallbackTitle = 'ALINE BARROS - SONDA-ME, USA-ME';
+        fallbackAuthor = 'Aline Barros';
+      } else if (titleLower.includes('grandes coisas')) {
+        fallbackId = 'DqX81M8_08Q';
+        fallbackTitle = 'FERNANDINHO - GRANDES COISAS (AO VIVO)';
+        fallbackAuthor = 'Fernandinho';
+      }
+
+      if (fallbackId && fallbackId !== selectedVideo.id) {
+        console.log(`Resolving unavailable video ${selectedVideo.id} -> ${fallbackId}`);
+        setSelectedVideo({
+          ...selectedVideo,
+          id: fallbackId,
+          title: fallbackTitle,
+          author: fallbackAuthor,
+          thumbnail: `https://i.ytimg.com/vi/${fallbackId}/hqdefault.jpg`
+        });
+        setPlaying(true);
+        return;
+      }
+
+      // Dynamic automatic search fallback to find working version on YouTube
+      try {
+        console.log(`Searching dynamic alternative for unavailable video: ${selectedVideo.title}`);
+        const cleanTitle = selectedVideo.title
+          .replace(/\/\/.*$/, '') // remove anything after double slashes
+          .replace(/\(.*\)/g, '') // remove parentheses text
+          .replace(/\[.*\]/g, '') // remove bracketed text
+          .trim();
+        
+        const response = await fetch(`/api/youtube-search?q=${encodeURIComponent(cleanTitle + " playback")}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const alternative = data.find((vid: any) => vid.id && !failedVideoIds.current.has(vid.id));
+            if (alternative) {
+              console.log(`Successfully resolved to dynamic alternative: ${alternative.id} (${alternative.title})`);
+              setSelectedVideo({
+                ...selectedVideo,
+                id: alternative.id,
+                title: alternative.title,
+                author: alternative.author || selectedVideo.author,
+                thumbnail: alternative.thumbnail || `https://i.ytimg.com/vi/${alternative.id}/hqdefault.jpg`
+              });
+              setPlaying(true);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Dynamic YouTube search fallback failed:", err);
+      }
+
+      // If all fails, play the next track
+      playNext();
+    } else {
+      playNext();
+    }
+  };
 
   useEffect(() => {
     let interval: any;
@@ -115,6 +242,7 @@ export default function GlobalPlayer() {
                 playsinline: 1,
                 rel: 0,
                 showinfo: 0,
+                origin: typeof window !== 'undefined' ? window.location.origin : undefined,
               },
             }}
             onReady={(e) => {
@@ -123,6 +251,7 @@ export default function GlobalPlayer() {
                 try { e.target.playVideo(); } catch(err) {}
               }
             }}
+            onError={handlePlayerError}
             onStateChange={(e) => {
               if (e.data === YouTube.PlayerState.PLAYING) {
                 if (!playing) setPlaying(true);

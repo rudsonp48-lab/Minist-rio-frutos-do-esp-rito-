@@ -23,6 +23,7 @@ export default function Profile({ user }: ProfileProps) {
   const [xp, setXp] = useState(0);
 
   useEffect(() => {
+    if (!user) return;
     const q = query(collection(db, 'notes'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const total = snapshot.docs.reduce((acc, doc) => acc + (doc.data().xp || 0), 0);
@@ -49,11 +50,13 @@ export default function Profile({ user }: ProfileProps) {
   };
 
   const getLevel = (xp: number) => Math.floor(xp / 100) + 1;
+  const [showScales, setShowScales] = useState(false);
 
   const sections = [
     { label: `Domínio Espiritual (Nível ${getLevel(xp)})`, icon: Trophy, color: 'text-[var(--theme-color,#FFD700)]', path: '/notes' },
     { label: 'Meus Momentos', icon: ImageIcon, color: 'text-blue-400', path: '/gallery' },
     { label: 'Favoritos', icon: Heart, color: 'text-red-400', path: '/media' },
+    { label: 'Minhas Escalas', icon: ShieldCheck, color: 'text-green-400', action: () => setShowScales(!showScales) },
     { label: 'Configurações', icon: Settings, color: 'text-zinc-400', path: '/settings' },
   ];
 
@@ -122,19 +125,43 @@ export default function Profile({ user }: ProfileProps) {
       <section className="glass rounded-[3rem] md:rounded-[4rem] p-1 shadow-3xl relative overflow-hidden group mx-4 md:mx-0">
         <div className="glass-dark bg-zinc-950/40 rounded-[2.9rem] md:rounded-[3.9rem] overflow-hidden">
           {sections.map((item, idx) => (
-            <button 
-              key={idx}
-              onClick={() => navigate(item.path)}
-              className="w-full flex items-center justify-between p-6 md:p-10 hover:bg-white/[0.05] transition-all border-b border-white/5 last:border-0 group/row"
-            >
-              <div className="flex items-center gap-6 md:gap-8">
-                 <div className={`w-12 h-12 md:w-14 md:h-14 glass flex items-center justify-center rounded-2xl group-hover/row:scale-110 transition-transform ${item.color} group-hover/row:glow-yellow shadow-xl`}>
-                    <item.icon className="w-5 h-5 md:w-7 md:h-7" />
-                 </div>
-                 <span className="font-display font-black italic uppercase tracking-tighter text-base md:text-xl text-zinc-400 group-hover/row:text-white transition-colors">{item.label}</span>
-              </div>
-              <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-zinc-800 group-hover/row:text-yellow-400 group-hover/row:translate-x-2 transition-all" />
-            </button>
+            <div key={idx}>
+              <button 
+                onClick={() => item.action ? item.action() : navigate(item.path!)}
+                className="w-full flex items-center justify-between p-6 md:p-10 hover:bg-white/[0.05] transition-all border-b border-white/5 last:border-0 group/row"
+              >
+                <div className="flex items-center gap-6 md:gap-8">
+                   <div className={`w-12 h-12 md:w-14 md:h-14 glass flex items-center justify-center rounded-2xl group-hover/row:scale-110 transition-transform ${item.color} group-hover/row:glow-yellow shadow-xl`}>
+                      <item.icon className="w-5 h-5 md:w-7 md:h-7" />
+                   </div>
+                   <span className="font-display font-black italic uppercase tracking-tighter text-base md:text-xl text-zinc-400 group-hover/row:text-white transition-colors">{item.label}</span>
+                </div>
+                <ChevronRight className={`w-5 h-5 md:w-6 md:h-6 text-zinc-800 group-hover/row:text-yellow-400 switch-transition transition-all ${item.action && showScales && item.label === 'Minhas Escalas' ? 'rotate-90' : 'group-hover/row:translate-x-2'}`} />
+              </button>
+              
+              {/* Scales Panel */}
+              {item.label === 'Minhas Escalas' && showScales && (
+                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="p-6 md:p-10 bg-black/20 border-b border-white/5">
+                    <h4 className="text-white font-bold mb-4">Suas próximas datas:</h4>
+                    <div className="space-y-4">
+                       {[
+                         { role: 'Louvor', date: 'Domingo, 18:00', location: 'Templo Central' },
+                         { role: 'Recepção', date: 'Quarta, 19:30', location: 'Templo Central' }
+                       ].map((scale, sId) => (
+                         <div key={sId} className="ios-card bg-black/40 border border-white/5 rounded-2xl p-4 flex justify-between items-center">
+                            <div>
+                               <p className="text-[var(--theme-color)] font-bold text-sm uppercase tracking-widest leading-none mb-1">{scale.role}</p>
+                               <p className="text-white/80 font-bold">{scale.date}</p>
+                            </div>
+                            <div className="text-right">
+                               <p className="text-xs text-white/50">{scale.location}</p>
+                            </div>
+                         </div>
+                       ))}
+                    </div>
+                 </motion.div>
+              )}
+            </div>
           ))}
         </div>
       </section>

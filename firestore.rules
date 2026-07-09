@@ -54,7 +54,7 @@ service cloud.firestore {
 
     // 3. NOTES
     match /notes/{noteId} {
-      allow read: if isOwner(existing().userId);
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidNote(incoming());
       allow update: if isOwner(existing().userId) && isValidNote(incoming()) &&
                       incoming().userId == existing().userId;

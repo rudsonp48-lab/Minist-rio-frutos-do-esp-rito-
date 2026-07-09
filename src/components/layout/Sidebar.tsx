@@ -24,7 +24,7 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
   const menuItems = [
     { to: '/', label: 'Home', icon: Home },
     { to: '/bible', label: 'Bíblia', icon: BookOpen },
-    { to: '/media?live=1', label: 'Cultos Ao Vivo', icon: Radio },
+    { to: '/live', label: 'Cultos Ao Vivo', icon: Radio },
     { to: '/events', label: 'Agenda', icon: Calendar },
     { to: '/prayers', label: 'Pedidos de Oração', icon: Heart },
     { to: '/notes', label: 'Bloco de Notas', icon: BookOpen },

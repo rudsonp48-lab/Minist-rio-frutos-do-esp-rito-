@@ -46,6 +46,9 @@ export default function Media() {
     }
   }, [searchParams]);
 
+  const lastFetchedQueryRef = useRef<string | null>(null);
+  const lastFetchedTabRef = useRef<string | null>(null);
+
   const fetchContent = async (customQuery?: string) => {
     setLoading(true);
     let query = customQuery || 'gospel';
@@ -62,6 +65,8 @@ export default function Media() {
       setLoading(false);
       return;
     }
+
+    lastFetchedQueryRef.current = customQuery || '';
 
     let vids: YouTubeVideo[] = [];
     if (activeTab === 'live' && !customQuery) {
@@ -81,16 +86,25 @@ export default function Media() {
   };
 
   useEffect(() => {
-    fetchContent();
-  }, [activeTab]);
+    const delayDebounce = setTimeout(() => {
+      const currentQuery = searchQuery || '';
+      const currentTab = activeTab;
+      if (lastFetchedQueryRef.current !== currentQuery || lastFetchedTabRef.current !== currentTab) {
+        lastFetchedTabRef.current = currentTab;
+        fetchContent(searchQuery || undefined);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery, activeTab]);
 
   const items = [...ytVideos.map(v => {
-    const itemType = v.type === 'live' ? 'live' : (activeTab === 'music' ? 'music' : (activeTab === 'podcast' ? 'podcast' : 'video'));
+    const itemType = v.type === 'live' ? 'live' : (v.type === 'music' || activeTab === 'music' ? 'music' : (v.type === 'podcast' || activeTab === 'podcast' ? 'podcast' : 'video'));
     return {
       id: v.id,
       title: v.title,
       type: itemType === 'live' ? 'LIVE' : itemType.toUpperCase(),
-      author: 'Ecclesia Stream',
+      author: v.author || 'Ecclesia Stream',
       thumbnail: v.thumbnail,
       ytId: v.id,
       originalVideo: {
@@ -127,7 +141,7 @@ export default function Media() {
 
       <div className="pt-24 px-6 space-y-8 max-w-lg mx-auto">
         <header className="space-y-4">
-          {activeTab !== 'music' && (
+          {activeTab !== 'music' ? (
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <RadioTower className="w-5 h-5 text-[#8E8E93]" />
@@ -135,19 +149,34 @@ export default function Media() {
               </div>
               <h2 className="text-4xl font-bold tracking-tighter">Imersão Total</h2>
             </div>
+          ) : (
+            ytVideos.length > 0 && (
+              <div>
+                <h2 className="text-4xl font-bold tracking-tighter">Música</h2>
+              </div>
+            )
           )}
 
-          {activeTab !== 'music' && (
-            <form onSubmit={(e) => { e.preventDefault(); fetchContent(searchQuery); }} className="relative">
+          {(activeTab !== 'music' || ytVideos.length > 0) && (
+            <form onSubmit={(e) => { e.preventDefault(); fetchContent(searchQuery); }} className="relative flex items-center pr-2 bg-black/5 dark:bg-white/5 rounded-2xl">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93]" />
               <input 
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar vídeos ou louvores..."
-                className="w-full bg-black/5 dark:bg-white/5 rounded-2xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 transition-all"
+                placeholder={activeTab === 'music' ? "Artistas, louvores ou playlists..." : "Buscar vídeos ou louvores..."}
+                className="w-full bg-transparent py-3 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 transition-all rounded-2xl"
                 style={{ '--tw-ring-color': themeColor } as any}
               />
+              {searchQuery && (
+                <button 
+                  type="button" 
+                  onClick={() => { setSearchQuery(''); fetchContent(''); }} 
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-black dark:hover:text-white transition-all p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </form>
           )}
         </header>
@@ -207,7 +236,11 @@ export default function Media() {
                     {MUSIC_CATEGORIES.map(cat => (
                       <div 
                         key={cat.name} 
-                        onClick={() => { setSearchQuery(cat.name); fetchContent(cat.query); }}
+                        onClick={() => { 
+                          setSearchQuery(cat.name); 
+                          lastFetchedQueryRef.current = cat.name;
+                          fetchContent(cat.query); 
+                        }}
                         className={`group rounded-[24px] shadow-lg relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform ${cat.span}`}
                       >
                         <img src={cat.img} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" alt={cat.name} />
@@ -229,7 +262,11 @@ export default function Media() {
                     {['Aline Barros', 'Hillsong Worship', 'Adoração 2024'].map(term => (
                       <div 
                         key={term} 
-                        onClick={() => { setSearchQuery(term); fetchContent(term + ' gospel'); }}
+                        onClick={() => { 
+                          setSearchQuery(term); 
+                          lastFetchedQueryRef.current = term;
+                          fetchContent(term + ' gospel'); 
+                        }}
                         className="flex gap-4 hover:bg-gray-800/50 transition-colors bg-gray-900 border-gray-800 border rounded-xl p-3 items-center cursor-pointer"
                       >
                         <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
