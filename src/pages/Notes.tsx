@@ -117,7 +117,7 @@ export default function Notes({ embedded = false }: { embedded?: boolean }) {
               <h1 className="text-2xl font-serif font-bold tracking-widest text-white uppercase">Meus Estudos</h1>
               <div className="flex items-center gap-2 mt-1">
                 <BookOpen className="w-3.5 h-3.5 text-[var(--theme-color)]" />
-                <span className="text-[10px] font-bold text-[var(--theme-color)] uppercase tracking-[0.2em]">Caderno de Notas</span>
+                <span className="text-[10px] font-bold text-[var(--theme-color)] uppercase tracking-[0.2em]">Estudo da Palavra</span>
               </div>
             </div>
           </div>
@@ -128,8 +128,8 @@ export default function Notes({ embedded = false }: { embedded?: boolean }) {
         {!embedded && (
           <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4 lg:px-0">
              <div>
-               <h2 className="text-4xl lg:text-5xl font-serif font-bold tracking-tight text-white mb-2">Reflexões</h2>
-               <p className="text-white/60">Guarde o que Deus tem falado com você.</p>
+               <h2 className="text-4xl lg:text-5xl font-serif font-bold tracking-tight text-white mb-2">Estudo da Palavra</h2>
+               <p className="text-white/60">Aprofunde-se no conhecimento e guarde o que Deus tem falado com você.</p>
              </div>
              
              {/* Gamification Badge */}
@@ -179,7 +179,7 @@ export default function Notes({ embedded = false }: { embedded?: boolean }) {
               <div className="relative z-10 space-y-4">
                 <input 
                   type="text" 
-                  placeholder="Título da Reflexão"
+                  placeholder="Tema do Estudo"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full bg-transparent text-2xl lg:text-3xl font-serif font-bold tracking-tight text-white placeholder:text-white/30 focus:outline-none"

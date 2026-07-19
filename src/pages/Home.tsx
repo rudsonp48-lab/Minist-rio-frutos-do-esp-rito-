@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
@@ -28,6 +28,8 @@ export default function Home() {
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
   const [recentPhotos, setRecentPhotos] = useState<any[]>([]);
   const [liveStream, setLiveStream] = useState<YouTubeVideo | null>(null);
+  const [liveStreams, setLiveStreams] = useState<YouTubeVideo[]>([]);
+  const [currentLiveIndex, setCurrentLiveIndex] = useState(0);
   const { themeColor, churchName } = useTheme();
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 500], [0, 150]);
@@ -40,9 +42,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    import('../services/youtube').then(({ checkChannelLive }) => {
-      checkChannelLive().then(streams => {
+    import('../services/youtube').then(({ fetchChannelStreams }) => {
+      fetchChannelStreams().then(streams => {
         if (streams && streams.length > 0) {
+          setLiveStreams(streams);
           setLiveStream(streams[0]);
         }
       });
@@ -93,7 +96,7 @@ export default function Home() {
       {/* Hero Section (iOS 26 Style) */}
       <div className="relative w-full h-[88vh] lg:h-[95vh] flex items-end justify-start overflow-hidden lg:rounded-b-[40px] ios-shadow bg-black">
         <AnimatePresence mode="wait">
-          {!isCinematicMode ? (
+          {(!isCinematicMode || !currentBanner.videoUrl) ? (
             <motion.div
               key={`image-${currentBannerIndex}`}
               initial={{ opacity: 0 }}
@@ -102,11 +105,11 @@ export default function Home() {
               transition={{ duration: 1 }}
               className="absolute inset-0"
             >
-              <motion.img style={{ y: y1 }} src={currentBanner.image} alt={currentBanner.title} className="w-full h-[120%] object-cover opacity-90" />
+              <motion.img style={{ y: y1 }} src={currentBanner.image || undefined} alt={currentBanner.title} className="w-full h-[120%] object-cover opacity-90" />
             </motion.div>
           ) : (
             <motion.div
-              key={`video-${currentBannerIndex}-${currentBanner.videoUrl || config?.churchVideoUrl || "u31qwQUeGuM"}`}
+              key={`video-${currentBannerIndex}-${currentBanner.videoUrl}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -114,7 +117,7 @@ export default function Home() {
               className="absolute inset-0 overflow-hidden"
             >
               <iframe
-                src={`https://www.youtube.com/embed/${getYouTubeId(currentBanner.videoUrl || config?.churchVideoUrl || "u31qwQUeGuM")}?autoplay=1&mute=1&controls=0&loop=1&playlist=${getYouTubeId(currentBanner.videoUrl || config?.churchVideoUrl || "u31qwQUeGuM")}&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3&showinfo=0&disablekb=1&enablejsapi=1`}
+                src={`https://www.youtube.com/embed/${getYouTubeId(currentBanner.videoUrl)}?autoplay=1&mute=1&controls=0&loop=1&playlist=${getYouTubeId(currentBanner.videoUrl)}&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3&showinfo=0&disablekb=1&enablejsapi=1`}
                 title="Church Video Loop"
                 className="pointer-events-none select-none border-0"
                 style={{
@@ -195,25 +198,100 @@ export default function Home() {
       <div className="w-full max-w-7xl mx-auto px-6 mt-8 space-y-12 pb-24">
         
         {/* Live Alert Banner */}
-        {liveStream && (
-          <section>
-            <Link to={`/media?live=${liveStream.id}`} className="group relative w-full rounded-[28px] overflow-hidden ios-shadow flex items-center gap-4 lg:gap-6 p-4 lg:p-6 bg-red-600 border border-red-500 active:scale-[0.98] transition-all">
-               <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
-               <div className="relative w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 border border-white/20 backdrop-blur-md">
-                 <Radio className="w-8 h-8 text-white animate-pulse" />
-               </div>
-               <div className="relative flex-1 min-w-0">
-                 <div className="flex items-center gap-2 mb-1">
-                   <div className="w-2 h-2 rounded-full bg-white animate-ping"></div>
-                   <span className="text-[11px] lg:text-xs font-bold text-white uppercase tracking-widest">Transmissão ao Vivo</span>
-                 </div>
-                 <h3 className="text-lg lg:text-xl font-bold font-sans text-white truncate">{liveStream.title}</h3>
-                 <p className="text-xs lg:text-sm text-white/80 line-clamp-1">{liveStream.author}</p>
-               </div>
-               <div className="relative w-12 h-12 rounded-full bg-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-lg">
-                  <Play className="w-5 h-5 text-red-600 fill-red-600 ml-1" />
-               </div>
-            </Link>
+        {liveStreams.length > 0 && (
+          <section className="relative group">
+            {/* Navigational Arrows */}
+            {liveStreams.length > 1 && (
+              <>
+                <button 
+                  onClick={() => setCurrentLiveIndex((prev) => (prev - 1 + liveStreams.length) % liveStreams.length)}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center backdrop-blur-md border border-white/10 active:scale-90 transition-transform md:opacity-0 md:group-hover:opacity-100 duration-300 shadow-md"
+                  aria-label="Anterior"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setCurrentLiveIndex((prev) => (prev + 1) % liveStreams.length)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center backdrop-blur-md border border-white/10 active:scale-90 transition-transform md:opacity-0 md:group-hover:opacity-100 duration-300 shadow-md"
+                  aria-label="Próximo"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentLiveIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Link 
+                  to={`/media?live=${liveStreams[currentLiveIndex].id}`} 
+                  className={`group relative w-full rounded-[28px] overflow-hidden ios-shadow flex items-center gap-4 lg:gap-6 p-4 lg:p-6 border active:scale-[0.98] transition-all ${
+                    currentLiveIndex === 0 
+                      ? 'bg-red-600 border-red-500' 
+                      : 'bg-zinc-950 dark:bg-zinc-950 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
+                  
+                  {/* Indicator of status */}
+                  <div className={`relative w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border backdrop-blur-md ${
+                    currentLiveIndex === 0 
+                      ? 'bg-white/20 border-white/20' 
+                      : 'bg-red-500/10 border-red-500/20'
+                  }`}>
+                    <Radio className={`w-8 h-8 ${currentLiveIndex === 0 ? 'text-white animate-pulse' : 'text-red-500'}`} />
+                  </div>
+
+                  <div className="relative flex-1 min-w-0 pr-6 pl-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      {currentLiveIndex === 0 ? (
+                        <>
+                          <div className="w-2 h-2 rounded-full bg-white animate-ping"></div>
+                          <span className="text-[10px] lg:text-xs font-bold text-white uppercase tracking-widest">Transmissão ao Vivo</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                          <span className="text-[10px] lg:text-xs font-bold text-red-500 uppercase tracking-widest">Transmissão Gravada</span>
+                        </>
+                      )}
+                    </div>
+                    <h3 className={`text-base lg:text-xl font-bold font-sans truncate ${currentLiveIndex === 0 ? 'text-white' : 'text-white/95'}`}>
+                      {liveStreams[currentLiveIndex].title}
+                    </h3>
+                    <p className={`text-[11px] lg:text-sm line-clamp-1 ${currentLiveIndex === 0 ? 'text-white/80' : 'text-white/60'}`}>
+                      {liveStreams[currentLiveIndex].author || 'Ministério Frutos do Espírito'}
+                    </p>
+                  </div>
+
+                  <div className={`relative w-12 h-12 rounded-full flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-lg ${
+                    currentLiveIndex === 0 ? 'bg-white' : 'bg-red-600'
+                  }`}>
+                    <Play className={`w-5 h-5 ml-1 ${currentLiveIndex === 0 ? 'text-red-600 fill-red-600' : 'text-white fill-white'}`} />
+                  </div>
+                </Link>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Slide bullet indicators */}
+            {liveStreams.length > 1 && (
+              <div className="flex justify-center gap-1.5 mt-3">
+                {liveStreams.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentLiveIndex(idx)}
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      idx === currentLiveIndex ? 'w-4 bg-red-500' : 'w-1 bg-white/20 hover:bg-white/40'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </section>
         )}
 
@@ -657,7 +735,7 @@ export default function Home() {
                     title={selectedBanner.title}
                   />
                 ) : (
-                  <img src={selectedBanner.image} alt={selectedBanner.title} className="w-full h-full object-cover" />
+                  <img src={selectedBanner.image || undefined} alt={selectedBanner.title} className="w-full h-full object-cover" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
               </div>

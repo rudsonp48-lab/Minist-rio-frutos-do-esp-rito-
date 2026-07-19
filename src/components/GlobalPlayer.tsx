@@ -299,7 +299,7 @@ export default function GlobalPlayer() {
           >
             {/* Ambient Blurred Background from Thumbnail */}
             <div className="absolute inset-0 z-0 overflow-hidden opacity-60">
-              <img src={selectedVideo.thumbnail} className={`w-full h-full object-cover scale-150 saturate-[1.5] transition-all duration-[3s] ${showLyrics ? 'blur-[100px] scale-[2] rotate-12' : 'blur-[80px]'}`} alt="bg" />
+              <img src={selectedVideo.thumbnail || undefined} className={`w-full h-full object-cover scale-150 saturate-[1.5] transition-all duration-[3s] ${showLyrics ? 'blur-[100px] scale-[2] rotate-12' : 'blur-[80px]'}`} alt="bg" />
               <div className="absolute inset-0 bg-black/40 mix-blend-overlay"></div>
               <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80"></div>
             </div>
@@ -357,7 +357,7 @@ export default function GlobalPlayer() {
                        </div>
                      ) : (
                        <div className="w-full aspect-[4/5] sm:aspect-square relative rounded-[2rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/10">
-                         <img src={selectedVideo.thumbnail} alt={selectedVideo.title} className="w-full h-full object-cover" />
+                         <img src={selectedVideo.thumbnail || undefined} alt={selectedVideo.title} className="w-full h-full object-cover" />
                        </div>
                      )}
                    </motion.div>
@@ -513,7 +513,7 @@ export default function GlobalPlayer() {
             onClick={() => setIsMinimized(false)}
           >
             <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 relative">
-               <img src={selectedVideo.thumbnail} className="w-full h-full object-cover" alt="" />
+               <img src={selectedVideo.thumbnail || undefined} className="w-full h-full object-cover" alt="" />
                <div className="absolute inset-x-0 bottom-0 h-1 bg-white/20">
                  <div className="h-full bg-[var(--theme-color)]" style={{ width: `${(played / (duration || 1)) * 100}%` }} />
                </div>

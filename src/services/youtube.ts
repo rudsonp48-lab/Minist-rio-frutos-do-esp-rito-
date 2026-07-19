@@ -1,5 +1,5 @@
 const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
-const CHANNEL_ID = import.meta.env.VITE_YOUTUBE_CHANNEL_ID;
+const CHANNEL_ID = import.meta.env.VITE_YOUTUBE_CHANNEL_ID || '@ministeriofrutodoespirito9132';
 
 export interface YouTubeVideo {
   id: string;
@@ -271,6 +271,22 @@ export async function checkChannelLive(channelId: string = CHANNEL_ID || ''): Pr
     console.error('Error checking live status via api:', error);
   }
   // Client-side fallback for static/Vercel hosting
+  return MOCK_VIDEOS.filter(v => v.type === 'live');
+}
+
+export async function fetchChannelStreams(channelId: string = CHANNEL_ID || ''): Promise<YouTubeVideo[]> {
+  try {
+    const response = await fetch(`/api/youtube-channel-streams?channelId=${encodeURIComponent(channelId)}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching channel streams via api:', error);
+  }
+  // Fallback
   return MOCK_VIDEOS.filter(v => v.type === 'live');
 }
 

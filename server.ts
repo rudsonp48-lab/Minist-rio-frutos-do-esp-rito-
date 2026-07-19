@@ -5,12 +5,38 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+process.on('uncaughtException', (err) => {
+  console.error('[Server Error] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Server Error] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+async function fetchWithTimeout(resource: RequestInfo | URL, options: RequestInit = {}) {
+  const timeout = 10000; // 10 seconds timeout
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal  
+    });
+    clearTimeout(id);
+    return response;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+}
+
 const app = express();
 const PORT = 3000;
 
 // Resolve keys either from process.env or import.meta.env equivalents
 const API_KEY = process.env.VITE_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY;
-const CHANNEL_ID = process.env.VITE_YOUTUBE_CHANNEL_ID || process.env.YOUTUBE_CHANNEL_ID;
+const CHANNEL_ID = process.env.VITE_YOUTUBE_CHANNEL_ID || process.env.YOUTUBE_CHANNEL_ID || "@ministeriofrutodoespirito9132";
 
 // Helper to scrape any YouTube page and extract video/playlist recommendations
 function extractVideos(obj: any): any[] {
@@ -19,12 +45,30 @@ function extractVideos(obj: any): any[] {
   function traverse(item: any) {
     if (!item || typeof item !== "object") return;
     
-    const r = item.videoRenderer || item.playlistVideoRenderer || item.compactVideoRenderer;
+    const r = item.videoRenderer || item.playlistVideoRenderer || item.compactVideoRenderer || item.gridVideoRenderer;
+    const lvm = item.lockupViewModel;
+    
     if (r) {
       const videoId = r.videoId;
       const title = r.title?.runs?.[0]?.text || r.title?.simpleText;
       const thumbnail = r.thumbnail?.thumbnails?.[0]?.url;
       const author = r.ownerText?.runs?.[0]?.text || r.shortBylineText?.runs?.[0]?.text || r.longBylineText?.runs?.[0]?.text;
+      
+      if (videoId && title) {
+        videos.push({
+          id: videoId,
+          title,
+          thumbnail: thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          publishedAt: new Date().toISOString(),
+          type: "video",
+          author: author || "YouTube"
+        });
+      }
+    } else if (lvm && lvm.contentType === 'LOCKUP_CONTENT_TYPE_VIDEO') {
+      const videoId = lvm.contentId;
+      const title = lvm.metadata?.lockupMetadataViewModel?.title?.content;
+      const thumbnail = lvm.image?.contentImageViewModel?.image?.sources?.[0]?.url;
+      const author = lvm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text?.content;
       
       if (videoId && title) {
         videos.push({
@@ -44,14 +88,14 @@ function extractVideos(obj: any): any[] {
   }
   
   traverse(obj);
-  return videos;
+  return videos.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
 }
 
 // Scrape helper for standard search
 async function scrapeYouTubeSearch(query: string): Promise<any[]> {
   try {
     const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
@@ -116,7 +160,7 @@ async function scrapeYouTubeSearch(query: string): Promise<any[]> {
 async function scrapeYouTubeChannelLive(channelId: string): Promise<any[] | null> {
   try {
     const url = `https://www.youtube.com/channel/${channelId}/live`;
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       redirect: "follow",
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -148,11 +192,68 @@ async function scrapeYouTubeChannelLive(channelId: string): Promise<any[] | null
   }
 }
 
+// Scrape channel's completed and active live streams
+async function scrapeYouTubeChannelStreams(channelId: string): Promise<any[]> {
+  try {
+    const handleOrId = channelId.trim();
+    let streamUrl = "";
+    let videosUrl = "";
+    
+    if (handleOrId.startsWith("@")) {
+      streamUrl = `https://www.youtube.com/${handleOrId}/streams`;
+      videosUrl = `https://www.youtube.com/${handleOrId}/videos`;
+    } else if (handleOrId.startsWith("UC")) {
+      streamUrl = `https://www.youtube.com/channel/${handleOrId}/streams`;
+      videosUrl = `https://www.youtube.com/channel/${handleOrId}/videos`;
+    } else {
+      streamUrl = `https://www.youtube.com/@${handleOrId}/streams`;
+      videosUrl = `https://www.youtube.com/@${handleOrId}/videos`;
+    }
+    
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
+    };
+
+    console.log(`[YouTube Scraper] Scraping streams from: ${streamUrl}`);
+    let response = await fetchWithTimeout(streamUrl, { headers });
+    
+    if (!response.ok) {
+      console.log(`[YouTube Scraper] Streams URL returned status ${response.status}. Trying videos URL: ${videosUrl}`);
+      response = await fetchWithTimeout(videosUrl, { headers });
+    }
+    
+    if (!response.ok) {
+      console.log(`[YouTube Scraper] Both streams and videos returned non-OK status. Channel: ${handleOrId}`);
+      return [];
+    }
+    
+    const html = await response.text();
+    const match = html.match(/ytInitialData\s*=\s*({.*?});/);
+    if (!match) {
+      console.log("[YouTube Scraper] Could not find ytInitialData on page.");
+      return [];
+    }
+    
+    const json = JSON.parse(match[1]);
+    const videos = extractVideos(json);
+    
+    return videos.map(v => ({
+      ...v,
+      type: "live",
+      author: v.author || "Ministério Frutos do Espírito"
+    }));
+  } catch (error) {
+    console.log("[YouTube Scraper] Safe warning: channel streams scraping was resolved empty:", error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
 // Scrape related videos or playlist
 async function scrapeYouTubePlaylist(playlistId: string): Promise<any[]> {
   try {
     const url = `https://www.youtube.com/playlist?list=${playlistId}`;
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
@@ -173,7 +274,7 @@ async function scrapeYouTubePlaylist(playlistId: string): Promise<any[]> {
 async function scrapeYouTubeRelated(videoId: string): Promise<any[]> {
   try {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
@@ -410,7 +511,7 @@ app.get("/api/youtube-search", async (req, res) => {
   // If API Key is present, try standard search, otherwise fall back to scraping
   if (API_KEY) {
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=15&q=${encodeURIComponent(query)}&type=video&key=${API_KEY}`
       );
       if (response.ok) {
@@ -454,7 +555,7 @@ app.get("/api/youtube-live", async (req, res) => {
 
   if (API_KEY) {
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${cId}&type=video&eventType=live&key=${API_KEY}`
       );
       if (response.ok) {
@@ -486,6 +587,26 @@ app.get("/api/youtube-live", async (req, res) => {
   res.json(FALLBACK_VIDEOS.filter(v => v.type === "live"));
 });
 
+// Channel Streams API (active + completed lives)
+app.get("/api/youtube-channel-streams", async (req, res) => {
+  const cId = (req.query.channelId as string) || CHANNEL_ID;
+  if (!cId) {
+    return res.json(FALLBACK_VIDEOS.filter(v => v.type === "live"));
+  }
+
+  try {
+    const streams = await scrapeYouTubeChannelStreams(cId);
+    if (streams && streams.length > 0) {
+      return res.json(streams);
+    }
+  } catch (error) {
+    console.error("Error in /api/youtube-channel-streams:", error);
+  }
+
+  // Fallback to MOCK lives if nothing is found
+  res.json(FALLBACK_VIDEOS.filter(v => v.type === "live"));
+});
+
 // Playlist API
 app.get("/api/youtube-playlist", async (req, res) => {
   const pId = (req.query.playlistId as string) || "";
@@ -495,7 +616,7 @@ app.get("/api/youtube-playlist", async (req, res) => {
 
   if (API_KEY) {
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=15&playlistId=${pId}&key=${API_KEY}`
       );
       if (response.ok) {
@@ -537,7 +658,7 @@ app.get("/api/youtube-related", async (req, res) => {
 
   if (API_KEY) {
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&relatedToVideoId=${vId}&type=video&maxResults=5&key=${API_KEY}`
       );
       if (response.ok) {

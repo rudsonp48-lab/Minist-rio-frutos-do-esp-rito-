@@ -176,8 +176,8 @@ export default function Media() {
 
     let vids: YouTubeVideo[] = [];
     if (activeTab === 'live' && !customQuery) {
-      const { checkChannelLive } = await import('../services/youtube');
-      const liveStreams = await checkChannelLive();
+      const { fetchChannelStreams } = await import('../services/youtube');
+      const liveStreams = await fetchChannelStreams();
       if (liveStreams && liveStreams.length > 0) {
         vids = liveStreams;
       } else {

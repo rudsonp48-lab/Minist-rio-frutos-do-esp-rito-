@@ -380,7 +380,7 @@ export default function Admin() {
                   >
                     {config.logoUrl ? (
                       <div className="relative w-full h-full p-4 flex items-center justify-center group">
-                         <img src={config.logoUrl} className="max-w-full max-h-full object-contain drop-shadow-xl transition-transform group-hover:scale-105 mix-blend-screen" alt="Logo preview" />
+                         <img src={config.logoUrl || undefined} className="max-w-full max-h-full object-contain drop-shadow-xl transition-transform group-hover:scale-105 mix-blend-screen" alt="Logo preview" />
                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                             <span className="text-xs font-bold text-white uppercase tracking-widest">Trocar Logo</span>
                          </div>
@@ -487,7 +487,7 @@ export default function Admin() {
                      >
                        {newItem.image ? (
                          <div className="relative w-full h-full">
-                           <img src={newItem.image} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                           <img src={newItem.image || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm">
                               <span className="text-xs font-bold text-white uppercase tracking-widest">Alterar Imagem</span>
                            </div>
@@ -516,7 +516,7 @@ export default function Admin() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  {config.banners?.map((b: any) => (
                    <div key={b.id} className="relative bg-[#111111] border border-white/10 rounded-2xl overflow-hidden group flex aspect-[21/9]">
-                     <img src={b.image} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
+                     <img src={b.image || undefined} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
                      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
                      <div className="absolute top-4 left-4 z-20 flex gap-2">
                        {b.videoUrl && (
@@ -555,7 +555,7 @@ export default function Admin() {
                     >
                        {newItem.image ? (
                          <div className="relative w-full h-full">
-                           <img src={newItem.image} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                           <img src={newItem.image || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                          </div>
                        ) : (
                          <>
@@ -618,7 +618,7 @@ export default function Admin() {
                   <div key={item.id} className="bg-[#111111] border border-white/5 rounded-2xl p-4 flex items-center justify-between group hover:border-white/20 transition-colors">
                     <div className="flex items-center gap-5">
                       <div className="w-14 h-14 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                         {item.url || item.image || item.photoURL ? <img src={item.url || item.image || item.photoURL} className="w-full h-full object-cover" /> : <Database className="w-5 h-5 text-white/30" />}
+                         {item.url || item.image || item.photoURL ? <img src={item.url || item.image || item.photoURL || undefined} className="w-full h-full object-cover" /> : <Database className="w-5 h-5 text-white/30" />}
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-bold text-sm text-white truncate max-w-[200px] lg:max-w-[400px]">{item.title || item.name || item.email || 'Registro Anônimo'}</h4>

@@ -72,7 +72,7 @@ export default function Profile({ user }: ProfileProps) {
             onClick={() => fileInputRef.current?.click()}
             className="relative cursor-pointer group"
           >
-            {user.photoURL ? (
+            {user.photoURL && user.photoURL !== "" ? (
               <img src={user.photoURL} alt={user.displayName || 'User'} className="relative w-40 h-40 md:w-48 md:h-48 rounded-[3rem] md:rounded-[4rem] border-4 border-[var(--theme-color,#FFD700)] object-cover p-1 shadow-3xl grayscale group-hover:grayscale-0 transition-all" />
             ) : (
               <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-[3rem] md:rounded-[4rem] glass border-4 border-white/5 flex items-center justify-center">

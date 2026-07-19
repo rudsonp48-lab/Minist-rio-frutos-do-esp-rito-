@@ -41,9 +41,9 @@ function GalleryItem({ photo, handleLike }: { photo: Photo, handleLike: (id: str
       onDoubleClick={onDoubleTap}
     >
       {isVideo ? (
-        <video src={photo.url || photo.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none" autoPlay muted loop playsInline />
+        <video src={photo.url || photo.image || undefined} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none" autoPlay muted loop playsInline />
       ) : (
-        <img src={photo.url || photo.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none select-none" alt="Gallery" />
+        <img src={photo.url || photo.image || undefined} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none select-none" alt="Gallery" />
       )}
       
       {/* Interactive Heart Animation Overlay for Double Tap */}
