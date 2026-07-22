@@ -54,6 +54,20 @@ function extractVideos(obj: any): any[] {
       const thumbnail = r.thumbnail?.thumbnails?.[0]?.url;
       const author = r.ownerText?.runs?.[0]?.text || r.shortBylineText?.runs?.[0]?.text || r.longBylineText?.runs?.[0]?.text;
       
+      const authorText = author || "YouTube";
+      let views = 0;
+      if (authorText.includes(' visualiza')) {
+        const match = authorText.match(/([\d\.]+)/);
+        if (match) {
+          views = parseInt(match[1].replace(/\./g, ''), 10);
+        }
+      } else if (r.viewCountText?.simpleText) {
+        const match = r.viewCountText.simpleText.match(/([\d\.]+)/);
+        if (match) {
+          views = parseInt(match[1].replace(/\./g, ''), 10);
+        }
+      }
+
       if (videoId && title) {
         videos.push({
           id: videoId,
@@ -61,7 +75,8 @@ function extractVideos(obj: any): any[] {
           thumbnail: thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
           publishedAt: new Date().toISOString(),
           type: "video",
-          author: author || "YouTube"
+          author: authorText,
+          views
         });
       }
     } else if (lvm && lvm.contentType === 'LOCKUP_CONTENT_TYPE_VIDEO') {
@@ -70,6 +85,15 @@ function extractVideos(obj: any): any[] {
       const thumbnail = lvm.image?.contentImageViewModel?.image?.sources?.[0]?.url;
       const author = lvm.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text?.content;
       
+      const authorText = author || "YouTube";
+      let views = 0;
+      if (authorText.includes(' visualiza')) {
+        const match = authorText.match(/([\d\.]+)/);
+        if (match) {
+          views = parseInt(match[1].replace(/\./g, ''), 10);
+        }
+      }
+
       if (videoId && title) {
         videos.push({
           id: videoId,
@@ -77,7 +101,8 @@ function extractVideos(obj: any): any[] {
           thumbnail: thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
           publishedAt: new Date().toISOString(),
           type: "video",
-          author: author || "YouTube"
+          author: authorText,
+          views
         });
       }
     } else {
@@ -304,25 +329,25 @@ app.get("/api/health", (req, res) => {
 const FALLBACK_VIDEOS = [
   // --- LIVES / CULTOS ---
   {
-    id: "u31qwQUeGuM",
+    id: "tN8pA0L_q8c",
     title: "Culto de Domingo - Tempo de Semear",
-    thumbnail: "https://i.ytimg.com/vi/u31qwQUeGuM/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/tN8pA0L_q8c/hqdefault.jpg",
     publishedAt: "2026-07-06T18:00:00Z",
     type: "live",
     author: "Ministério Frutos do Espírito"
   },
   {
-    id: "gNfTfU-H-00",
+    id: "9Yf-7K_rF0o",
     title: "Culto de Celebração - O Poder da Palavra",
-    thumbnail: "https://i.ytimg.com/vi/gNfTfU-H-00/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/9Yf-7K_rF0o/hqdefault.jpg",
     publishedAt: "2026-07-02T19:30:00Z",
     type: "live",
     author: "Ministério Frutos do Espírito"
   },
   {
-    id: "mXW9R_U8M5k",
+    id: "I-M-oA5E440",
     title: "Transmissão Especial - Noite de Louvor e Milagres",
-    thumbnail: "https://i.ytimg.com/vi/mXW9R_U8M5k/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/I-M-oA5E440/hqdefault.jpg",
     publishedAt: "2026-06-29T20:00:00Z",
     type: "live",
     author: "Ministério Frutos do Espírito"

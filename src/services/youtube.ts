@@ -13,25 +13,25 @@ export interface YouTubeVideo {
 export const MOCK_VIDEOS: YouTubeVideo[] = [
   // --- LIVE FEEDS ---
   {
-    id: "u31qwQUeGuM",
+    id: "tN8pA0L_q8c",
     title: "Culto de Domingo - Tempo de Semear",
-    thumbnail: "https://i.ytimg.com/vi/u31qwQUeGuM/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/tN8pA0L_q8c/hqdefault.jpg",
     publishedAt: new Date().toISOString(),
     type: "live",
     author: "Ministério Frutos do Espírito"
   },
   {
-    id: "gNfTfU-H-00",
+    id: "9Yf-7K_rF0o",
     title: "Culto de Celebração - O Poder da Palavra",
-    thumbnail: "https://i.ytimg.com/vi/gNfTfU-H-00/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/9Yf-7K_rF0o/hqdefault.jpg",
     publishedAt: new Date().toISOString(),
     type: "live",
     author: "Ministério Frutos do Espírito"
   },
   {
-    id: "mXW9R_U8M5k",
+    id: "I-M-oA5E440",
     title: "Transmissão Especial - Noite de Louvor e Milagres",
-    thumbnail: "https://i.ytimg.com/vi/mXW9R_U8M5k/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/I-M-oA5E440/hqdefault.jpg",
     publishedAt: new Date().toISOString(),
     type: "live",
     author: "Ministério Frutos do Espírito"

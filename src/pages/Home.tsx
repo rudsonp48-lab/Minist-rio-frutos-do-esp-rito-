@@ -45,8 +45,9 @@ export default function Home() {
     import('../services/youtube').then(({ fetchChannelStreams }) => {
       fetchChannelStreams().then(streams => {
         if (streams && streams.length > 0) {
-          setLiveStreams(streams);
-          setLiveStream(streams[0]);
+          const sortedStreams = [...streams].sort((a: any, b: any) => (b.views || 0) - (a.views || 0));
+          setLiveStreams(sortedStreams);
+          setLiveStream(sortedStreams[0]);
         }
       });
     });
@@ -251,8 +252,8 @@ export default function Home() {
                     <div className="flex items-center gap-2 mb-1">
                       {currentLiveIndex === 0 ? (
                         <>
-                          <div className="w-2 h-2 rounded-full bg-white animate-ping"></div>
-                          <span className="text-[10px] lg:text-xs font-bold text-white uppercase tracking-widest">Transmissão ao Vivo</span>
+                          <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>
+                          <span className="text-[10px] lg:text-xs font-bold text-white uppercase tracking-widest">Culto em Destaque</span>
                         </>
                       ) : (
                         <>
@@ -265,7 +266,7 @@ export default function Home() {
                       {liveStreams[currentLiveIndex].title}
                     </h3>
                     <p className={`text-[11px] lg:text-sm line-clamp-1 ${currentLiveIndex === 0 ? 'text-white/80' : 'text-white/60'}`}>
-                      {liveStreams[currentLiveIndex].author || 'Ministério Frutos do Espírito'}
+                      {liveStreams[currentLiveIndex].author}
                     </p>
                   </div>
 
