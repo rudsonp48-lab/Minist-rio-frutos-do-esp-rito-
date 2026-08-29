@@ -95,6 +95,55 @@ service cloud.firestore {
     match /prayers/{prayerId} {
       allow read: if true;
       allow write: if isSignedIn();
+      match /comments/{commentId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+    }
+    
+    match /notifications/{notifId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /live_chat/{msgId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /chat_messages/{msgId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /chat_channels/{channelId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /chat_typing/{typingId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /volunteer_schedules/{scheduleId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /cell_meetings/{meetingId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /giving_campaigns/{campaignId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /user_achievements/{userId} {
+      allow read: if true;
+      allow write: if isSignedIn();
     }
     
     // 7. USER PLAYLISTS

@@ -10,6 +10,8 @@ import { useTheme } from '../lib/ThemeContext';
 import { getDailyDevotional } from '../lib/devotionalsData';
 import { DEFAULT_BANNERS, RECENT_ITEMS, TESTIMONIALS, PODCASTS, CONTINUE_WATCHING, GALLERY_IMAGES } from '../lib/data';
 import { YouTubeVideo } from '../services/youtube';
+import ActiveUsersWidget from '../components/ActiveUsersWidget';
+import HomeIntercessionMural from '../components/HomeIntercessionMural';
 
 function getYouTubeId(url: string) {
   if (!url) return null;
@@ -313,12 +315,12 @@ export default function Home() {
                 color: 'from-amber-400 to-purple-600' 
               },
               { to: '/bible', icon: BookOpen, label: 'Bíblia', color: 'from-blue-600 to-blue-400' },
+              { to: '/prayers', icon: HandHeart, label: 'Oração', color: 'from-rose-600 to-pink-500' },
               { to: '/gallery', icon: Camera, label: 'Galeria', color: 'from-emerald-600 to-emerald-400' },
               { to: '/events', icon: Calendar, label: 'Agenda', color: 'from-orange-600 to-orange-400' },
               { to: '/media?live=1', icon: Radio, label: 'Ao Vivo', color: 'from-pink-600 to-rose-400' },
               { to: '/webradio', icon: Headphones, label: 'Web Rádio', color: 'from-purple-600 to-purple-400' },
               { to: '/give', icon: Heart, label: 'Doar', color: 'from-[var(--color-theme-purple)] to-[var(--theme-color)]' },
-              { to: '/prayers', icon: HandHeart, label: 'Oração', color: 'from-cyan-600 to-cyan-400' },
               { to: '/notes', icon: Edit3, label: 'Notas', color: 'from-yellow-600 to-yellow-400' },
               { to: '/volunteer', icon: User, label: 'Voluntário', color: 'from-indigo-600 to-indigo-400' },
             ].map((cat, idx) => (
@@ -340,6 +342,12 @@ export default function Home() {
             ))}
           </motion.div>
         </section>
+
+        {/* Active Connected Users / Presence Bar */}
+        <ActiveUsersWidget />
+
+        {/* Home Interactive Intercession Mural */}
+        <HomeIntercessionMural />
 
         {/* AI Pastor & Theological Assistant Highlight Card */}
         <section className="bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black border border-white/10 rounded-[32px] p-6 lg:p-8 relative overflow-hidden shadow-2xl">

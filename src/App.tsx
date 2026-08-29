@@ -4,6 +4,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ThemeProvider } from './lib/ThemeContext';
+import { startPresenceHeartbeat } from './services/presenceService';
 
 // Pages
 import Home from './pages/Home';
@@ -16,6 +17,7 @@ import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Notes from './pages/Notes';
 import Prayers from './pages/Prayers';
+import Chat from './pages/Chat';
 import Podcast from './pages/Podcast';
 import Volunteer from './pages/Volunteer';
 import SettingsPage from './pages/Settings';
@@ -106,20 +108,31 @@ export default function App() {
       setLoading(false);
     }, 2000);
 
+    let cleanupHeartbeat: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       clearTimeout(watchdogTimer);
       setUser(currentUser);
 
+      if (cleanupHeartbeat) {
+        cleanupHeartbeat();
+        cleanupHeartbeat = null;
+      }
+
       if (currentUser) {
+        cleanupHeartbeat = startPresenceHeartbeat();
+
         // Asynchronous non-blocking background sync
         (async () => {
           try {
             await setDoc(doc(db, 'users', currentUser.uid), {
               uid: currentUser.uid,
               email: currentUser.email,
-              name: currentUser.displayName || '',
+              name: currentUser.displayName || currentUser.email?.split('@')[0] || '',
               photoURL: currentUser.photoURL || '',
-              lastLogin: serverTimestamp()
+              isOnline: true,
+              lastLogin: serverTimestamp(),
+              lastSeen: serverTimestamp()
             }, { merge: true });
           } catch (err) {
             console.debug("[Auth] Background user sync failed:", err);
@@ -150,6 +163,7 @@ export default function App() {
 
     return () => {
       clearTimeout(watchdogTimer);
+      if (cleanupHeartbeat) cleanupHeartbeat();
       unsubscribe();
     };
   }, []);
@@ -213,6 +227,7 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
             <Route path="/gallery" element={<PageWrapper><Gallery /></PageWrapper>} />
             <Route path="/notes" element={<PageWrapper><Notes /></PageWrapper>} />
             <Route path="/prayers" element={<PageWrapper><Prayers /></PageWrapper>} />
+            <Route path="/chat" element={<PageWrapper><Chat /></PageWrapper>} />
             <Route path="/podcast" element={<PageWrapper><Podcast /></PageWrapper>} />
             <Route path="/webradio" element={<PageWrapper><WebRadio /></PageWrapper>} />
             <Route path="/give" element={<PageWrapper><Give /></PageWrapper>} />

@@ -3,7 +3,7 @@ import { User } from 'firebase/auth';
 import { 
   Church, Home, BookOpen, Radio, Calendar, Heart, 
   Map, Headphones, Users, User as UserIcon, 
-  Settings, Info, Shield, Search 
+  Settings, Info, Shield, Search, MessageSquare 
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -26,7 +26,8 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
     { to: '/bible', label: 'Bíblia', icon: BookOpen },
     { to: '/live', label: 'Cultos Ao Vivo', icon: Radio },
     { to: '/events', label: 'Agenda', icon: Calendar },
-    { to: '/prayers', label: 'Pedidos de Oração', icon: Heart },
+    { to: '/prayers', label: 'Feed Social & Oração', icon: Heart },
+    { to: '/chat', label: 'Chat da Comunidade', icon: MessageSquare },
     { to: '/notes', label: 'Bloco de Notas', icon: BookOpen },
     { to: '/gallery', label: 'Estudos Bíblicos', icon: Map },
     { to: '/devotional', label: 'Devocionais', icon: BookOpen },

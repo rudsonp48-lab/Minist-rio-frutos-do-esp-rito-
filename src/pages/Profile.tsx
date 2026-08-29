@@ -1,35 +1,73 @@
 import { User, signOut, updateProfile } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { LogOut, User as UserIcon, Settings, Heart, Image as ImageIcon, Bell, ChevronRight, ShieldCheck, Trophy, Camera, Loader2 } from 'lucide-react';
+import { 
+  LogOut, 
+  User as UserIcon, 
+  Settings, 
+  Heart, 
+  Image as ImageIcon, 
+  Bell, 
+  ChevronRight, 
+  ShieldCheck, 
+  Trophy, 
+  Camera, 
+  Loader2, 
+  Sparkles, 
+  Flame, 
+  BookOpen, 
+  Award, 
+  CheckCircle2, 
+  Calendar,
+  Share2
+} from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { compressImage } from '../lib/imageUtils';
 import { motion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
+import NotificationCenter from '../components/NotificationCenter';
 
 interface ProfileProps {
   user: User;
+}
+
+interface Achievement {
+  id: string;
+  title: string;
+  desc: string;
+  icon: string;
+  unlocked: boolean;
+  progress: string;
 }
 
 export default function Profile({ user }: ProfileProps) {
   const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [xp, setXp] = useState(0);
+  const [prayerCount, setPrayerCount] = useState(0);
 
   const handleLogout = () => {
     signOut(auth);
   };
 
-  const [xp, setXp] = useState(0);
-
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'notes'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const qNotes = query(collection(db, 'notes'), where('userId', '==', user.uid));
+    const unsubNotes = onSnapshot(qNotes, (snapshot) => {
       const total = snapshot.docs.reduce((acc, doc) => acc + (doc.data().xp || 0), 0);
       setXp(total);
     });
-    return () => unsubscribe();
+
+    const qPrayers = query(collection(db, 'prayers'), where('userId', '==', user.uid));
+    const unsubPrayers = onSnapshot(qPrayers, (snapshot) => {
+      setPrayerCount(snapshot.docs.length);
+    });
+
+    return () => {
+      unsubNotes();
+      unsubPrayers();
+    };
   }, [user.uid]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,39 +87,91 @@ export default function Profile({ user }: ProfileProps) {
     }
   };
 
-  const getLevel = (xp: number) => Math.floor(xp / 100) + 1;
-  const [showScales, setShowScales] = useState(false);
+  const getLevel = (xpVal: number) => Math.floor(xpVal / 100) + 1;
+  const currentLevel = getLevel(xp);
+  const nextLevelXp = currentLevel * 100;
+  const currentLevelProgress = xp % 100;
 
-  const sections = [
-    { label: `Domínio Espiritual (Nível ${getLevel(xp)})`, icon: Trophy, color: 'text-[var(--theme-color,#FFD700)]', path: '/notes' },
-    { label: 'Meus Momentos', icon: ImageIcon, color: 'text-blue-400', path: '/gallery' },
-    { label: 'Favoritos', icon: Heart, color: 'text-red-400', path: '/media' },
-    { label: 'Minhas Escalas', icon: ShieldCheck, color: 'text-green-400', action: () => setShowScales(!showScales) },
-    { label: 'Configurações', icon: Settings, color: 'text-zinc-400', path: '/settings' },
+  const achievements: Achievement[] = [
+    {
+      id: 'intercessor',
+      title: 'Sentinela de Oração',
+      desc: 'Publicou ou intercedeu por mais de 5 pedidos de oração',
+      icon: '🙏',
+      unlocked: prayerCount >= 1 || xp >= 30,
+      progress: `${Math.min(prayerCount, 5)}/5 Pedidos`
+    },
+    {
+      id: 'bereano',
+      title: 'Estudioso Bereano',
+      desc: 'Registrou anotações e estudos bíblicos no app',
+      icon: '📖',
+      unlocked: xp >= 50,
+      progress: `${xp}/100 XP`
+    },
+    {
+      id: 'servo',
+      title: 'Servo Dedicado',
+      desc: 'Participação ativa nas escalas e ministérios da igreja',
+      icon: '🛡️',
+      unlocked: true,
+      progress: 'Ativo'
+    },
+    {
+      id: 'comunhao',
+      title: 'Vida em Célula',
+      desc: 'Conectado a um pequeno grupo e participando da comunhão',
+      icon: '🕊️',
+      unlocked: true,
+      progress: 'Conectado'
+    }
   ];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-16 pb-24">
-      {/* Profile Header 2.0 */}
-      <section className="text-center pt-20 relative">
-        
-        <div className="relative inline-block mb-10">
-          <div className="absolute inset-0 bg-[var(--theme-color,#FFD700)] blur-2xl opacity-20 animate-pulse" />
-          
+    <div className="min-h-screen bg-transparent w-full text-white font-sans max-w-4xl mx-auto px-4 sm:px-6 pb-32">
+      {/* Top Bar with Notifications */}
+      <header className="sticky top-0 z-40 bg-black/60 backdrop-blur-3xl border-b border-white/5 py-4 px-0 flex items-center justify-between mb-8 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-wider text-white uppercase" style={{ fontFamily: '"Playfair Display", serif' }}>
+            Meu Perfil
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <NotificationCenter />
+          <Link
+            to="/settings"
+            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+          >
+            <Settings className="w-5 h-5" />
+          </Link>
+        </div>
+      </header>
+
+      {/* Profile Card Header */}
+      <section className="bg-[#121216] border border-white/10 rounded-[36px] p-6 sm:p-10 relative overflow-hidden shadow-2xl mb-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--theme-color)]/10 blur-[90px] pointer-events-none rounded-full" />
+
+        <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 relative z-10">
+          {/* Avatar Upload */}
           <div 
             onClick={() => fileInputRef.current?.click()}
-            className="relative cursor-pointer group"
+            className="relative cursor-pointer group shrink-0"
           >
-            {user.photoURL && user.photoURL !== "" ? (
-              <img src={user.photoURL} alt={user.displayName || 'User'} className="relative w-40 h-40 md:w-48 md:h-48 rounded-[3rem] md:rounded-[4rem] border-4 border-[var(--theme-color,#FFD700)] object-cover p-1 shadow-3xl grayscale group-hover:grayscale-0 transition-all" />
+            {user.photoURL ? (
+              <img 
+                src={user.photoURL} 
+                alt={user.displayName || 'Membro'} 
+                className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-2 border-[var(--theme-color)] object-cover shadow-2xl group-hover:opacity-80 transition-opacity" 
+              />
             ) : (
-              <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-[3rem] md:rounded-[4rem] glass border-4 border-white/5 flex items-center justify-center">
-                <UserIcon className="w-16 h-16 md:w-20 md:h-20 text-zinc-800" />
+              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-gradient-to-tr from-purple-700 to-indigo-600 border-2 border-[var(--theme-color)] flex items-center justify-center shadow-2xl">
+                <UserIcon className="w-14 h-14 text-white" />
               </div>
             )}
             
-            <div className="absolute inset-0 bg-black/40 rounded-[3rem] md:rounded-[4rem] opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-              {isUploading ? <Loader2 className="w-8 h-8 text-white animate-spin" /> : <Camera className="w-8 h-8 text-white" />}
+            <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              {isUploading ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <Camera className="w-6 h-6 text-white" />}
             </div>
             
             <input 
@@ -91,102 +181,153 @@ export default function Profile({ user }: ProfileProps) {
               accept="image/*"
               className="hidden"
             />
+
+            <div className="absolute bottom-0 right-0 bg-emerald-500 p-2 rounded-full border-4 border-[#121216] text-white">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
           </div>
-          
-          <div className="absolute -bottom-2 -right-2 bg-[var(--theme-color,#FFD700)] p-4 rounded-3xl border-8 border-black shadow-2xl glow-yellow">
-             <ShieldCheck className="w-6 h-6 text-black" />
+
+          {/* User Info */}
+          <div className="flex-1 text-center sm:text-left space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[11px] font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Nível {currentLevel} • Discípulo Fiel
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+              {user.displayName || 'Membro da Igreja'}
+            </h2>
+
+            <p className="text-xs text-white/50 font-mono">
+              {user.email}
+            </p>
+
+            {/* Level XP Bar */}
+            <div className="pt-2 max-w-sm mx-auto sm:mx-0">
+              <div className="flex justify-between text-[11px] font-bold text-white/60 mb-1">
+                <span>Progresso para Nível {currentLevel + 1}</span>
+                <span>{currentLevelProgress} / 100 XP</span>
+              </div>
+              <div className="w-full h-2 bg-black/60 rounded-full overflow-hidden border border-white/10">
+                <div 
+                  className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-500" 
+                  style={{ width: `${currentLevelProgress}%` }}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <div className="space-y-4 relative z-10">
-           <h1 className="text-5xl md:text-7xl font-display font-black uppercase italic tracking-tighter text-white leading-none">
-             {user.displayName || 'Membro Ecclesia'}
-           </h1>
-           <p className="text-yellow-400 font-display font-bold uppercase tracking-[0.4em] text-[10px] opacity-60">
-             {user.email || 'Node-Identity: 0x88X-ECCLESIA'}
-           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 md:gap-6 mt-12 md:mt-16 px-4">
-           {[
-             { val: '12', label: 'Nodes' },
-             { val: '342', label: 'Impact' },
-             { val: '2.5y', label: 'Uptime' }
-           ].map((stat, i) => (
-             <div key={i} className="glass py-6 md:py-8 rounded-[2.5rem] border-white/5 group hover:border-yellow-400/20 transition-all">
-                <p className="text-2xl md:text-3xl font-display font-black italic text-white group-hover:text-yellow-400 transition-colors uppercase">{stat.val}</p>
-                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600 mt-2">{stat.label}</p>
-             </div>
-           ))}
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-3 gap-3 mt-8 pt-6 border-t border-white/5">
+          <div className="bg-black/40 rounded-2xl p-3 sm:p-4 text-center border border-white/5">
+            <div className="text-xl sm:text-2xl font-bold text-white">{xp}</div>
+            <div className="text-[10px] text-white/40 uppercase font-semibold">XP Bíblico</div>
+          </div>
+          <div className="bg-black/40 rounded-2xl p-3 sm:p-4 text-center border border-white/5">
+            <div className="text-xl sm:text-2xl font-bold text-rose-400">{prayerCount}</div>
+            <div className="text-[10px] text-white/40 uppercase font-semibold">Orações</div>
+          </div>
+          <div className="bg-black/40 rounded-2xl p-3 sm:p-4 text-center border border-white/5">
+            <div className="text-xl sm:text-2xl font-bold text-emerald-400">{currentLevel}</div>
+            <div className="text-[10px] text-white/40 uppercase font-semibold">Nível</div>
+          </div>
         </div>
       </section>
 
-      {/* Futuristic Menu 2.0 */}
-      <section className="glass rounded-[3rem] md:rounded-[4rem] p-1 shadow-3xl relative overflow-hidden group mx-4 md:mx-0">
-        <div className="glass-dark bg-zinc-950/40 rounded-[2.9rem] md:rounded-[3.9rem] overflow-hidden">
-          {sections.map((item, idx) => (
-            <div key={idx}>
-              <button 
-                onClick={() => item.action ? item.action() : navigate(item.path!)}
-                className="w-full flex items-center justify-between p-6 md:p-10 hover:bg-white/[0.05] transition-all border-b border-white/5 last:border-0 group/row"
-              >
-                <div className="flex items-center gap-6 md:gap-8">
-                   <div className={`w-12 h-12 md:w-14 md:h-14 glass flex items-center justify-center rounded-2xl group-hover/row:scale-110 transition-transform ${item.color} group-hover/row:glow-yellow shadow-xl`}>
-                      <item.icon className="w-5 h-5 md:w-7 md:h-7" />
-                   </div>
-                   <span className="font-display font-black italic uppercase tracking-tighter text-base md:text-xl text-zinc-400 group-hover/row:text-white transition-colors">{item.label}</span>
+      {/* Gamification & Achievements Section */}
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-400" />
+            Conquistas & Medalhas Espirituais
+          </h3>
+          <span className="text-xs text-white/50">4 Emblemas</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {achievements.map((ach) => (
+            <div 
+              key={ach.id}
+              className={`p-4 rounded-2xl border flex items-center gap-3.5 transition-all ${
+                ach.unlocked 
+                  ? 'bg-[#121216] border-amber-500/30' 
+                  : 'bg-[#121216]/50 border-white/5 opacity-50'
+              }`}
+            >
+              <div className="text-3xl p-2 rounded-2xl bg-black/40 border border-white/10 shrink-0">
+                {ach.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="font-bold text-xs sm:text-sm text-white truncate">{ach.title}</h4>
+                  {ach.unlocked && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
                 </div>
-                <ChevronRight className={`w-5 h-5 md:w-6 md:h-6 text-zinc-800 group-hover/row:text-yellow-400 switch-transition transition-all ${item.action && showScales && item.label === 'Minhas Escalas' ? 'rotate-90' : 'group-hover/row:translate-x-2'}`} />
-              </button>
-              
-              {/* Scales Panel */}
-              {item.label === 'Minhas Escalas' && showScales && (
-                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="p-6 md:p-10 bg-black/20 border-b border-white/5">
-                    <h4 className="text-white font-bold mb-4">Suas próximas datas:</h4>
-                    <div className="space-y-4">
-                       {[
-                         { role: 'Louvor', date: 'Domingo, 18:00', location: 'Templo Central' },
-                         { role: 'Recepção', date: 'Quarta, 19:30', location: 'Templo Central' }
-                       ].map((scale, sId) => (
-                         <div key={sId} className="ios-card bg-black/40 border border-white/5 rounded-2xl p-4 flex justify-between items-center">
-                            <div>
-                               <p className="text-[var(--theme-color)] font-bold text-sm uppercase tracking-widest leading-none mb-1">{scale.role}</p>
-                               <p className="text-white/80 font-bold">{scale.date}</p>
-                            </div>
-                            <div className="text-right">
-                               <p className="text-xs text-white/50">{scale.location}</p>
-                            </div>
-                         </div>
-                       ))}
-                    </div>
-                 </motion.div>
-              )}
+                <p className="text-[11px] text-white/50 line-clamp-1">{ach.desc}</p>
+                <span className="text-[10px] font-bold text-[var(--theme-color)] mt-0.5 block">{ach.progress}</span>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Cyber Logout Button */}
-      <button 
-        onClick={handleLogout}
-        className="w-full glass bg-red-500/5 hover:bg-red-500/20 border-red-500/10 py-8 rounded-[3rem] flex items-center justify-center gap-6 transition-all group mt-12 mb-20"
-      >
-        <div className="p-4 glass rounded-2xl border-red-500/20">
-           <LogOut className="w-6 h-6 text-red-500" />
-        </div>
-        <span className="text-[12px] font-black uppercase tracking-[0.4em] text-red-500 transition-colors">Terminar Sincronização</span>
-      </button>
+      {/* Quick Navigation Menu */}
+      <section className="bg-[#121216] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl mb-8">
+        <Link 
+          to="/volunteer"
+          className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors border-b border-white/5"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white">Minhas Escalas & Voluntariado</div>
+              <div className="text-xs text-white/40">Consulte datas e solicite trocas</div>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-white/30" />
+        </Link>
 
-      <footer className="text-center pb-12">
-        <div className="flex items-center justify-center gap-4 mb-4">
-           <div className="w-12 h-[1px] bg-zinc-800" />
-           <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-700">Ecclesia OS v3.1</span>
-           <div className="w-12 h-[1px] bg-zinc-800" />
-        </div>
-        <p className="text-zinc-800 text-[8px] font-black uppercase tracking-widest">
-           © 2026 NEXUS CORE • TODOS OS DIREITOS RESERVADOS
-        </p>
-      </footer>
+        <Link 
+          to="/prayers"
+          className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors border-b border-white/5"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
+              <Heart className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white">Mural de Intercessão</div>
+              <div className="text-xs text-white/40">Seus pedidos e orações respondidas</div>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-white/30" />
+        </Link>
+
+        <Link 
+          to="/cells"
+          className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white">Minha Célula & Pequeno Grupo</div>
+              <div className="text-xs text-white/40">Roteiro semanal e presença</div>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-white/30" />
+        </Link>
+      </section>
+
+      {/* Logout button */}
+      <button
+        onClick={handleLogout}
+        className="w-full h-13 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
+      >
+        <LogOut className="w-4 h-4" /> Desconectar da Conta
+      </button>
     </div>
   );
 }
