@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin, Sparkles, Scroll } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
@@ -302,6 +302,16 @@ export default function Home() {
             className="flex gap-4 lg:gap-6 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 scroll-smooth snap-x snap-mandatory"
           >
             {[
+              { 
+                to: '#', 
+                onClick: (e: any) => { 
+                  e.preventDefault(); 
+                  window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { mode: 'chat' } })); 
+                }, 
+                icon: Sparkles, 
+                label: 'Pastor IA', 
+                color: 'from-amber-400 to-purple-600' 
+              },
               { to: '/bible', icon: BookOpen, label: 'Bíblia', color: 'from-blue-600 to-blue-400' },
               { to: '/gallery', icon: Camera, label: 'Galeria', color: 'from-emerald-600 to-emerald-400' },
               { to: '/events', icon: Calendar, label: 'Agenda', color: 'from-orange-600 to-orange-400' },
@@ -318,8 +328,8 @@ export default function Home() {
                 transition={{ delay: idx * 0.1 }}
                 key={idx}
               >
-                <Link to={cat.to} className="flex flex-col items-center gap-3 w-20 lg:w-24 group">
-                  <div className={`w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-tr ${cat.color} p-[2px] transition-transform group-hover:scale-105 group-active:scale-95`}>
+                <Link to={cat.to} onClick={cat.onClick} className="flex flex-col items-center gap-3 w-20 lg:w-24 group">
+                  <div className={`w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-tr ${cat.color} p-[2px] transition-transform group-hover:scale-105 group-active:scale-95 shadow-md`}>
                     <div className="w-full h-full rounded-full bg-black flex items-center justify-center border-2 border-transparent">
                        <cat.icon className="w-7 h-7 text-white opacity-90 group-hover:opacity-100" />
                     </div>
@@ -329,6 +339,40 @@ export default function Home() {
               </motion.div>
             ))}
           </motion.div>
+        </section>
+
+        {/* AI Pastor & Theological Assistant Highlight Card */}
+        <section className="bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black border border-white/10 rounded-[32px] p-6 lg:p-8 relative overflow-hidden shadow-2xl">
+          <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-[var(--theme-color)]/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--theme-color)]/20 border border-[var(--theme-color)]/30 text-[var(--theme-color)] text-xs font-bold uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5" /> Mentor Teológico & Exegese IA
+              </div>
+              <h3 className="text-2xl lg:text-3xl font-display font-bold text-white tracking-tight">
+                Aprofunde seus Estudos Bíblicos com Inteligência Artificial
+              </h3>
+              <p className="text-sm text-white/70 leading-relaxed">
+                Consulte raízes do hebraico e grego, gere esboços expositivos de sermões, tire dúvidas doutrinárias e receba orações pastorais guiadas.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto">
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { mode: 'exegesis', reference: 'Salmos 23:1' } }))}
+                className="flex-1 md:flex-none h-12 px-6 rounded-2xl bg-[var(--theme-color)] hover:bg-[var(--color-primary-focused)] text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-purple-950/50 active:scale-95 transition-all"
+              >
+                <BookOpen className="w-4 h-4" /> Exegese
+              </button>
+
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { mode: 'sermon' } }))}
+                className="flex-1 md:flex-none h-12 px-6 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <Scroll className="w-4 h-4 text-amber-400" /> Esboço
+              </button>
+            </div>
+          </div>
         </section>
 
         {/* Continue Watching / Recent */}

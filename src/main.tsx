@@ -39,27 +39,29 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Clean up any stale service workers and cached resources that cause bundle load crashes on mobile devices
+// Clean up any stale service workers safely without forcing page reloads
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(registrations => {
     for (const registration of registrations) {
-      registration.unregister().then(success => {
-        if (success) {
-          console.log('Successfully unregistered stale service worker');
-          window.location.reload();
-        }
+      registration.unregister().catch(err => {
+        console.warn('Could not unregister service worker:', err);
       });
     }
-  });
+  }).catch(() => {});
 }
 
-if ('caches' in window) {
-  caches.keys().then(names => {
-    for (const name of names) {
-      caches.delete(name);
+// Global window error listener for module loading / chunk recovery
+window.addEventListener('error', (e) => {
+  if (e.message && e.message.includes('Failed to fetch dynamically imported module')) {
+    // If a chunk failed after days of deployment update, reload once smoothly
+    const key = 'chunk_reload_attempt';
+    const last = sessionStorage.getItem(key);
+    if (!last) {
+      sessionStorage.setItem(key, '1');
+      window.location.reload();
     }
-  });
-}
+  }
+});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

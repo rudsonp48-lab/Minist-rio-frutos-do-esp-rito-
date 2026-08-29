@@ -28,18 +28,24 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   }, [themeColor]);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'app_config', 'main'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.logoUrl) setLogoUrl(data.logoUrl);
-        if (data.churchName) setChurchName(data.churchName);
-        if (data.themeColor) {
-           setThemeColor(data.themeColor);
-           document.documentElement.style.setProperty('--theme-color', data.themeColor);
+    try {
+      const unsub = onSnapshot(doc(db, 'app_config', 'main'), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.logoUrl) setLogoUrl(data.logoUrl);
+          if (data.churchName) setChurchName(data.churchName);
+          if (data.themeColor) {
+             setThemeColor(data.themeColor);
+             document.documentElement.style.setProperty('--theme-color', data.themeColor);
+          }
         }
-      }
-    });
-    return () => unsub();
+      }, (err) => {
+        console.debug('[ThemeContext] onSnapshot fallback (benign):', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.debug('[ThemeContext] Init error (benign):', e);
+    }
   }, []);
 
   return (

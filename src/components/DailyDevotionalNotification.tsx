@@ -11,50 +11,70 @@ export function DailyDevotionalNotification({ user }: { user: User }) {
   const currentDevotional = getDailyDevotional();
 
   useEffect(() => {
-    // Check if the user has been notified today
-    const now = new Date();
-    const dateToUse = new Date(now);
-    if (dateToUse.getHours() < 8) {
+    try {
+      // Check if the user has been notified today
+      const now = new Date();
+      const dateToUse = new Date(now);
+      if (dateToUse.getHours() < 8) {
         dateToUse.setDate(dateToUse.getDate() - 1);
-    }
-    const todayStr = `${dateToUse.getFullYear()}-${dateToUse.getMonth() + 1}-${dateToUse.getDate()}`;
-    const storageKey = `devotional_notified_${user.uid}`;
-    const streakKey = `devotional_streak_${user.uid}`;
-    
-    const lastNotified = localStorage.getItem(storageKey);
-    
-    // Calculate Streak
-    let currentStreak = parseInt(localStorage.getItem(streakKey) || '0');
-    if (lastNotified) {
-      const lastDate = new Date(lastNotified);
-      const diffTime = Math.abs(dateToUse.getTime() - lastDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-      
-      if (diffDays > 1 && lastNotified !== todayStr) {
-        // Broke streak
-        currentStreak = 0;
       }
-    }
-
-    if (lastNotified !== todayStr) {
-      // Increase streak
-      currentStreak += 1;
-      localStorage.setItem(streakKey, currentStreak.toString());
       
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(`Devocional: ${currentDevotional.title}`, {
-          body: currentDevotional.verse,
-          icon: '/icon.png'
-        });
-      } else if ('Notification' in window && Notification.permission !== 'denied') {
-        Notification.requestPermission();
+      const year = dateToUse.getFullYear();
+      const month = String(dateToUse.getMonth() + 1).padStart(2, '0');
+      const day = String(dateToUse.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+      
+      const storageKey = `devotional_notified_${user.uid}`;
+      const streakKey = `devotional_streak_${user.uid}`;
+      
+      const lastNotified = localStorage.getItem(storageKey);
+      
+      // Calculate Streak safely
+      let currentStreak = parseInt(localStorage.getItem(streakKey) || '0', 10);
+      if (isNaN(currentStreak)) currentStreak = 0;
+
+      if (lastNotified) {
+        const lastDate = new Date(lastNotified);
+        if (!isNaN(lastDate.getTime())) {
+          const diffTime = Math.abs(dateToUse.getTime() - lastDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+          
+          if (diffDays > 1 && lastNotified !== todayStr) {
+            // Broke streak
+            currentStreak = 0;
+          }
+        }
       }
 
-      setShowNotification(true);
-      localStorage.setItem(storageKey, todayStr);
+      if (lastNotified !== todayStr) {
+        // Increase streak
+        currentStreak += 1;
+        localStorage.setItem(streakKey, currentStreak.toString());
+        
+        // Safely attempt browser notification if supported (catch mobile WebKit/Chrome TypeError)
+        try {
+          if (typeof window !== 'undefined' && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+              // Try constructing notification (works on desktop; catches on mobile where constructor is forbidden)
+              new Notification(`Devocional: ${currentDevotional.title}`, {
+                body: currentDevotional.verse,
+                icon: '/icon.svg'
+              });
+            }
+          }
+        } catch (notifErr) {
+          // Benign on mobile browsers that require ServiceWorker showNotification
+          console.debug('[Devotional] Push notification not supported natively:', notifErr);
+        }
+
+        setShowNotification(true);
+        localStorage.setItem(storageKey, todayStr);
+      }
+      
+      setStreak(currentStreak);
+    } catch (err) {
+      console.warn('[Devotional Notification] Error calculating streak/notification:', err);
     }
-    
-    setStreak(currentStreak);
   }, [user.uid, currentDevotional]);
 
   return (

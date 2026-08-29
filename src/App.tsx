@@ -34,17 +34,27 @@ import { PlayerProvider } from './lib/PlayerContext';
 import GlobalPlayer from './components/GlobalPlayer';
 import { DailyDevotionalNotification } from './components/DailyDevotionalNotification';
 import { Onboarding } from './components/Onboarding';
+import AITheologicalAssistant from './components/AITheologicalAssistant';
 
-function SplashScreen() {
+function SplashScreen({ onRetry }: { onRetry?: () => void }) {
+  const [showRetry, setShowRetry] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowRetry(true);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center relative overflow-hidden px-6">
       {/* Background Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] max-w-[600px] aspect-square bg-[var(--theme-color)]/20 blur-[120px] rounded-full animate-pulse pointer-events-none" />
       
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1.5, ease: "easeOut" }}
+        transition={{ duration: 1.2, ease: "easeOut" }}
         className="relative z-10 flex flex-col items-center"
       >
         <div className="w-24 h-24 rounded-3xl bg-black/50 border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.05)] mb-8 relative">
@@ -54,11 +64,32 @@ function SplashScreen() {
         <h1 className="text-4xl font-serif text-white tracking-[0.2em] uppercase font-bold mb-4" style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}>
           Ecclesia
         </h1>
-        <div className="flex gap-1.5 items-center">
+        <div className="flex gap-1.5 items-center mb-6">
           <div className="w-1.5 h-1.5 rounded-full bg-[var(--theme-color)] animate-bounce" style={{ animationDelay: '0ms' }} />
           <div className="w-1.5 h-1.5 rounded-full bg-[var(--theme-color)] animate-bounce" style={{ animationDelay: '150ms' }} />
           <div className="w-1.5 h-1.5 rounded-full bg-[var(--theme-color)] animate-bounce" style={{ animationDelay: '300ms' }} />
         </div>
+
+        {showRetry && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-2"
+          >
+            <p className="text-xs text-white/50 text-center max-w-xs">
+              Conexão demorando a responder. Deseja recarregar o app?
+            </p>
+            <button
+              onClick={() => {
+                if (onRetry) onRetry();
+                else window.location.reload();
+              }}
+              className="px-5 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all active:scale-95"
+            >
+              Recarregar Agora
+            </button>
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );
@@ -70,47 +101,61 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        try {
-          await setDoc(doc(db, 'users', user.uid), {
-            uid: user.uid,
-            email: user.email,
-            name: user.displayName || '',
-            photoURL: user.photoURL || '',
-            lastLogin: serverTimestamp()
-          }, { merge: true });
-        } catch (err) {
-          console.error("Erro ao sincronizar usuário", err);
-        }
+    // Safety watchdog: ensure loading never hangs past 2 seconds
+    const watchdogTimer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
 
-        if (user.email === 'rudson.p48@gmail.com') {
-          setIsAdmin(true);
-        } else {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      clearTimeout(watchdogTimer);
+      setUser(currentUser);
+
+      if (currentUser) {
+        // Asynchronous non-blocking background sync
+        (async () => {
           try {
-            const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-            let hasAdminByEmail = false;
-            if (user.email) {
-               const adminDocEmail = await getDoc(doc(db, 'admins', user.email.toLowerCase()));
-               hasAdminByEmail = adminDocEmail.exists();
-            }
-            setIsAdmin(adminDoc.exists() || hasAdminByEmail);
-          } catch (e) {
-            setIsAdmin(false);
+            await setDoc(doc(db, 'users', currentUser.uid), {
+              uid: currentUser.uid,
+              email: currentUser.email,
+              name: currentUser.displayName || '',
+              photoURL: currentUser.photoURL || '',
+              lastLogin: serverTimestamp()
+            }, { merge: true });
+          } catch (err) {
+            console.debug("[Auth] Background user sync failed:", err);
           }
-        }
+
+          if (currentUser.email === 'rudson.p48@gmail.com') {
+            setIsAdmin(true);
+          } else {
+            try {
+              const adminDoc = await getDoc(doc(db, 'admins', currentUser.uid));
+              let hasAdminByEmail = false;
+              if (currentUser.email) {
+                const adminDocEmail = await getDoc(doc(db, 'admins', currentUser.email.toLowerCase()));
+                hasAdminByEmail = adminDocEmail.exists();
+              }
+              setIsAdmin(adminDoc.exists() || hasAdminByEmail);
+            } catch (e) {
+              setIsAdmin(false);
+            }
+          }
+        })();
       } else {
         setIsAdmin(false);
       }
+
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(watchdogTimer);
+      unsubscribe();
+    };
   }, []);
 
   if (loading) {
-    return <SplashScreen />;
+    return <SplashScreen onRetry={() => setLoading(false)} />;
   }
 
   if (!user) {
@@ -181,6 +226,7 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
       </main>
 
       <GlobalPlayer />
+      <AITheologicalAssistant />
       <BottomNav />
     </div>
   );
