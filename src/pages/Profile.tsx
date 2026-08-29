@@ -1,4 +1,4 @@
-import { User, signOut, updateProfile } from 'firebase/auth';
+import { User, signOut } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 import { 
   LogOut, 
@@ -18,14 +18,18 @@ import {
   Award, 
   CheckCircle2, 
   Calendar,
-  Share2
+  Share2,
+  Edit3,
+  Check
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { compressImage } from '../lib/imageUtils';
-import { motion } from 'motion/react';
+import { compressAvatar } from '../lib/imageUtils';
+import { saveUserProfile, subscribeToUserProfile, UserProfileData } from '../services/userService';
+import { motion, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import NotificationCenter from '../components/NotificationCenter';
+import EditProfileModal from '../components/EditProfileModal';
 
 interface ProfileProps {
   user: User;
@@ -46,6 +50,11 @@ export default function Profile({ user }: ProfileProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [xp, setXp] = useState(0);
   const [prayerCount, setPrayerCount] = useState(0);
+  
+  // Real-time Firestore Profile State
+  const [profileData, setProfileData] = useState<UserProfileData | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const handleLogout = () => {
     signOut(auth);
@@ -53,6 +62,14 @@ export default function Profile({ user }: ProfileProps) {
 
   useEffect(() => {
     if (!user) return;
+
+    // Subscribe to user's extended profile data in Firestore
+    const unsubProfile = subscribeToUserProfile(user.uid, (data) => {
+      if (data) {
+        setProfileData(data);
+      }
+    });
+
     const qNotes = query(collection(db, 'notes'), where('userId', '==', user.uid));
     const unsubNotes = onSnapshot(qNotes, (snapshot) => {
       const total = snapshot.docs.reduce((acc, doc) => acc + (doc.data().xp || 0), 0);
@@ -65,6 +82,7 @@ export default function Profile({ user }: ProfileProps) {
     });
 
     return () => {
+      unsubProfile();
       unsubNotes();
       unsubPrayers();
     };
@@ -75,17 +93,43 @@ export default function Profile({ user }: ProfileProps) {
       const file = e.target.files[0];
       setIsUploading(true);
       try {
-        const downloadUrl = await compressImage(file);
-        await updateProfile(user, { photoURL: downloadUrl });
-        window.location.reload();
+        const compressedBase64 = await compressAvatar(file, 320, 0.8);
+        await saveUserProfile({
+          displayName: profileData?.displayName || user.displayName || user.email?.split('@')[0] || 'Irmão em Cristo',
+          photoURL: compressedBase64
+        });
+        setProfileData(prev => ({
+          ...(prev || {
+            uid: user.uid,
+            name: user.displayName || '',
+            displayName: user.displayName || '',
+            email: user.email || ''
+          }),
+          photoURL: compressedBase64,
+          avatarUrl: compressedBase64
+        }));
+        showToast('Foto de perfil atualizada com sucesso! ✨');
       } catch (error) {
-        console.error("Erro ao atualizar perfil:", error);
-        alert("Falha no upload da foto.");
+        console.error("Erro ao atualizar foto de perfil:", error);
+        showToast('Erro ao atualizar foto. Tente novamente.');
       } finally {
         setIsUploading(false);
       }
     }
   };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  const currentDisplayName = profileData?.displayName || profileData?.name || user.displayName || 'Membro da Igreja';
+  const currentPhotoURL = profileData?.photoURL || profileData?.avatarUrl || user.photoURL || '';
+  const currentMinistry = profileData?.ministryRole || 'Membro da Congregação';
+  const currentBio = profileData?.bio || '';
+  const currentVerse = profileData?.favoriteVerse || '';
 
   const getLevel = (xpVal: number) => Math.floor(xpVal / 100) + 1;
   const currentLevel = getLevel(xp);
@@ -129,7 +173,22 @@ export default function Profile({ user }: ProfileProps) {
 
   return (
     <div className="min-h-screen bg-transparent w-full text-white font-sans max-w-4xl mx-auto px-4 sm:px-6 pb-32">
-      {/* Top Bar with Notifications */}
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#1C1C1E] border border-emerald-500/40 text-emerald-300 px-5 py-3 rounded-full shadow-2xl flex items-center gap-2 text-xs font-bold"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            {toastMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Top Bar with Notifications & Edit Action */}
       <header className="sticky top-0 z-40 bg-black/60 backdrop-blur-3xl border-b border-white/5 py-4 px-0 flex items-center justify-between mb-8 shadow-2xl">
         <div className="flex items-center gap-3">
           <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-wider text-white uppercase" style={{ fontFamily: '"Playfair Display", serif' }}>
@@ -138,6 +197,13 @@ export default function Profile({ user }: ProfileProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="px-3.5 py-2 rounded-full bg-[var(--theme-color)] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[var(--theme-color)]/20 active:scale-95 transition-transform"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Editar Perfil</span>
+          </button>
           <NotificationCenter />
           <Link
             to="/settings"
@@ -155,13 +221,14 @@ export default function Profile({ user }: ProfileProps) {
         <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 relative z-10">
           {/* Avatar Upload */}
           <div 
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setIsEditModalOpen(true)}
             className="relative cursor-pointer group shrink-0"
+            title="Toque para mudar a foto ou nome"
           >
-            {user.photoURL ? (
+            {currentPhotoURL ? (
               <img 
-                src={user.photoURL} 
-                alt={user.displayName || 'Membro'} 
+                src={currentPhotoURL} 
+                alt={currentDisplayName} 
                 className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-2 border-[var(--theme-color)] object-cover shadow-2xl group-hover:opacity-80 transition-opacity" 
               />
             ) : (
@@ -170,8 +237,15 @@ export default function Profile({ user }: ProfileProps) {
               </div>
             )}
             
-            <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-              {isUploading ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <Camera className="w-6 h-6 text-white" />}
+            <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-center p-2">
+              {isUploading ? (
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              ) : (
+                <>
+                  <Camera className="w-6 h-6 text-white mb-1" />
+                  <span className="text-[10px] text-white font-bold leading-tight">Mudar Foto</span>
+                </>
+              )}
             </div>
             
             <input 
@@ -182,24 +256,52 @@ export default function Profile({ user }: ProfileProps) {
               className="hidden"
             />
 
-            <div className="absolute bottom-0 right-0 bg-emerald-500 p-2 rounded-full border-4 border-[#121216] text-white">
+            <div className="absolute bottom-0 right-0 bg-emerald-500 p-2 rounded-full border-4 border-[#121216] text-white shadow-md">
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
 
           {/* User Info */}
           <div className="flex-1 text-center sm:text-left space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[11px] font-bold uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Nível {currentLevel} • Discípulo Fiel
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[11px] font-bold uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Nível {currentLevel} • Discípulo Fiel
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-[11px] font-semibold">
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> {currentMinistry}
+              </div>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              {user.displayName || 'Membro da Igreja'}
-            </h2>
+            <div className="flex items-center justify-center sm:justify-start gap-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                {currentDisplayName}
+              </h2>
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                title="Editar Nome e Perfil"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
             <p className="text-xs text-white/50 font-mono">
               {user.email}
             </p>
+
+            {/* Favorite Bible Verse / Faith Motto */}
+            {currentVerse && (
+              <p className="text-xs text-purple-300/90 italic bg-purple-950/30 border border-purple-800/30 px-3 py-1.5 rounded-xl inline-block max-w-md">
+                "{currentVerse}"
+              </p>
+            )}
+
+            {/* Bio / Testimony */}
+            {currentBio && (
+              <p className="text-xs text-white/70 max-w-lg leading-relaxed">
+                {currentBio}
+              </p>
+            )}
 
             {/* Level XP Bar */}
             <div className="pt-2 max-w-sm mx-auto sm:mx-0">
@@ -297,8 +399,24 @@ export default function Profile({ user }: ProfileProps) {
               <Heart className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-sm font-bold text-white">Mural de Intercessão</div>
-              <div className="text-xs text-white/40">Seus pedidos e orações respondidas</div>
+              <div className="text-sm font-bold text-white">Mural de Intercessão & Feed Social</div>
+              <div className="text-xs text-white/40">Seus posts, fotos, relatos e orações</div>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-white/30" />
+        </Link>
+
+        <Link 
+          to="/chat"
+          className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors border-b border-white/5"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white">Chat da Comunidade & Grupos</div>
+              <div className="text-xs text-white/40">Conversar com irmãos, células e pastor</div>
             </div>
           </div>
           <ChevronRight className="w-5 h-5 text-white/30" />
@@ -309,8 +427,8 @@ export default function Profile({ user }: ProfileProps) {
           className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors"
         >
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <BookOpen className="w-5 h-5" />
             </div>
             <div>
               <div className="text-sm font-bold text-white">Minha Célula & Pequeno Grupo</div>
@@ -328,6 +446,34 @@ export default function Profile({ user }: ProfileProps) {
       >
         <LogOut className="w-4 h-4" /> Desconectar da Conta
       </button>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        initialData={{
+          displayName: profileData?.displayName || user.displayName || '',
+          photoURL: profileData?.photoURL || user.photoURL || '',
+          bio: profileData?.bio || '',
+          ministryRole: profileData?.ministryRole || 'Membro da Congregação',
+          phoneNumber: profileData?.phoneNumber || '',
+          favoriteVerse: profileData?.favoriteVerse || '',
+          email: user.email || ''
+        }}
+        onProfileUpdated={(updated) => {
+          setProfileData(prev => ({
+            ...(prev || {
+              uid: user.uid,
+              name: '',
+              displayName: '',
+              email: user.email || ''
+            }),
+            ...updated
+          }));
+          showToast('Perfil atualizado com sucesso!');
+        }}
+      />
     </div>
   );
 }
+

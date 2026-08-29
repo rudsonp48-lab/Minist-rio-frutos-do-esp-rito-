@@ -1,13 +1,15 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRight, Moon, Globe, Terminal, Cpu, Share2, Youtube, ShieldAlert, LayoutDashboard, ChevronLeft, LogOut, User, Lock, Heart, Paintbrush, Camera, Loader2, Users } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRight, Moon, Globe, Terminal, Cpu, Share2, Youtube, ShieldAlert, LayoutDashboard, ChevronLeft, LogOut, User, Lock, Heart, Paintbrush, Camera, Loader2, Users, Edit3, Sparkles } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { updateProfile, signOut } from 'firebase/auth';
-import { compressImage } from '../lib/imageUtils';
+import { signOut } from 'firebase/auth';
+import { compressAvatar } from '../lib/imageUtils';
+import { saveUserProfile, subscribeToUserProfile, UserProfileData } from '../services/userService';
 import { useTheme } from '../lib/ThemeContext';
 import { Logo } from '../components/Logo';
+import EditProfileModal from '../components/EditProfileModal';
 
 const ADMIN_EMAIL = 'rudson.p48@gmail.com';
 
@@ -18,6 +20,8 @@ export default function SettingsPage() {
   const [config, setConfig] = useState<any>(null);
   const { themeColor, setThemeColor } = useTheme();
   
+  const [profileData, setProfileData] = useState<UserProfileData | null>(null);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,15 +35,25 @@ export default function SettingsPage() {
   ];
 
   useEffect(() => {
-    if (user) {
-      setIsAdmin(user.email === ADMIN_EMAIL);
-    }
+    if (!user) return;
+    setIsAdmin(user.email === ADMIN_EMAIL);
+
+    const unsubProfile = subscribeToUserProfile(user.uid, (data) => {
+      if (data) {
+        setProfileData(data);
+      }
+    });
+
     const unsubscribe = onSnapshot(doc(db, 'app_config', 'main'), (snapshot) => {
       if (snapshot.exists()) {
         setConfig(snapshot.data());
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubProfile();
+      unsubscribe();
+    };
   }, [user]);
 
   const handleLogout = async () => {
@@ -52,18 +66,33 @@ export default function SettingsPage() {
       const file = e.target.files[0];
       setIsUploadingPhoto(true);
       try {
-        const downloadUrl = await compressImage(file);
-        await updateProfile(user, { photoURL: downloadUrl });
-        // Force re-render with new photo
-        window.location.reload();
+        const compressedBase64 = await compressAvatar(file, 320, 0.8);
+        await saveUserProfile({
+          displayName: profileData?.displayName || user.displayName || user.email?.split('@')[0] || 'Irmão em Cristo',
+          photoURL: compressedBase64
+        });
+        setProfileData(prev => ({
+          ...(prev || {
+            uid: user.uid,
+            name: user.displayName || '',
+            displayName: user.displayName || '',
+            email: user.email || ''
+          }),
+          photoURL: compressedBase64,
+          avatarUrl: compressedBase64
+        }));
       } catch (err) {
         console.error("Failed to upload profile photo", err);
-        alert("Erro no upload da foto");
+        alert("Erro no upload da foto. Tente novamente.");
       } finally {
         setIsUploadingPhoto(false);
       }
     }
   };
+
+  const currentDisplayName = profileData?.displayName || profileData?.name || user?.displayName || 'Membro do Reino';
+  const currentPhotoURL = profileData?.photoURL || profileData?.avatarUrl || user?.photoURL || '';
+  const currentMinistry = profileData?.ministryRole || 'Membro da Congregação';
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState('auto');
@@ -115,6 +144,9 @@ export default function SettingsPage() {
 
   const handleSettingClick = (actionName: string) => {
     switch (actionName) {
+      case 'edit_profile':
+        setIsEditProfileOpen(true);
+        break;
       case 'notifications':
         setNotificationsEnabled(!notificationsEnabled);
         break;
@@ -146,6 +178,12 @@ export default function SettingsPage() {
 
   const menuGroups = [
     {
+      title: 'Minha Conta & Perfil',
+      items: [
+        { icon: User, label: 'Editar Nome & Foto de Perfil', color: 'bg-[var(--theme-color)]', value: 'Alterar', action: 'edit_profile' },
+      ]
+    },
+    {
       title: 'Preferências',
       items: [
         { icon: Bell, label: 'Notificações', color: 'bg-[#FF3B30]', value: notificationsEnabled ? 'Ativo' : 'Inativo', action: 'notifications' },
@@ -154,7 +192,7 @@ export default function SettingsPage() {
       ]
     },
     {
-      title: 'Segurançca & Dados',
+      title: 'Segurança & Dados',
       items: [
         { icon: Shield, label: 'Privacidade', color: 'bg-[#34C759]', action: 'privacy' },
         { icon: Lock, label: 'Senha e Segurança', color: 'bg-[#AF52DE]', action: 'security' },
@@ -190,26 +228,35 @@ export default function SettingsPage() {
       </nav>
 
       <div className="pt-24 px-6 space-y-8 max-w-lg mx-auto">
-        <header className="flex items-center gap-4 ios-card p-4">
-          <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+        <header 
+          onClick={() => setIsEditProfileOpen(true)}
+          className="flex items-center gap-4 ios-card p-4 cursor-pointer hover:opacity-95 transition-opacity"
+        >
+          <div className="relative group" onClick={(e) => { e.stopPropagation(); setIsEditProfileOpen(true); }}>
              {isUploadingPhoto ? (
                <div className="w-16 h-16 rounded-full ios-shadow bg-black/5 dark:bg-white/5 flex items-center justify-center">
                  <Loader2 className="w-6 h-6 animate-spin text-[#8E8E93]" />
                </div>
              ) : (
                <>
-                 <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.email}&background=random`} className="w-16 h-16 rounded-full ios-shadow object-cover" alt="Avatar" />
+                 <img 
+                   src={currentPhotoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentDisplayName)}&background=8A2BE2&color=fff`} 
+                   className="w-16 h-16 rounded-full ios-shadow object-cover border-2 border-[var(--theme-color)]" 
+                   alt="Avatar" 
+                 />
                  <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Camera className="w-6 h-6 text-white" />
                  </div>
                </>
              )}
-             <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" className="hidden" />
           </div>
           <div className="flex-1">
-            <h2 className="text-xl font-bold tracking-tight">{user?.displayName || 'Membro do Reino'}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold tracking-tight">{currentDisplayName}</h2>
+              <Edit3 className="w-4 h-4 text-[var(--theme-color)]" />
+            </div>
             <p className="text-sm text-[#8E8E93]">{user?.email}</p>
-            <p className="text-[10px] text-[var(--theme-color)] mt-1 font-bold">Toque na foto para alterar</p>
+            <p className="text-[10px] text-[var(--theme-color)] mt-0.5 font-bold">{currentMinistry} • Toque para editar</p>
           </div>
           <ChevronRight className="w-5 h-5 text-[#C7C7CC]" />
         </header>
@@ -230,7 +277,7 @@ export default function SettingsPage() {
         )}
 
         <div className="space-y-2">
-          <h3 className="px-4 text-[13px] font-semibold text-[#8E8E93] uppercase tracking-tight">Personalização</h3>
+          <h3 className="px-4 text-[13px] font-semibold text-[#8E8E93] uppercase tracking-tight">Personalização de Tema</h3>
           <div className="grid grid-cols-3 gap-2 ios-card p-4">
             {THEME_COLORS.map(color => (
               <button
@@ -289,6 +336,32 @@ export default function SettingsPage() {
           </p>
         </footer>
       </div>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        initialData={{
+          displayName: profileData?.displayName || user?.displayName || '',
+          photoURL: profileData?.photoURL || user?.photoURL || '',
+          bio: profileData?.bio || '',
+          ministryRole: profileData?.ministryRole || 'Membro da Congregação',
+          phoneNumber: profileData?.phoneNumber || '',
+          favoriteVerse: profileData?.favoriteVerse || '',
+          email: user?.email || ''
+        }}
+        onProfileUpdated={(updated) => {
+          setProfileData(prev => ({
+            ...(prev || {
+              uid: user?.uid || '',
+              name: '',
+              displayName: '',
+              email: user?.email || ''
+            }),
+            ...updated
+          }));
+        }}
+      />
 
       <AnimatePresence>
         {showLeadership && (

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, 
   Heart, 
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { VoiceRecorder, RecordedAudio } from '../services/audioRecorder';
 import VoicePrayerPlayer from './VoicePrayerPlayer';
 
@@ -192,11 +192,28 @@ export default function CreatePrayerPostModal({
     const isYt = finalVideoUrl.includes('youtube.com') || finalVideoUrl.includes('youtu.be');
 
     try {
+      // Fetch latest user profile from Firestore if available
+      let authorName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Irmão em Cristo';
+      let authorPhoto = currentUser.photoURL || '';
+      let authorMinistry = 'Membro';
+
+      try {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+          const uData = userDoc.data();
+          if (uData.displayName || uData.name) authorName = uData.displayName || uData.name;
+          if (uData.photoURL || uData.avatarUrl) authorPhoto = uData.photoURL || uData.avatarUrl;
+          if (uData.ministryRole) authorMinistry = uData.ministryRole;
+        }
+      } catch (err) {
+        console.debug('User profile doc fetch notice:', err);
+      }
+
       await addDoc(collection(db, 'prayers'), {
         userId: currentUser.uid,
-        userName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Irmão em Cristo',
-        userRole: currentUser.email === 'rudson.p48@gmail.com' ? 'Administrador' : 'Membro',
-        userPhoto: currentUser.photoURL || '',
+        userName: authorName,
+        userRole: currentUser.email === 'rudson.p48@gmail.com' ? 'Administrador' : authorMinistry,
+        userPhoto: authorPhoto,
         title: title.trim() || content.trim().slice(0, 45) + (content.length > 45 ? '...' : ''),
         content: content.trim() || 'Confira a publicação e fotos/vídeos acima! 🙌',
         category,
