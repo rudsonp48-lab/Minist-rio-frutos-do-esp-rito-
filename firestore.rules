@@ -150,5 +150,19 @@ service cloud.firestore {
     match /user_playlists/{userId} {
       allow read, write: if isOwner(userId);
     }
+
+    // 8. CALLS & ROOMS (P2P Call Signaling & Group Rooms)
+    match /calls/{callId} {
+      allow read, write: if isSignedIn();
+      match /{allSubcollections=**} {
+        allow read, write: if isSignedIn();
+      }
+    }
+    match /call_rooms/{roomId} {
+      allow read, write: if isSignedIn();
+      match /{allSubcollections=**} {
+        allow read, write: if isSignedIn();
+      }
+    }
   }
 }

@@ -36,6 +36,7 @@ import {
 import SocialPrayerCard, { PrayerPostData } from './SocialPrayerCard';
 import CreatePrayerPostModal from './CreatePrayerPostModal';
 import { INITIAL_COMMUNITY_PRAYERS } from '../lib/communityPrayersData';
+import { getCachedUserPhoto } from '../services/userService';
 
 const CATEGORY_TABS = [
   { id: 'all', label: '🔥 Todos os Posts' },
@@ -173,13 +174,16 @@ export default function HomeIntercessionMural() {
           className="flex items-center gap-3.5 cursor-pointer group"
         >
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-rose-500 p-[2px] shrink-0">
-            {currentUser?.photoURL ? (
-              <img src={currentUser.photoURL} alt="Eu" className="w-full h-full object-cover rounded-[13px]" />
-            ) : (
-              <div className="w-full h-full bg-black rounded-[13px] flex items-center justify-center font-bold text-sm text-white">
-                {currentUser?.displayName?.charAt(0) || '✝'}
-              </div>
-            )}
+            {(() => {
+              const myPhoto = (currentUser?.uid ? getCachedUserPhoto(currentUser.uid) : '') || currentUser?.photoURL;
+              return myPhoto ? (
+                <img src={myPhoto} alt="Eu" className="w-full h-full object-cover rounded-[13px]" />
+              ) : (
+                <div className="w-full h-full bg-black rounded-[13px] flex items-center justify-center font-bold text-sm text-white">
+                  {currentUser?.displayName?.charAt(0) || '✝'}
+                </div>
+              );
+            })()}
           </div>
           <div className="flex-1">
             <span className="text-xs sm:text-sm text-white/70 font-medium group-hover:text-white transition-colors block">

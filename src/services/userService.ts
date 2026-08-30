@@ -1,7 +1,6 @@
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { updateProfile, User } from 'firebase/auth';
-import { getSafeAuthPhotoUrl } from '../lib/imageUtils';
+import { doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 
 export interface UserProfileData {
   uid: string;
@@ -22,6 +21,19 @@ export interface UserProfileData {
 }
 
 /**
+ * Gets cached user photo from localStorage if available
+ */
+export function getCachedUserPhoto(uid: string): string {
+  if (!uid) return '';
+  try {
+    return localStorage.getItem(`church_user_photo_${uid}`) || 
+           localStorage.getItem(`user_avatar_${uid}`) || '';
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Saves and updates user profile data across Firestore and Firebase Auth
  */
 export async function saveUserProfile(data: {
@@ -35,40 +47,56 @@ export async function saveUserProfile(data: {
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('Usuário não autenticado.');
 
-  const trimmedName = data.displayName?.trim() || currentUser.email?.split('@')[0] || 'Irmão em Cristo';
-  const cleanPhoto = data.photoURL?.trim() || '';
+  const trimmedName = data.displayName?.trim() || currentUser.displayName || currentUser.email?.split('@')[0] || 'Irmão em Cristo';
+  const cleanPhoto = data.photoURL !== undefined ? data.photoURL.trim() : '';
 
-  // 1. Update Firebase Auth (with safe photoURL)
+  // 1. Immediately cache photo locally for fast offline/instant rendering
+  if (cleanPhoto) {
+    try {
+      localStorage.setItem(`church_user_photo_${currentUser.uid}`, cleanPhoto);
+      localStorage.setItem(`user_avatar_${currentUser.uid}`, cleanPhoto);
+      localStorage.setItem(`church_user_name_${currentUser.uid}`, trimmedName);
+    } catch (storageErr) {
+      console.debug('[UserService] LocalStorage cache notice:', storageErr);
+    }
+  }
+
+  // 2. Update Firebase Auth (safely handle photoURL)
   try {
-    const safeAuthPhoto = getSafeAuthPhotoUrl(trimmedName, cleanPhoto);
+    const authPhotoToSet = cleanPhoto && cleanPhoto.startsWith('http') && cleanPhoto.length < 1500
+      ? cleanPhoto
+      : undefined;
+
     await updateProfile(currentUser, {
       displayName: trimmedName,
-      photoURL: safeAuthPhoto
+      ...(authPhotoToSet ? { photoURL: authPhotoToSet } : {})
     });
   } catch (authError) {
     console.warn('[UserService] Firebase Auth updateProfile notice:', authError);
-    // Fallback: update display name only if photoURL caused an issue
+    // Fallback: update display name only
     try {
       await updateProfile(currentUser, {
         displayName: trimmedName
       });
     } catch (e) {
-      console.warn('[UserService] Secondary Auth displayName update notice:', e);
+      console.warn('[UserService] Secondary Auth update notice:', e);
     }
   }
 
-  // 2. Persist full profile to Firestore 'users' collection
+  // 3. Persist full profile to Firestore 'users' collection with high durability
   const userRef = doc(db, 'users', currentUser.uid);
   const firestoreData: any = {
     uid: currentUser.uid,
     name: trimmedName,
     displayName: trimmedName,
     email: currentUser.email || '',
-    photoURL: cleanPhoto,
-    avatarUrl: cleanPhoto,
     updatedAt: serverTimestamp()
   };
 
+  if (cleanPhoto) {
+    firestoreData.photoURL = cleanPhoto;
+    firestoreData.avatarUrl = cleanPhoto;
+  }
   if (data.bio !== undefined) firestoreData.bio = data.bio.trim();
   if (data.ministryRole !== undefined) firestoreData.ministryRole = data.ministryRole.trim();
   if (data.phoneNumber !== undefined) firestoreData.phoneNumber = data.phoneNumber.trim();
@@ -78,25 +106,84 @@ export async function saveUserProfile(data: {
 }
 
 /**
- * Subscribes to real-time user profile data in Firestore
+ * Subscribes to real-time user profile data in Firestore with local cache fallback
  */
 export function subscribeToUserProfile(
   uid: string,
   callback: (profile: UserProfileData | null) => void
 ) {
+  if (!uid) {
+    callback(null);
+    return () => {};
+  }
+
+  // Immediately invoke callback with cached data to avoid visual lag
+  const cachedPhoto = getCachedUserPhoto(uid);
+  const currentUser = auth.currentUser;
+  if (cachedPhoto && currentUser && currentUser.uid === uid) {
+    callback({
+      uid,
+      name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Membro',
+      displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Membro',
+      email: currentUser.email || '',
+      photoURL: cachedPhoto,
+      avatarUrl: cachedPhoto
+    });
+  }
+
   const userRef = doc(db, 'users', uid);
   return onSnapshot(
     userRef,
     (docSnap) => {
       if (docSnap.exists()) {
-        callback(docSnap.data() as UserProfileData);
+        const data = docSnap.data() as UserProfileData;
+        const currentCached = getCachedUserPhoto(uid);
+        const resolvedPhoto = data.photoURL || data.avatarUrl || currentCached || '';
+        
+        if (resolvedPhoto && (!data.photoURL || !data.avatarUrl)) {
+          data.photoURL = resolvedPhoto;
+          data.avatarUrl = resolvedPhoto;
+        }
+        
+        if (resolvedPhoto && uid === auth.currentUser?.uid) {
+          try {
+            localStorage.setItem(`church_user_photo_${uid}`, resolvedPhoto);
+            localStorage.setItem(`user_avatar_${uid}`, resolvedPhoto);
+          } catch {}
+        }
+
+        callback(data);
       } else {
-        callback(null);
+        const fallbackCached = getCachedUserPhoto(uid);
+        if (fallbackCached && currentUser && currentUser.uid === uid) {
+          callback({
+            uid,
+            name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Membro',
+            displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Membro',
+            email: currentUser.email || '',
+            photoURL: fallbackCached,
+            avatarUrl: fallbackCached
+          });
+        } else {
+          callback(null);
+        }
       }
     },
     (err) => {
       console.debug('[UserService] User profile snapshot fallback:', err);
-      callback(null);
+      const fallbackCached = getCachedUserPhoto(uid);
+      if (fallbackCached && currentUser && currentUser.uid === uid) {
+        callback({
+          uid,
+          name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Membro',
+          displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Membro',
+          email: currentUser.email || '',
+          photoURL: fallbackCached,
+          avatarUrl: fallbackCached
+        });
+      } else {
+        callback(null);
+      }
     }
   );
 }

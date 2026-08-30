@@ -192,25 +192,6 @@ export default function AITheologicalAssistant() {
 
   return (
     <>
-      {/* Floating Sparkle Trigger Button */}
-      <motion.button
-        id="ai-theological-assistant-trigger"
-        onClick={() => setIsOpen(true)}
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed bottom-24 lg:bottom-8 right-5 z-40 flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-[var(--theme-color)] to-purple-600 text-white rounded-full shadow-[0_8px_30px_rgba(138,43,226,0.35)] border border-white/20 backdrop-blur-xl group cursor-pointer"
-      >
-        <div className="relative">
-          <Sparkles className="w-5 h-5 animate-spin-slow text-yellow-300" />
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full animate-ping" />
-        </div>
-        <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">
-          Pastor IA & Exegese
-        </span>
-      </motion.button>
-
       {/* Main Interactive Drawer / Modal */}
       <AnimatePresence>
         {isOpen && (

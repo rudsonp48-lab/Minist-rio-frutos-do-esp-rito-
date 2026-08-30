@@ -8,22 +8,17 @@ import {
   Smile, 
   Search, 
   Users, 
-  Sparkles, 
   ArrowLeft, 
-  MoreVertical, 
   Plus, 
   X, 
   Heart, 
-  Flame, 
-  ShieldCheck, 
-  Check, 
-  PhoneCall, 
-  ChevronRight,
-  Info
+  Phone, 
+  Video, 
+  UserCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { auth, db } from '../lib/firebase';
+import { useSearchParams, Link } from 'react-router-dom';
+import { auth } from '../lib/firebase';
 import { 
   CHAT_CHANNELS, 
   ChatChannel, 
@@ -31,17 +26,23 @@ import {
   subscribeToChatMessages, 
   sendChatMessage, 
   getDirectMessageChannelId,
+  subscribeToUserConversations,
+  markConversationAsRead,
+  ConversationSummary,
   BibleVerseSnippet 
 } from '../services/chatService';
 import { ActiveUser, subscribeToActiveUsers } from '../services/presenceService';
+import { getCachedUserPhoto } from '../services/userService';
 import ChatMessageBubble from '../components/chat/ChatMessageBubble';
 import VoiceMessageRecorder from '../components/chat/VoiceMessageRecorder';
 import BibleVersePickerModal from '../components/chat/BibleVersePickerModal';
+import CallRoomModal from '../components/chat/CallRoomModal';
+import DirectCallModal from '../components/chat/DirectCallModal';
+import { CallSession, createDirectCall } from '../services/callService';
 import { useTheme } from '../lib/ThemeContext';
 
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { themeColor } = useTheme();
 
   // Navigation / Selection State
@@ -50,7 +51,7 @@ export default function Chat() {
 
   const [activeChannelId, setActiveChannelId] = useState<string>(
     initialDmUser 
-      ? (initialDmUser === 'ai_pastor' ? 'dm_ai_pastor' : getDirectMessageChannelId(auth.currentUser?.uid || 'guest', initialDmUser))
+      ? getDirectMessageChannelId(auth.currentUser?.uid || 'guest', initialDmUser)
       : initialChannel
   );
 
@@ -69,18 +70,36 @@ export default function Chat() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'channels' | 'direct'>('channels');
 
+  // Direct 1-on-1 Call State (Instagram Style)
+  const [activeDirectCall, setActiveDirectCall] = useState<CallSession | null>(null);
+
+  // Group Channel Call Modal State (Audio & Video calling up to 20 people)
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  const [callType, setCallType] = useState<'audio' | 'video'>('video');
+  const [callTitle, setCallTitle] = useState('');
+
   // Community users state
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentUser = auth.currentUser;
 
+  // Subscribe to real-time conversations list for contact sorting
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubConvs = subscribeToUserConversations(currentUser.uid, (convs) => {
+      setConversations(convs);
+    });
+    return () => unsubConvs();
+  }, [currentUser?.uid]);
+
   // Subscribe to active community members
   useEffect(() => {
     const unsubUsers = subscribeToActiveUsers((users) => {
       setActiveUsers(users);
-      if (initialDmUser && initialDmUser !== 'ai_pastor') {
+      if (initialDmUser) {
         const found = users.find(u => u.uid === initialDmUser);
         if (found) setActiveDmUser(found);
       }
@@ -94,22 +113,10 @@ export default function Chat() {
     const dmParam = searchParams.get('dm') || searchParams.get('user');
 
     if (dmParam) {
-      if (dmParam === 'ai_pastor') {
-        setActiveChannelId('dm_ai_pastor');
-        setActiveDmUser({
-          uid: 'system_ai_pastor',
-          name: 'Pastor Virtual IA 🕊️',
-          photoURL: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
-          isOnline: true,
-          role: 'Aconselhamento Teológico & Pastoral',
-          statusMessage: 'Disponível 24/7 para orar e aconselhar'
-        });
-      } else {
-        const dmId = getDirectMessageChannelId(currentUser?.uid || 'guest', dmParam);
-        setActiveChannelId(dmId);
-        const targetUser = activeUsers.find(u => u.uid === dmParam);
-        if (targetUser) setActiveDmUser(targetUser);
-      }
+      const dmId = getDirectMessageChannelId(currentUser?.uid || 'guest', dmParam);
+      setActiveChannelId(dmId);
+      const targetUser = activeUsers.find(u => u.uid === dmParam);
+      if (targetUser) setActiveDmUser(targetUser);
       setActiveTab('direct');
       setShowMobileList(false);
     } else if (channelParam) {
@@ -153,20 +160,53 @@ export default function Chat() {
     setSearchParams({ dm: targetUser.uid });
     setShowMobileList(false);
     setShowMembersModal(false);
+    markConversationAsRead(dmId, currentUser.uid);
   };
 
-  const handleSelectAIPastor = () => {
-    setActiveChannelId('dm_ai_pastor');
-    setActiveDmUser({
-      uid: 'system_ai_pastor',
-      name: 'Pastor Virtual IA 🕊️',
-      photoURL: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
-      isOnline: true,
-      role: 'Aconselhamento Teológico & Pastoral',
-      statusMessage: 'Disponível 24/7 para orar e aconselhar'
-    });
-    setSearchParams({ dm: 'ai_pastor' });
-    setShowMobileList(false);
+  const handleBackToContacts = () => {
+    setShowMobileList(true);
+    setActiveDmUser(null);
+    setSearchParams({});
+  };
+
+  const formatRelativeChatTime = (isoString?: string) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    if (diffMins < 1) return 'Agora';
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24 && date.getDate() === now.getDate()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    if (diffHours < 48) return 'Ontem';
+    return date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+  };
+
+  const handleStartCall = async (type: 'audio' | 'video') => {
+    if (activeDmUser) {
+      try {
+        // Direct 1-on-1 Call (Instagram Style)
+        const session = await createDirectCall({
+          receiverUid: activeDmUser.uid,
+          receiverName: activeDmUser.name,
+          receiverPhoto: activeDmUser.photoURL,
+          type,
+          channelId: activeChannelId
+        });
+        setActiveDirectCall(session);
+      } catch (err) {
+        console.error('Error starting direct 1-on-1 call:', err);
+      }
+    } else {
+      // Group Channel Call
+      setCallType(type);
+      setCallTitle(`#${currentChannelMeta?.name || 'Comunhão da Igreja'}`);
+      setIsCallModalOpen(true);
+    }
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -250,9 +290,9 @@ export default function Chat() {
   const otherMembers = activeUsers.filter(u => u.uid !== currentUser?.uid);
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 py-3 sm:py-6 h-[calc(100vh-100px)] lg:h-[calc(100vh-60px)] flex flex-col">
+    <div className="w-full max-w-7xl mx-auto px-0 sm:px-4 py-0 sm:py-6 h-[100dvh] lg:h-[calc(100vh-60px)] flex flex-col">
       {/* Container Box */}
-      <div className="flex-1 bg-[#0E0E12] border border-white/10 rounded-[28px] sm:rounded-[36px] shadow-2xl overflow-hidden flex relative">
+      <div className="flex-1 bg-[#0E0E12] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-[36px] shadow-2xl overflow-hidden flex relative">
         
         {/* ========================================================= */}
         {/* LEFT SIDEBAR: CHANNELS & DIRECT MESSAGES                  */}
@@ -263,35 +303,49 @@ export default function Chat() {
           {/* Top User Header */}
           <div className="p-4 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--theme-color)] to-indigo-600 p-[2px] shadow-md">
-                {currentUser?.photoURL ? (
-                  <img
-                    src={currentUser.photoURL}
-                    alt="Perfil"
-                    className="w-full h-full object-cover rounded-[14px]"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-black rounded-[14px] flex items-center justify-center font-bold text-white text-sm">
-                    {currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0)?.toUpperCase() || 'M'}
-                  </div>
-                )}
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--theme-color)] to-indigo-600 p-[2px] shadow-md shrink-0">
+                {(() => {
+                  const myUser = activeUsers.find(u => u.uid === currentUser?.uid);
+                  const myPhoto = myUser?.photoURL || (currentUser?.uid ? getCachedUserPhoto(currentUser.uid) : '') || currentUser?.photoURL;
+                  return myPhoto ? (
+                    <img
+                      src={myPhoto}
+                      alt="Perfil"
+                      className="w-full h-full object-cover rounded-[14px]"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-black rounded-[14px] flex items-center justify-center font-bold text-white text-sm">
+                      {currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0)?.toUpperCase() || 'M'}
+                    </div>
+                  );
+                })()}
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white leading-tight">
                   Chat da Comunidade
                 </h3>
-                <p className="text-[11px] text-white/50">Rede Social Ecclesia</p>
+                <p className="text-[11px] text-white/50">Igreja & Comunhão</p>
               </div>
             </div>
 
-            <button
-              onClick={() => setShowMembersModal(true)}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold"
-              title="Nova conversa com membro"
-            >
-              <Plus className="w-4 h-4 text-[var(--theme-color)]" />
-              <span className="hidden sm:inline">Conversar</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/"
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-colors flex items-center gap-1 text-xs font-bold border border-white/10"
+                title="Voltar ao Início do App"
+              >
+                <ArrowLeft className="w-4 h-4 text-purple-400" />
+                <span className="text-xs">Início</span>
+              </Link>
+              <button
+                onClick={() => setShowMembersModal(true)}
+                className="p-2 rounded-xl bg-[var(--theme-color)]/20 hover:bg-[var(--theme-color)]/30 text-white transition-colors flex items-center gap-1 text-xs font-bold border border-[var(--theme-color)]/30"
+                title="Nova conversa com membro"
+              >
+                <Plus className="w-4 h-4 text-[var(--theme-color)]" />
+                <span className="hidden sm:inline">Conversar</span>
+              </button>
+            </div>
           </div>
 
           {/* Tab switcher: Canais vs Mensagens Diretas */}
@@ -316,7 +370,7 @@ export default function Chat() {
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              Irmãos ({otherMembers.length + 1})
+              Irmãos ({otherMembers.length})
             </button>
           </div>
 
@@ -375,96 +429,131 @@ export default function Chat() {
               </>
             ) : (
               <>
-                {/* AI Pastor Direct Chat Button */}
-                <button
-                  onClick={handleSelectAIPastor}
-                  className={`w-full p-3 rounded-2xl text-left flex items-center gap-3 transition-all mb-2 ${
-                    activeChannelId === 'dm_ai_pastor'
-                      ? 'bg-gradient-to-r from-amber-500/20 to-purple-600/20 border border-amber-400/40 text-white shadow-lg'
-                      : 'bg-black/30 hover:bg-white/5 border border-white/5 text-white/80'
-                  }`}
-                >
-                  <div className="relative shrink-0">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 to-indigo-600 p-[2px]">
-                      <img
-                        src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200"
-                        alt="Pastor IA"
-                        className="w-full h-full object-cover rounded-[14px]"
-                      />
-                    </div>
-                    <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 border border-black flex items-center justify-center text-[9px]">
-                      ✨
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-amber-300 truncate">
-                        Pastor Virtual IA 🕊️
-                      </h4>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold">
-                        24/7
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-white/60 truncate">
-                      Aconselhamento bíblico e oração
-                    </p>
-                  </div>
-                </button>
+                {/* Other community members dynamically sorted with most recent message at the top */}
+                {(() => {
+                  const processedMembers = otherMembers.map((member) => {
+                    const dmId = currentUser ? getDirectMessageChannelId(currentUser.uid, member.uid) : '';
+                    const conv = conversations.find(c => 
+                      c.id === dmId || 
+                      (c.participants && c.participants.includes(member.uid) && c.participants.includes(currentUser?.uid || ''))
+                    );
+                    const unreadCount = (conv?.unreadCounts && currentUser?.uid) ? (conv.unreadCounts[currentUser.uid] || 0) : 0;
+                    const lastTime = conv?.lastMessageIso ? new Date(conv.lastMessageIso).getTime() : 0;
+                    return {
+                      member,
+                      conv,
+                      unreadCount,
+                      lastTime,
+                      lastMessage: conv?.lastMessage || '',
+                      lastMessageSenderId: conv?.lastMessageSenderId || '',
+                      lastMessageIso: conv?.lastMessageIso
+                    };
+                  }).filter(({ member, lastMessage }) => 
+                    member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (member.role && member.role.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                    lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+                  ).sort((a, b) => {
+                    // Highest priority: Most recent message conversation on top
+                    if (a.lastTime > 0 || b.lastTime > 0) {
+                      return b.lastTime - a.lastTime;
+                    }
+                    // Next priority: Online users
+                    if (a.member.isOnline !== b.member.isOnline) {
+                      return a.member.isOnline ? -1 : 1;
+                    }
+                    return a.member.name.localeCompare(b.member.name);
+                  });
 
-                {/* Other community members */}
-                {otherMembers.filter(u => 
-                  u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  (u.role && u.role.toLowerCase().includes(searchQuery.toLowerCase()))
-                ).map((member) => {
-                  const isCurrent = activeDmUser?.uid === member.uid;
-                  return (
-                    <button
-                      key={member.uid}
-                      onClick={() => handleSelectDm(member)}
-                      className={`w-full p-2.5 rounded-2xl text-left flex items-center gap-3 transition-all ${
-                        isCurrent
-                          ? 'bg-white/15 border border-white/15 text-white shadow-md'
-                          : 'hover:bg-white/5 text-white/70 hover:text-white'
-                      }`}
-                    >
-                      <div className="relative shrink-0">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-500 to-emerald-400 p-[2px]">
-                          {member.photoURL ? (
-                            <img
-                              src={member.photoURL}
-                              alt={member.name}
-                              className="w-full h-full object-cover rounded-[14px]"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-black rounded-[14px] flex items-center justify-center font-bold text-white text-xs">
-                              {member.name.charAt(0).toUpperCase()}
+                  if (processedMembers.length === 0) {
+                    return (
+                      <div className="p-6 text-center text-xs text-white/40">
+                        Nenhum irmão encontrado
+                      </div>
+                    );
+                  }
+
+                  return processedMembers.map(({ member, unreadCount, lastMessage, lastMessageSenderId, lastMessageIso, lastTime }) => {
+                    const isCurrent = activeDmUser?.uid === member.uid;
+                    const isSentByMe = lastMessageSenderId === currentUser?.uid;
+                    const hasUnread = unreadCount > 0 && !isCurrent;
+                    const timeLabel = formatRelativeChatTime(lastMessageIso);
+
+                    return (
+                      <button
+                        key={member.uid}
+                        onClick={() => handleSelectDm(member)}
+                        className={`w-full p-2.5 rounded-2xl text-left flex items-center gap-3 transition-all relative ${
+                          isCurrent
+                            ? 'bg-white/15 border border-white/15 text-white shadow-md'
+                            : hasUnread
+                              ? 'bg-purple-950/30 hover:bg-purple-900/40 border border-purple-500/30 text-white'
+                              : 'hover:bg-white/5 text-white/70 hover:text-white border border-transparent'
+                        }`}
+                      >
+                        <div className="relative shrink-0">
+                          <div className={`w-10 h-10 rounded-2xl p-[2px] ${
+                            hasUnread 
+                              ? 'bg-gradient-to-tr from-rose-500 via-purple-500 to-amber-400 animate-pulse ring-2 ring-purple-500/50' 
+                              : 'bg-gradient-to-tr from-purple-500 to-emerald-400'
+                          }`}>
+                            {member.photoURL ? (
+                              <img
+                                src={member.photoURL}
+                                alt={member.name}
+                                className="w-full h-full object-cover rounded-[14px]"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-black rounded-[14px] flex items-center justify-center font-bold text-white text-xs">
+                                {member.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          {member.isOnline && (
+                            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#13131A]" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <h4 className={`text-xs truncate ${hasUnread ? 'font-black text-white' : 'font-bold text-white/90'}`}>
+                              {member.name}
+                            </h4>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {timeLabel && (
+                                <span className={`text-[10px] ${hasUnread ? 'text-purple-300 font-bold' : 'text-white/40'}`}>
+                                  {timeLabel}
+                                </span>
+                              )}
+                              {hasUnread && (
+                                <span className="px-1.5 py-0.5 min-w-[18px] text-center rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[9px] font-black shadow-md shadow-purple-500/30">
+                                  {unreadCount}
+                                </span>
+                              )}
                             </div>
-                          )}
+                          </div>
+                          
+                          <p className={`text-[11px] truncate leading-tight ${
+                            hasUnread 
+                              ? 'text-purple-200 font-semibold' 
+                              : lastMessage 
+                                ? 'text-white/60' 
+                                : 'text-white/40'
+                          }`}>
+                            {lastMessage ? (
+                              <span>
+                                {isSentByMe ? <span className="text-white/40 font-normal">Você: </span> : null}
+                                {lastMessage}
+                              </span>
+                            ) : (
+                              member.statusMessage || (member.isOnline ? 'Online na congregação' : 'Ausente')
+                            )}
+                          </p>
                         </div>
-                        {member.isOnline && (
-                          <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#13131A]" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <h4 className="text-xs font-bold text-white truncate">
-                            {member.name}
-                          </h4>
-                          {member.role && (
-                            <span className="text-[9px] text-white/40 truncate">
-                              {member.role.split(' ')[0]}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-white/50 truncate">
-                          {member.statusMessage || (member.isOnline ? 'Online na igreja' : 'Ausente')}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  });
+                })()}
               </>
             )}
           </div>
@@ -476,25 +565,23 @@ export default function Chat() {
         <div className={`flex-1 flex flex-col bg-[#0B0B0E] relative ${
           showMobileList ? 'hidden md:flex' : 'flex'
         }`}>
-          {/* Header Bar */}
-          <div className="p-3.5 sm:p-4 border-b border-white/10 flex items-center justify-between bg-[#121218]/90 backdrop-blur-md relative z-10">
-            <div className="flex items-center gap-3">
-              {/* Mobile Back Button to Channels list */}
+          {/* Header Bar with Video & Audio Calling Buttons */}
+          <div className="p-3 sm:p-4 border-b border-white/10 flex items-center justify-between bg-[#121218]/95 backdrop-blur-md relative z-10 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              {/* Back to Contacts / Channels Button */}
               <button
-                onClick={() => setShowMobileList(true)}
-                className="md:hidden p-2 rounded-xl bg-white/5 text-white/80 hover:text-white"
+                onClick={handleBackToContacts}
+                className="px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center gap-1.5 transition-all shadow-sm border border-white/15 shrink-0 group"
+                title="Voltar para a lista de contatos"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4 text-purple-400 group-hover:-translate-x-0.5 transition-transform" />
+                <span className="text-xs font-bold">Voltar</span>
               </button>
 
               {activeDmUser ? (
                 <>
-                  <div className="relative">
-                    <div className={`w-10 h-10 rounded-2xl p-[2px] shadow-md ${
-                      activeDmUser.uid === 'system_ai_pastor'
-                        ? 'bg-gradient-to-tr from-amber-400 to-indigo-600'
-                        : 'bg-gradient-to-tr from-purple-500 to-emerald-400'
-                    }`}>
+                  <div className="relative shrink-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-purple-500 to-emerald-400 p-[2px] shadow-md">
                       {activeDmUser.photoURL ? (
                         <img
                           src={activeDmUser.photoURL}
@@ -509,38 +596,38 @@ export default function Chat() {
                       )}
                     </div>
                     {activeDmUser.isOnline && (
-                      <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-black" />
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500 border-2 border-black" />
                     )}
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      {activeDmUser.name}
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                      <span className="truncate">{activeDmUser.name}</span>
                       {activeDmUser.role && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/10 text-white/60 font-semibold hidden sm:inline">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 text-white/60 font-semibold hidden md:inline shrink-0">
                           {activeDmUser.role}
                         </span>
                       )}
                     </h3>
-                    <p className="text-[11px] text-emerald-400">
-                      {activeDmUser.uid === 'system_ai_pastor' ? 'Pastor & Conselheiro IA Online' : (activeDmUser.statusMessage || 'Membro do Corpo de Cristo')}
+                    <p className="text-[11px] text-emerald-400 truncate">
+                      {activeDmUser.statusMessage || (activeDmUser.isOnline ? 'Online no chat' : 'Membro')}
                     </p>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-xl shadow-md">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/10 flex items-center justify-center text-lg sm:text-xl shadow-md shrink-0">
                     {currentChannelMeta?.icon || '🕊️'}
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      #{currentChannelMeta?.name || 'Comunhão'}
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                      <span className="truncate">#{currentChannelMeta?.name || 'Comunhão'}</span>
                       {currentChannelMeta?.badge && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30 hidden sm:inline">
                           {currentChannelMeta.badge}
                         </span>
                       )}
                     </h3>
-                    <p className="text-[11px] text-white/50 truncate max-w-xs sm:max-w-md">
+                    <p className="text-[11px] text-white/50 truncate max-w-[160px] sm:max-w-xs md:max-w-md">
                       {currentChannelMeta?.description}
                     </p>
                   </div>
@@ -548,23 +635,45 @@ export default function Chat() {
               )}
             </div>
 
-            {/* Quick Actions in Header */}
-            <div className="flex items-center gap-2">
+            {/* Calling Options & Close Button */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Normal Audio Call Button */}
+              <button
+                onClick={() => handleStartCall('audio')}
+                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                title="Iniciar Chamada de Voz"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Chamada</span>
+              </button>
+
+              {/* Video Call Button (up to 20 people) */}
+              <button
+                onClick={() => handleStartCall('video')}
+                className="p-2 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg shadow-purple-950/40 active:scale-95"
+                title="Iniciar Chamada de Vídeo (Até 20 pessoas)"
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Vídeo</span>
+              </button>
+
+              {/* Bible Verse Shortcut */}
               <button
                 onClick={() => setIsBiblePickerOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-bold items-center gap-1.5 transition-colors hidden md:flex"
                 title="Inserir Versículo Bíblico"
               >
                 <BookOpen className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Palavra</span>
+                <span className="hidden lg:inline">Palavra</span>
               </button>
 
+              {/* Exit / Close Chat back to Home */}
               <Link
-                to="/prayers"
-                className="px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 text-xs font-bold flex items-center gap-1.5 transition-colors hidden sm:flex"
+                to="/"
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-all flex items-center justify-center border border-white/10"
+                title="Sair do Chat e voltar para o Início"
               >
-                <Heart className="w-3.5 h-3.5 text-rose-400 fill-current" />
-                <span>Mural Oração</span>
+                <X className="w-4 h-4" />
               </Link>
             </div>
           </div>
@@ -573,7 +682,7 @@ export default function Chat() {
           {/* MESSAGES SCROLL CONTAINER                                 */}
           {/* ========================================================= */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-1 relative">
-            {/* Background glowing ambient light */}
+            {/* Background ambient light */}
             <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
 
             {/* Channel Welcome Banner */}
@@ -704,11 +813,7 @@ export default function Chat() {
                     type="text"
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    placeholder={
-                      activeDmUser?.uid === 'system_ai_pastor'
-                        ? 'Peça aconselhamento, tire dúvidas bíblicas ou peça uma oração...'
-                        : 'Digite sua mensagem de fé e comunhão...'
-                    }
+                    placeholder="Digite sua mensagem de fé e comunhão..."
                     className="w-full h-12 bg-black/50 border border-white/15 rounded-2xl pl-4 pr-10 text-sm text-white placeholder:text-white/30 outline-none focus:border-[var(--theme-color)] transition-colors"
                   />
                   {/* Quick Christian Emoji Button */}
@@ -766,30 +871,6 @@ export default function Chat() {
                 </button>
               </div>
 
-              {/* Pastor IA option */}
-              <button
-                onClick={() => {
-                  handleSelectAIPastor();
-                  setShowMembersModal(false);
-                }}
-                className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 to-purple-600/20 border border-amber-400/40 text-left flex items-center gap-3.5 mb-3 transition-all hover:scale-[1.02]"
-              >
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 to-indigo-600 p-[2px] shrink-0">
-                  <img
-                    src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200"
-                    alt="Pastor IA"
-                    className="w-full h-full object-cover rounded-[14px]"
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-amber-300">Pastor Virtual IA 🕊️</h4>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold">24h</span>
-                  </div>
-                  <p className="text-[11px] text-white/60">Aconselhamento bíblico confidencial e orações</p>
-                </div>
-              </button>
-
               {/* Members List */}
               <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                 {otherMembers.map((member) => (
@@ -821,7 +902,7 @@ export default function Chat() {
                       <div className="min-w-0">
                         <h4 className="text-xs font-bold text-white truncate">{member.name}</h4>
                         <p className="text-[11px] text-white/50 truncate">
-                          {member.role || 'Membro'} • <span className="text-emerald-400">{member.statusMessage}</span>
+                          {member.role || 'Membro'} • <span className="text-emerald-400">{member.statusMessage || (member.isOnline ? 'Online' : 'Membro')}</span>
                         </p>
                       </div>
                     </div>
@@ -842,6 +923,33 @@ export default function Chat() {
         isOpen={isBiblePickerOpen}
         onClose={() => setIsBiblePickerOpen(false)}
         onSelectVerse={handleSelectVerse}
+      />
+
+      {/* Direct 1-on-1 Instagram-Style Call Modal */}
+      {activeDirectCall && (
+        <DirectCallModal
+          isOpen={!!activeDirectCall}
+          onClose={() => setActiveDirectCall(null)}
+          callSession={activeDirectCall}
+          isInitiator={true}
+        />
+      )}
+
+      {/* Call Room Modal (Chamada em Grupo para canais com até 20 pessoas) */}
+      <CallRoomModal
+        isOpen={isCallModalOpen}
+        onClose={() => setIsCallModalOpen(false)}
+        roomTitle={callTitle}
+        initialType={callType}
+        availableUsers={activeUsers}
+        onSendMessage={(text) => {
+          sendChatMessage({
+            channelId: activeChannelId,
+            text,
+            isDirectMessage: !!activeDmUser,
+            participants: activeDmUser && currentUser ? [currentUser.uid, activeDmUser.uid] : undefined
+          }).catch(console.error);
+        }}
       />
     </div>
   );

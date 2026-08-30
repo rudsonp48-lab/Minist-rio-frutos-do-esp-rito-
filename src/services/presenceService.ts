@@ -97,7 +97,6 @@ export async function updateUserPresence(statusMessage?: string, currentActivity
       uid: user.uid,
       name: user.displayName || user.email?.split('@')[0] || 'Irmão em Cristo',
       email: user.email || '',
-      photoURL: user.photoURL || '',
       isOnline: true,
       lastSeen: serverTimestamp(),
       lastSeenIso: new Date().toISOString()
@@ -182,11 +181,18 @@ export function subscribeToActiveUsers(callback: (users: ActiveUser[]) => void) 
     snapshot.docs.forEach((docSnapshot) => {
       const data = docSnapshot.data();
       if (data.name || data.email) {
+        let userPhoto = data.photoURL || data.avatarUrl || '';
+        if (!userPhoto && docSnapshot.id === currentUid) {
+          try {
+            userPhoto = localStorage.getItem(`church_user_photo_${currentUid}`) || '';
+          } catch {}
+        }
+
         firestoreUsers.push({
           uid: docSnapshot.id,
           name: data.name || data.displayName || data.email?.split('@')[0] || 'Membro',
           email: data.email,
-          photoURL: data.photoURL,
+          photoURL: userPhoto,
           isOnline: data.isOnline !== undefined ? data.isOnline : true,
           lastSeen: data.lastSeen,
           statusMessage: data.statusMessage || 'Em comunhão no aplicativo',

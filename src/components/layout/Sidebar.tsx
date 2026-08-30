@@ -10,6 +10,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import { useTheme } from '../../lib/ThemeContext';
+import NotificationCenter from '../NotificationCenter';
 
 interface SidebarProps {
   user: User | null;
@@ -49,25 +50,29 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-white/70 dark:bg-[#1C1C1E]/70 backdrop-blur-[40px] border-r border-black/5 dark:border-white/[0.04] z-40 hidden lg:flex flex-col overflow-hidden shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
       {/* Header */}
-      <div className="p-8 pb-4 relative z-10 flex items-center gap-4">
-        {logoUrl ? (
-          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-            <img src={logoUrl} alt="Logo" className="max-w-full max-h-full object-contain drop-shadow-md dark:mix-blend-screen" />
+      <div className="p-8 pb-4 relative z-10 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 overflow-hidden">
+          {logoUrl ? (
+            <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+              <img src={logoUrl} alt="Logo" className="max-w-full max-h-full object-contain drop-shadow-md dark:mix-blend-screen" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
+              <Church className="w-5 h-5 text-black dark:text-white" />
+            </div>
+          )}
+          <div className="flex flex-col overflow-hidden">
+            <span 
+              className="text-lg font-serif tracking-widest text-black dark:text-white uppercase truncate"
+              style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}
+            >
+              {churchName || 'ECCLESIA'}
+            </span>
+            <span className="text-[10px] font-medium text-black/40 dark:text-white/40 tracking-[0.2em] uppercase">Ministério</span>
           </div>
-        ) : (
-          <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-            <Church className="w-5 h-5 text-black dark:text-white" />
-          </div>
-        )}
-        <div className="flex flex-col overflow-hidden">
-          <span 
-            className="text-lg font-serif tracking-widest text-black dark:text-white uppercase truncate"
-            style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}
-          >
-            {churchName || 'ECCLESIA'}
-          </span>
-          <span className="text-[10px] font-medium text-black/40 dark:text-white/40 tracking-[0.2em] uppercase">Ministério</span>
         </div>
+
+        <NotificationCenter />
       </div>
 
       <div className="px-6 py-2 relative z-10">

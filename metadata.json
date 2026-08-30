@@ -1,6 +1,6 @@
 {
   "name": "Ecclesia Quantum",
-  "description": "Plataforma Pro de alta performance para comunidades de fé, com interface Bento Dashboard, Bíblia Quantum, Gestão de Ativos, Sistema de Notas Gamificado e NexDonate Fintech.",
+  "description": "Rede Social Cristã e Plataforma para comunidades de fé com Stories, Reels de Louvor e Pregação, Feed Instagram-like em tempo real, Direct Messages, Chamadas de Voz e Vídeo para até 20 pessoas e Bíblia Integrada.",
   "requestFramePermissions": [
     "camera",
     "microphone"

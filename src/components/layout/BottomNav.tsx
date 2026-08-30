@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Play, Calendar, User, LayoutGrid } from 'lucide-react';
+import { Home, Play, Calendar, User, Flame } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { useTheme } from '../../lib/ThemeContext';
@@ -8,10 +8,15 @@ export default function BottomNav() {
   const location = useLocation();
   const { themeColor } = useTheme();
 
+  // Hide BottomNav in Chat to prevent interference with conversation view and input bar
+  if (location.pathname === '/chat') {
+    return null;
+  }
+
   const navItems = [
     { path: '/', icon: Home, label: 'Início' },
+    { path: '/prayers', icon: Flame, label: 'Rede Social' },
     { path: '/media', icon: Play, label: 'Mídia' },
-    { path: '/gallery', icon: LayoutGrid, label: 'Galeria' },
     { path: '/events', icon: Calendar, label: 'Agenda' },
     { path: '/profile', icon: User, label: 'Perfil' },
   ];

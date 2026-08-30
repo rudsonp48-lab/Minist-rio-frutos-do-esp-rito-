@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../lib/firebase';
+import { getCachedUserPhoto } from '../services/userService';
 import { 
   doc, 
   updateDoc, 
@@ -270,10 +271,11 @@ export default function SocialPrayerCard({
     if (!commentText.trim() && !recordedAudio && !commentImageUrl) return;
 
     setIsSendingComment(true);
+    const authorPhoto = (currentUser?.uid ? getCachedUserPhoto(currentUser.uid) : '') || currentUser.photoURL || '';
     const newComment = {
       userId: currentUser.uid,
       userName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Irmão em Cristo',
-      userPhoto: currentUser.photoURL || '',
+      userPhoto: authorPhoto,
       content: commentText.trim(),
       audioUrl: recordedAudio ? recordedAudio.dataUrl : '',
       audioDuration: recordedAudio ? recordedAudio.durationSeconds : 0,
@@ -736,13 +738,16 @@ export default function SocialPrayerCard({
               <form onSubmit={handleSendComment} className="space-y-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-rose-500 p-[1.5px] shrink-0">
-                    {currentUser?.photoURL ? (
-                      <img src={currentUser.photoURL} alt="Eu" className="w-full h-full object-cover rounded-[10px]" />
-                    ) : (
-                      <div className="w-full h-full bg-black rounded-[10px] flex items-center justify-center font-bold text-xs text-white">
-                        {currentUser?.displayName?.charAt(0) || '✝'}
-                      </div>
-                    )}
+                    {(() => {
+                      const myPhoto = (currentUser?.uid ? getCachedUserPhoto(currentUser.uid) : '') || currentUser?.photoURL;
+                      return myPhoto ? (
+                        <img src={myPhoto} alt="Eu" className="w-full h-full object-cover rounded-[10px]" />
+                      ) : (
+                        <div className="w-full h-full bg-black rounded-[10px] flex items-center justify-center font-bold text-xs text-white">
+                          {currentUser?.displayName?.charAt(0) || '✝'}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex-1 relative flex items-center">

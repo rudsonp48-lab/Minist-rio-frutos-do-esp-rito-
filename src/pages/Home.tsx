@@ -10,8 +10,6 @@ import { useTheme } from '../lib/ThemeContext';
 import { getDailyDevotional } from '../lib/devotionalsData';
 import { DEFAULT_BANNERS, RECENT_ITEMS, TESTIMONIALS, PODCASTS, CONTINUE_WATCHING, GALLERY_IMAGES } from '../lib/data';
 import { YouTubeVideo } from '../services/youtube';
-import ActiveUsersWidget from '../components/ActiveUsersWidget';
-import HomeIntercessionMural from '../components/HomeIntercessionMural';
 
 function getYouTubeId(url: string) {
   if (!url) return null;
@@ -342,12 +340,6 @@ export default function Home() {
             ))}
           </motion.div>
         </section>
-
-        {/* Active Connected Users / Presence Bar */}
-        <ActiveUsersWidget />
-
-        {/* Home Interactive Intercession Mural */}
-        <HomeIntercessionMural />
 
         {/* AI Pastor & Theological Assistant Highlight Card */}
         <section className="bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black border border-white/10 rounded-[32px] p-6 lg:p-8 relative overflow-hidden shadow-2xl">

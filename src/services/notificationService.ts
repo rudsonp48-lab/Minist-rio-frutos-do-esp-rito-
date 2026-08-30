@@ -10,7 +10,8 @@ import {
   updateDoc, 
   doc, 
   writeBatch,
-  getDocs
+  getDocs,
+  limit
 } from 'firebase/firestore';
 
 export interface AppNotification {
@@ -19,13 +20,149 @@ export interface AppNotification {
   senderUid: string;
   senderName: string;
   senderPhoto?: string;
-  type: 'prayer_intercession' | 'prayer_testimony' | 'volunteer_reminder' | 'cell_notice' | 'general';
+  type: 'chat_dm' | 'chat_message' | 'prayer_intercession' | 'prayer_testimony' | 'volunteer_reminder' | 'cell_notice' | 'general';
   title: string;
   message: string;
+  channelId?: string;
+  isDirect?: boolean;
   prayerId?: string;
   read: boolean;
   createdAt: any;
   actionUrl?: string;
+}
+
+/**
+ * Plays a pleasant celestial crystal chime chord using Web Audio API
+ */
+export function playNotificationChime() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    
+    const ctx = new AudioContextClass();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    // Harmonic celestial chime sequence (E6, G#6, B6, E7)
+    const freqs = [1318.51, 1661.22, 1975.53, 2637.02];
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const startTime = ctx.currentTime + idx * 0.07;
+      const duration = 0.55;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.001, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.05);
+    });
+  } catch (e) {
+    console.debug('[NotificationService] Audio chime playback notice:', e);
+  }
+}
+
+/**
+ * Requests browser permission for native Web Push Notifications
+ */
+export async function requestBrowserNotificationPermission(): Promise<boolean> {
+  if (typeof window === 'undefined' || !('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission !== 'denied') {
+    try {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    } catch (err) {
+      console.debug('Notification permission request error:', err);
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * Dispatches a native browser desktop/mobile notification if supported and permitted
+ */
+export function triggerBrowserNotification(title: string, options?: NotificationOptions) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    try {
+      const notif = new Notification(title, {
+        icon: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=128',
+        ...options
+      });
+      notif.onclick = () => {
+        window.focus();
+      };
+    } catch (e) {
+      console.debug('[NotificationService] Browser notification notice:', e);
+    }
+  }
+}
+
+/**
+ * Sends a notification when someone sends a Chat message or Direct Message
+ */
+export async function notifyChatMessage(params: {
+  recipientUid: string;
+  senderUid: string;
+  senderName: string;
+  senderPhoto?: string;
+  channelId: string;
+  channelName?: string;
+  message: string;
+  isDirect?: boolean;
+}) {
+  const currentUser = auth.currentUser;
+  // Prevent sending notification to self
+  if (currentUser && currentUser.uid === params.recipientUid) return;
+
+  try {
+    const notificationsRef = collection(db, 'notifications');
+    const isDirect = !!params.isDirect;
+    const title = isDirect 
+      ? `💬 Mensagem de ${params.senderName}`
+      : `💬 ${params.senderName} em #${params.channelName || 'Comunhão'}`;
+
+    const actionUrl = isDirect 
+      ? `/chat?dm=${params.senderUid}` 
+      : `/chat?channel=${params.channelId}`;
+
+    await addDoc(notificationsRef, {
+      recipientUid: params.recipientUid,
+      senderUid: params.senderUid,
+      senderName: params.senderName,
+      senderPhoto: params.senderPhoto || '',
+      type: isDirect ? 'chat_dm' : 'chat_message',
+      title,
+      message: params.message.slice(0, 120),
+      channelId: params.channelId,
+      isDirect,
+      read: false,
+      createdAt: serverTimestamp(),
+      actionUrl
+    });
+
+    // Also trigger local event for instant UI awareness
+    window.dispatchEvent(new CustomEvent('app-chat-message-notification', {
+      detail: {
+        senderName: params.senderName,
+        message: params.message,
+        channelId: params.channelId,
+        actionUrl
+      }
+    }));
+  } catch (error) {
+    console.error('Error sending chat notification:', error);
+  }
 }
 
 /**
@@ -47,7 +184,6 @@ export async function notifyPrayerIntercession(params: {
     const senderName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Um irmão(ã)';
     const senderPhoto = currentUser.photoURL || '';
 
-    // Check if a recent notification for this prayer by this user already exists to avoid spamming
     const notificationsRef = collection(db, 'notifications');
     
     await addDoc(notificationsRef, {
@@ -115,7 +251,8 @@ export function subscribeToUserNotifications(
   const q = query(
     collection(db, 'notifications'),
     where('recipientUid', 'in', [userId, 'all']),
-    orderBy('createdAt', 'desc')
+    orderBy('createdAt', 'desc'),
+    limit(40)
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -143,17 +280,19 @@ export async function markNotificationAsRead(notificationId: string) {
 }
 
 /**
- * Marks all notifications for a user as read
+ * Deletes all notifications for a user to zero them out
  */
-export async function markAllNotificationsAsRead(notifications: AppNotification[]) {
+export async function deleteAllUserNotifications(notifications: AppNotification[]) {
   try {
     const batch = writeBatch(db);
-    notifications.filter(n => !n.read).forEach(n => {
+    notifications.forEach(n => {
       const ref = doc(db, 'notifications', n.id);
-      batch.update(ref, { read: true });
+      batch.delete(ref);
     });
     await batch.commit();
   } catch (err) {
-    console.error('Error marking all notifications as read:', err);
+    console.error('Error deleting all notifications:', err);
   }
 }
+
+

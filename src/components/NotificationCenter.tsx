@@ -8,15 +8,17 @@ import {
   Calendar, 
   Users, 
   ExternalLink,
-  Volume2
+  Volume2,
+  MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   AppNotification, 
   subscribeToUserNotifications, 
   markNotificationAsRead, 
-  markAllNotificationsAsRead 
+  deleteAllUserNotifications 
 } from '../services/notificationService';
+import { Trash2 } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { useNavigate } from 'react-router-dom';
 
@@ -74,6 +76,9 @@ export default function NotificationCenter() {
 
   const getIconForType = (type: string) => {
     switch (type) {
+      case 'chat_dm':
+      case 'chat_message':
+        return <MessageSquare className="w-5 h-5 text-purple-400" />;
       case 'prayer_intercession':
         return <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />;
       case 'prayer_testimony':
@@ -186,14 +191,16 @@ export default function NotificationCenter() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {unreadCount > 0 && (
+                  {notifications.length > 0 && (
                     <button
-                      onClick={() => markAllNotificationsAsRead(notifications)}
-                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-medium flex items-center gap-1 transition-colors"
-                      title="Marcar todas como lidas"
+                      onClick={async () => {
+                        await deleteAllUserNotifications(notifications);
+                      }}
+                      className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 text-xs font-medium flex items-center gap-1 transition-colors border border-rose-500/20"
+                      title="Zerar todas as notificações"
                     >
-                      <CheckCheck className="w-4 h-4" />
-                      <span className="hidden sm:inline">Lidas</span>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Zerar</span>
                     </button>
                   )}
                   <button

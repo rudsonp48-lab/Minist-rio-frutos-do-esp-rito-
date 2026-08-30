@@ -12,9 +12,13 @@ import {
   limit, 
   onSnapshot, 
   serverTimestamp,
-  getDocs
+  getDocs,
+  getDoc,
+  increment
 } from 'firebase/firestore';
 import { sendTheologicalChat, ChatMessage as AIChatMessage } from './aiService';
+import { notifyChatMessage } from './notificationService';
+import { getCachedUserPhoto } from './userService';
 
 export interface ChatChannel {
   id: string;
@@ -62,6 +66,20 @@ export interface TypingIndicator {
   name: string;
   channelId: string;
   timestamp: number;
+}
+
+export interface ConversationSummary {
+  id: string; // channelId, e.g. "dm_uidA_uidB"
+  channelId: string;
+  participants: string[];
+  lastMessage: string;
+  lastMessageSenderId: string;
+  lastMessageSenderName: string;
+  lastMessageSenderPhoto?: string;
+  lastMessageTime?: any;
+  lastMessageIso?: string;
+  unreadCounts?: Record<string, number>;
+  updatedAt?: any;
 }
 
 export const CHAT_CHANNELS: ChatChannel[] = [
@@ -340,11 +358,14 @@ export async function sendChatMessage(params: {
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('Usuário precisa estar logado para enviar mensagens.');
 
+  const cachedPhoto = getCachedUserPhoto(currentUser.uid);
+  const senderPhotoUrl = cachedPhoto || currentUser.photoURL || '';
+
   const payload = {
     channelId: params.channelId,
     senderId: currentUser.uid,
     senderName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Irmão em Cristo',
-    senderPhoto: currentUser.photoURL || '',
+    senderPhoto: senderPhotoUrl,
     senderRole: currentUser.email === 'rudson.p48@gmail.com' ? 'Administrador' : 'Membro',
     text: params.text.trim(),
     imageUrl: params.imageUrl || null,
@@ -361,18 +382,136 @@ export async function sendChatMessage(params: {
 
   const docRef = await addDoc(collection(db, 'chat_messages'), payload);
 
+  // Update conversation record for instant sorting and unread badges
+  try {
+    const senderDisplayName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Irmão em Cristo';
+    const messagePreview = params.text 
+      ? params.text 
+      : params.audioUrl 
+        ? '🎤 Mensagem de áudio' 
+        : params.imageUrl 
+          ? '🖼️ Foto enviada' 
+          : params.bibleVerse 
+            ? `📖 ${params.bibleVerse.reference}` 
+            : 'Nova mensagem';
+
+    // Case 1: Direct Message between two users
+    if (params.isDirectMessage || params.channelId.startsWith('dm_')) {
+      let recipientUid = '';
+      if (params.participants && params.participants.length > 0) {
+        recipientUid = params.participants.find(p => p !== currentUser.uid) || '';
+      } else if (params.channelId.startsWith('dm_')) {
+        const parts = params.channelId.replace('dm_', '').split('_');
+        recipientUid = parts.find(p => p !== currentUser.uid) || '';
+      }
+
+      const allParticipants = params.participants && params.participants.length > 0
+        ? Array.from(new Set(params.participants))
+        : (recipientUid ? Array.from(new Set([currentUser.uid, recipientUid])) : [currentUser.uid]);
+
+      // Save/update conversation summary for real-time contact list sorting
+      const convRef = doc(db, 'conversations', params.channelId);
+      await setDoc(convRef, {
+        id: params.channelId,
+        channelId: params.channelId,
+        participants: allParticipants,
+        lastMessage: messagePreview,
+        lastMessageSenderId: currentUser.uid,
+        lastMessageSenderName: senderDisplayName,
+        lastMessageSenderPhoto: senderPhotoUrl,
+        lastMessageTime: serverTimestamp(),
+        lastMessageIso: new Date().toISOString(),
+        ...(recipientUid ? {
+          [`unreadCounts.${recipientUid}`]: increment(1),
+          [`unreadCounts.${currentUser.uid}`]: 0
+        } : {}),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      // Send Push / In-App Notification to recipient
+      if (recipientUid && recipientUid !== currentUser.uid && !recipientUid.startsWith('system_')) {
+        await notifyChatMessage({
+          recipientUid,
+          senderUid: currentUser.uid,
+          senderName: senderDisplayName,
+          senderPhoto: senderPhotoUrl,
+          channelId: params.channelId,
+          message: messagePreview,
+          isDirect: true
+        });
+      }
+    }
+  } catch (convErr) {
+    console.debug('[ChatService] Conversation tracking update:', convErr);
+  }
+
   // If this is a direct chat with the AI Pastor, trigger AI response
   if (params.channelId.includes('ai_pastor') || params.channelId === 'dm_ai_pastor') {
-    handleAIPastorResponse(params.channelId, params.text);
+    handleAIPastorResponse(params.channelId, params.text, currentUser.uid);
   }
 
   return docRef.id;
 }
 
 /**
+ * Real-time subscription to conversations list for a user (sorted by most recent message at the top)
+ */
+export function subscribeToUserConversations(
+  userId: string,
+  callback: (conversations: ConversationSummary[]) => void
+) {
+  if (!userId) {
+    callback([]);
+    return () => {};
+  }
+
+  const convsRef = collection(db, 'conversations');
+  const q = query(
+    convsRef,
+    where('participants', 'array-contains', userId),
+    limit(50)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const list = snapshot.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    })) as ConversationSummary[];
+
+    // Sort descending by lastMessageIso or updatedAt
+    list.sort((a, b) => {
+      const timeA = a.lastMessageIso ? new Date(a.lastMessageIso).getTime() : 0;
+      const timeB = b.lastMessageIso ? new Date(b.lastMessageIso).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    callback(list);
+  }, (err) => {
+    console.debug('[ChatService] Fallback reading user conversations:', err);
+    callback([]);
+  });
+}
+
+/**
+ * Clears unread counter for a user in a conversation
+ */
+export async function markConversationAsRead(channelId: string, userUid: string) {
+  if (!channelId || !userUid) return;
+  try {
+    const convRef = doc(db, 'conversations', channelId);
+    await updateDoc(convRef, {
+      [`unreadCounts.${userUid}`]: 0
+    });
+  } catch (err) {
+    // Document may not exist yet or merge failure
+    console.debug('[ChatService] Error marking conversation as read:', err);
+  }
+}
+
+/**
  * Handles AI Pastor automatic pastoral response in chat
  */
-async function handleAIPastorResponse(channelId: string, userPrompt: string) {
+async function handleAIPastorResponse(channelId: string, userPrompt: string, userUid?: string) {
   try {
     const aiContext: AIChatMessage[] = [
       {
@@ -399,6 +538,18 @@ async function handleAIPastorResponse(channelId: string, userPrompt: string) {
       createdAt: serverTimestamp(),
       createdAtIso: new Date().toISOString()
     });
+
+    if (userUid) {
+      await notifyChatMessage({
+        recipientUid: userUid,
+        senderUid: 'system_ai_pastor',
+        senderName: 'Pastor Virtual IA 🕊️',
+        senderPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
+        channelId,
+        message: aiText.slice(0, 100) + '...',
+        isDirect: true
+      });
+    }
   } catch (err) {
     console.error('[ChatService] AI Pastor response error:', err);
   }

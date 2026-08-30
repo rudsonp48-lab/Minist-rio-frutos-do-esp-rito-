@@ -37,6 +37,10 @@ import GlobalPlayer from './components/GlobalPlayer';
 import { DailyDevotionalNotification } from './components/DailyDevotionalNotification';
 import { Onboarding } from './components/Onboarding';
 import AITheologicalAssistant from './components/AITheologicalAssistant';
+import TopNotificationBanner from './components/TopNotificationBanner';
+import IncomingCallModal from './components/chat/IncomingCallModal';
+import DirectCallModal from './components/chat/DirectCallModal';
+import { CallSession, subscribeToIncomingCalls } from './services/callService';
 
 function SplashScreen({ onRetry }: { onRetry?: () => void }) {
   const [showRetry, setShowRetry] = useState(false);
@@ -125,15 +129,30 @@ export default function App() {
         // Asynchronous non-blocking background sync
         (async () => {
           try {
-            await setDoc(doc(db, 'users', currentUser.uid), {
+            const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+            const existingData = userSnap.data();
+            const existingPhoto = existingData?.photoURL || existingData?.avatarUrl;
+            let cachedPhoto = '';
+            try {
+              cachedPhoto = localStorage.getItem(`church_user_photo_${currentUser.uid}`) || '';
+            } catch {}
+            const finalPhoto = existingPhoto || cachedPhoto || currentUser.photoURL || '';
+
+            const syncPayload: any = {
               uid: currentUser.uid,
               email: currentUser.email,
-              name: currentUser.displayName || currentUser.email?.split('@')[0] || '',
-              photoURL: currentUser.photoURL || '',
+              name: existingData?.displayName || existingData?.name || currentUser.displayName || currentUser.email?.split('@')[0] || '',
               isOnline: true,
               lastLogin: serverTimestamp(),
               lastSeen: serverTimestamp()
-            }, { merge: true });
+            };
+
+            if (finalPhoto) {
+              syncPayload.photoURL = finalPhoto;
+              syncPayload.avatarUrl = finalPhoto;
+            }
+
+            await setDoc(doc(db, 'users', currentUser.uid), syncPayload, { merge: true });
           } catch (err) {
             console.debug("[Auth] Background user sync failed:", err);
           }
@@ -203,6 +222,29 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
   const location = useLocation();
   const { churchName } = useTheme();
 
+  // Real-time 1-on-1 Call Signaling State
+  const [incomingCall, setIncomingCall] = useState<CallSession | null>(null);
+  const [activeDirectCall, setActiveDirectCall] = useState<CallSession | null>(null);
+  const [isInitiator, setIsInitiator] = useState(false);
+
+  // Subscribe to incoming calls across the entire application
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const unsubscribe = subscribeToIncomingCalls(user.uid, (call) => {
+      // Only show incoming call if we are not already in that call
+      if (call && activeDirectCall?.id !== call.id) {
+        setIncomingCall(call);
+      } else if (!call) {
+        setIncomingCall(null);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user?.uid, activeDirectCall?.id]);
+
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col relative z-0">
       {/* iOS 26 Abstract Background System */}
@@ -212,8 +254,9 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
       </div>
       <Sidebar isAdmin={isAdmin} user={user} />
       <TopBar />
+      <TopNotificationBanner />
       
-      <main className="flex-1 w-full lg:ml-[280px] px-0 lg:px-4 py-0 lg:py-6 lg:mb-0 lg:max-w-[calc(100%-280px)] overflow-x-hidden pt-0 lg:pt-6 pb-24 lg:pb-6">
+      <main className={`flex-1 w-full lg:ml-[280px] px-0 lg:px-4 py-0 lg:py-6 lg:mb-0 lg:max-w-[calc(100%-280px)] overflow-x-hidden pt-0 lg:pt-6 ${location.pathname.startsWith('/chat') ? 'pb-0' : 'pb-24'} lg:pb-6`}>
         <DailyDevotionalNotification user={user as User} />
         <Onboarding />
         <AnimatePresence mode="wait">
@@ -239,6 +282,32 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
           </Routes>
         </AnimatePresence>
       </main>
+
+      {/* Global Real-time Incoming Call Overlay (Instagram Style) */}
+      <IncomingCallModal
+        incomingCall={incomingCall}
+        onAccept={(call) => {
+          setIncomingCall(null);
+          setActiveDirectCall(call);
+          setIsInitiator(false);
+        }}
+        onDecline={() => {
+          setIncomingCall(null);
+        }}
+      />
+
+      {/* Global Active 1-on-1 Direct Call Modal */}
+      {activeDirectCall && (
+        <DirectCallModal
+          isOpen={!!activeDirectCall}
+          onClose={() => {
+            setActiveDirectCall(null);
+            setIncomingCall(null);
+          }}
+          callSession={activeDirectCall}
+          isInitiator={isInitiator}
+        />
+      )}
 
       <GlobalPlayer />
       <AITheologicalAssistant />

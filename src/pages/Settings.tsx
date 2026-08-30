@@ -10,6 +10,7 @@ import { saveUserProfile, subscribeToUserProfile, UserProfileData } from '../ser
 import { useTheme } from '../lib/ThemeContext';
 import { Logo } from '../components/Logo';
 import EditProfileModal from '../components/EditProfileModal';
+import { playNotificationChime, requestBrowserNotificationPermission, triggerBrowserNotification } from '../services/notificationService';
 
 const ADMIN_EMAIL = 'rudson.p48@gmail.com';
 
@@ -147,9 +148,19 @@ export default function SettingsPage() {
       case 'edit_profile':
         setIsEditProfileOpen(true);
         break;
-      case 'notifications':
-        setNotificationsEnabled(!notificationsEnabled);
+      case 'notifications': {
+        const nextState = !notificationsEnabled;
+        setNotificationsEnabled(nextState);
+        if (nextState) {
+          requestBrowserNotificationPermission().then((granted) => {
+            playNotificationChime();
+            triggerBrowserNotification('Notificações Ativadas 🕊️', {
+              body: 'Você receberá alertas no topo do dispositivo e sons celestiais ao receber mensagens!'
+            });
+          });
+        }
         break;
+      }
       case 'darkmode':
         setDarkMode(prev => ({'auto': 'dark', 'dark': 'light', 'light': 'auto'}[prev] || 'auto'));
         break;
