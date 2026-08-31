@@ -10,6 +10,7 @@ import { auth, db } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc, getDocs, limit, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { compressImage } from '../lib/imageUtils';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
+import { DEFAULT_BANNERS } from '../lib/data';
 import { Link } from 'react-router-dom';
 
 const ADMIN_EMAIL = 'rudson.p48@gmail.com';
@@ -29,10 +30,16 @@ export default function Admin() {
   });
   const [newItem, setNewItem] = useState<any>({});
   const [adminEmailInput, setAdminEmailInput] = useState('');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
   const contentFileInputRef = useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const handleAddAdminByEmail = async () => {
     if (!adminEmailInput) return;
@@ -85,27 +92,31 @@ export default function Admin() {
   useEffect(() => {
     if (!isAdmin) return;
 
-    const fetchConfig = async () => {
-      const docRef = doc(db, 'app_config', 'main');
-      const docSnap = await getDoc(docRef);
+    const docRef = doc(db, 'app_config', 'main');
+    const unsubConfig = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        setConfig(prev => ({ ...prev, ...docSnap.data() }));
+        setConfig((prev: any) => ({ ...prev, ...docSnap.data() }));
       }
-    };
-    fetchConfig();
+    }, (err) => {
+      console.error("Erro no listener de config:", err);
+    });
 
     const fetchCounts = async () => {
-      const [u, p, e] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'photos')),
-        getDocs(collection(db, 'events'))
-      ]);
-      setStats(s => [
-        { ...s[0], value: u.size.toString() },
-        { ...s[1], value: p.size.toString() },
-        { ...s[2], value: '12' },
-        { ...s[3], value: e.size.toString() },
-      ]);
+      try {
+        const [u, p, e] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'photos')),
+          getDocs(collection(db, 'events'))
+        ]);
+        setStats(s => [
+          { ...s[0], value: u.size.toString() },
+          { ...s[1], value: p.size.toString() },
+          { ...s[2], value: '12' },
+          { ...s[3], value: e.size.toString() },
+        ]);
+      } catch (err) {
+        console.error("Erro ao buscar contagens:", err);
+      }
     };
     fetchCounts();
 
@@ -122,6 +133,8 @@ export default function Admin() {
         console.error("Erro no listener do admin:", err);
       });
     }
+
+    return () => unsubConfig();
   }, [isAdmin, activeMenu]);
 
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,10 +142,15 @@ export default function Admin() {
       const file = e.target.files[0];
       setIsSaving(true);
       try {
-        const base64Image = await compressImage(file);
-        setNewItem({ ...newItem, image: base64Image });
+        const base64Image = await compressImage(file, 1920, 0.82);
+        if (base64Image) {
+          setNewItem((prev: any) => ({ ...prev, image: base64Image }));
+          showToast("Imagem carregada com sucesso!", "info");
+        } else {
+          showToast("Não foi possível processar a imagem.", "error");
+        }
       } catch (err) {
-        alert("Erro no upload do banner");
+        showToast("Erro no upload do banner", "error");
       } finally {
         setIsSaving(false);
       }
@@ -140,35 +158,60 @@ export default function Admin() {
   };
 
   const handleAddBanner = async () => {
-    if (!newItem.image || !newItem.title) return;
+    const image = newItem.image || newItem.imageUrl || '';
+    const rawTitle = (newItem.title || '').trim();
+    const rawSubtitle = (newItem.subtitle || '').trim();
+    const description = (newItem.description || '').trim();
+    const videoUrl = (newItem.videoUrl || '').trim();
+
+    if (!image) {
+      showToast("Por favor, selecione uma imagem para o banner.", "error");
+      return;
+    }
+
+    // If user filled subtitle but left title empty (or vice versa), adapt gracefully
+    const finalTitle = rawTitle || rawSubtitle || 'Culto & Adoração';
+    const finalSubtitle = rawSubtitle || (rawTitle ? '' : 'Programação Semanal');
+
     setIsSaving(true);
     try {
-      const newBanners = [...(config.banners || []), { 
+      const existingBanners = config.banners !== undefined ? config.banners : [...DEFAULT_BANNERS];
+      const newBanner = { 
         id: Date.now(), 
-        title: newItem.title, 
-        subtitle: newItem.subtitle || '',
-        description: newItem.description || '',
-        image: newItem.image,
-        videoUrl: newItem.videoUrl || ''
-      }];
+        title: finalTitle, 
+        subtitle: finalSubtitle,
+        description: description,
+        image: image,
+        videoUrl: videoUrl
+      };
+      const newBanners = [newBanner, ...existingBanners];
+      
       await setDoc(doc(db, 'app_config', 'main'), { banners: newBanners }, { merge: true });
-      setConfig({ ...config, banners: newBanners });
+      setConfig((prev: any) => ({ ...prev, banners: newBanners }));
       setNewItem({});
-    } catch (err) {
-      alert("Erro ao salvar banner");
+      if (bannerFileInputRef.current) bannerFileInputRef.current.value = '';
+      showToast("✅ Banner publicado com sucesso na Página Inicial!");
+    } catch (err: any) {
+      console.error("Erro ao salvar banner:", err);
+      showToast("Erro ao publicar banner: " + (err.message || 'Verifique as permissões.'), "error");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const removeBanner = async (id: number) => {
-    if (!confirm("Remover banner?")) return;
+  const removeBanner = async (id: any) => {
+    setIsSaving(true);
     try {
-      const newBanners = config.banners.filter((b: any) => b.id !== id);
+      const existingBanners = config.banners !== undefined ? config.banners : [...DEFAULT_BANNERS];
+      const newBanners = existingBanners.filter((b: any) => String(b.id) !== String(id));
       await setDoc(doc(db, 'app_config', 'main'), { banners: newBanners }, { merge: true });
-      setConfig({ ...config, banners: newBanners });
-    } catch (err) {
-      console.error(err);
+      setConfig((prev: any) => ({ ...prev, banners: newBanners }));
+      showToast("Banner excluído com sucesso!");
+    } catch (err: any) {
+      console.error("Erro ao remover banner:", err);
+      showToast("Erro ao remover banner.", "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -310,6 +353,28 @@ export default function Admin() {
           <Bell className="w-5 h-5 text-white/80" />
         </button>
       </header>
+
+      {/* Floating Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full backdrop-blur-2xl shadow-2xl border flex items-center gap-3 text-sm font-medium"
+            style={{
+              backgroundColor: toast.type === 'error' ? 'rgba(239, 68, 68, 0.9)' : toast.type === 'info' ? 'rgba(59, 130, 246, 0.9)' : 'rgba(16, 185, 129, 0.9)',
+              borderColor: toast.type === 'error' ? '#f87171' : toast.type === 'info' ? '#60a5fa' : '#34d399',
+              color: '#ffffff'
+            }}
+          >
+            <span>{toast.message}</span>
+            <button onClick={() => setToast(null)} className="ml-2 hover:opacity-75">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="pt-8 px-6 lg:px-12 space-y-12">
         
@@ -486,24 +551,34 @@ export default function Admin() {
                        className="w-full aspect-[16/9] bg-black/40 border border-white/10 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-white/5 transition-colors overflow-hidden relative group"
                      >
                        {newItem.image ? (
-                         <div className="relative w-full h-full">
-                           <img src={newItem.image || undefined} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm">
+                         <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-black">
+                           <div 
+                             className="absolute inset-0 bg-cover bg-center filter blur-md opacity-40 scale-110"
+                             style={{ backgroundImage: `url(${newItem.image})` }}
+                           />
+                           <img src={newItem.image || undefined} className="relative z-10 w-full h-full object-contain p-2 transition-transform group-hover:scale-105" />
+                           <div className="absolute inset-0 z-20 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm">
                               <span className="text-xs font-bold text-white uppercase tracking-widest">Alterar Imagem</span>
                            </div>
                          </div>
                        ) : (
                          <>
                            <Camera className="w-8 h-8 text-white/30" />
-                           <span className="text-xs text-white/40 font-bold uppercase tracking-widest">Upload 16:9 Destaque</span>
+                           <span className="text-xs text-white/40 font-bold uppercase tracking-widest">Carregar Banner / Cartaz</span>
                          </>
                        )}
                      </div>
-                     <input type="file" ref={bannerFileInputRef} onChange={handleBannerUpload} className="hidden" accept="image/*" />
+                     <input 
+                       type="file" 
+                       ref={bannerFileInputRef} 
+                       onChange={handleBannerUpload} 
+                       className="hidden" 
+                       accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.avif,.bmp,.svg,.tiff" 
+                     />
                   </div>
                   <div className="space-y-4 flex flex-col justify-center">
-                    <input value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} placeholder="Título Principal" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
-                    <input value={newItem.subtitle || ''} onChange={e => setNewItem({...newItem, subtitle: e.target.value})} placeholder="Subtítulo Descritivo" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
+                    <input value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} placeholder="Título Principal (Ex: Culto da Família)" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
+                    <input value={newItem.subtitle || ''} onChange={e => setNewItem({...newItem, subtitle: e.target.value})} placeholder="Subtítulo Descritivo (Ex: Domingo às 19:30)" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
                     <input value={newItem.videoUrl || ''} onChange={e => setNewItem({...newItem, videoUrl: e.target.value})} placeholder="URL do Vídeo de Loop para este slide (YouTube - Opcional)" className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white" />
                     <textarea value={newItem.description || ''} onChange={e => setNewItem({...newItem, description: e.target.value})} placeholder="Descrição Completa (opcional)" className="w-full min-h-[100px] bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-[var(--theme-color)] transition-colors text-white resize-none" />
                     <button onClick={handleAddBanner} disabled={isSaving} className="w-full h-14 mt-4 bg-[var(--theme-color)] text-white shadow-[0_0_20px_var(--theme-color)]/30 rounded-2xl font-bold uppercase tracking-widest text-[12px] flex items-center justify-center gap-3 transition-transform active:scale-95 hover:bg-[var(--color-primary-focused)]">
@@ -512,33 +587,62 @@ export default function Admin() {
                   </div>
                 </div>
               </div>
- 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 {config.banners?.map((b: any) => (
-                   <div key={b.id} className="relative bg-[#111111] border border-white/10 rounded-2xl overflow-hidden group flex aspect-[21/9]">
-                     <img src={b.image || undefined} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" />
-                     <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
-                     <div className="absolute top-4 left-4 z-20 flex gap-2">
-                       {b.videoUrl && (
-                         <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/90 text-white font-bold rounded-full text-[10px] tracking-wider uppercase backdrop-blur-md shadow-md border border-emerald-400/30">
-                           <Radio className="w-3 h-3 animate-pulse" />
-                           Loop Vídeo Ativo
-                         </span>
-                       )}
-                     </div>
-                     <div className="relative z-10 p-6 flex flex-col justify-end w-full">
-                       <h4 className="font-serif font-bold text-lg lg:text-xl text-white tracking-wide truncate">{b.title}</h4>
-                       <p className="text-xs text-white/70 font-medium truncate mt-1">{b.subtitle}</p>
-                     </div>
-                     <div className="absolute top-4 right-4 z-20">
-                       <button onClick={() => removeBanner(b.id)} className="w-10 h-10 rounded-full flex items-center justify-center text-red-400 bg-red-400/10 hover:bg-red-400 hover:text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all border border-red-400/20">
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold uppercase tracking-widest text-white/80 flex items-center gap-2">
+                    <span>Banners Ativos na Home</span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-white/10 text-white font-mono">
+                      {((config.banners !== undefined ? config.banners : DEFAULT_BANNERS) || []).length}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-white/40">Toque no botão vermelho para excluir</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {((config.banners !== undefined ? config.banners : DEFAULT_BANNERS) || []).map((b: any) => (
+                    <div key={b.id} className="relative bg-[#111111] border border-white/10 rounded-2xl overflow-hidden group flex items-center justify-center aspect-[21/9]">
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center filter blur-md opacity-40 scale-110"
+                        style={{ backgroundImage: `url(${b.image})` }}
+                      />
+                      <img src={b.image || undefined} className="relative z-10 w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-700" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10 pointer-events-none"></div>
+                      <div className="absolute top-4 left-4 z-20 flex gap-2">
+                        {b.videoUrl && (
+                          <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/90 text-white font-bold rounded-full text-[10px] tracking-wider uppercase backdrop-blur-md shadow-md border border-emerald-400/30">
+                            <Radio className="w-3 h-3 animate-pulse" />
+                            Loop Vídeo Ativo
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative z-10 p-6 flex flex-col justify-end w-full pr-14">
+                        <h4 className="font-serif font-bold text-lg lg:text-xl text-white tracking-wide truncate">{b.title}</h4>
+                        <p className="text-xs text-white/70 font-medium truncate mt-1">{b.subtitle}</p>
+                      </div>
+                      <div className="absolute top-4 right-4 z-30">
+                        <button 
+                          type="button"
+                          title="Excluir este banner"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeBanner(b.id);
+                          }} 
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white bg-rose-600/90 hover:bg-rose-500 active:scale-90 transition-all border border-rose-400/30 shadow-lg"
+                        >
                           <Trash2 className="w-4 h-4" />
-                       </button>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             </motion.div>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {((config.banners !== undefined ? config.banners : DEFAULT_BANNERS) || []).length === 0 && (
+                    <div className="col-span-full py-12 text-center text-white/40 border border-white/5 border-dashed rounded-2xl">
+                      Nenhum banner ativo no momento. Use o formulário acima para publicar um novo banner.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
           ) : (
             <motion.div key="l" className="space-y-8 max-w-4xl">
               {(activeMenu === 'events' || activeMenu === 'photos') && (

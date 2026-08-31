@@ -78,15 +78,27 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
-  const banners = config?.banners?.length > 0 ? config.banners : DEFAULT_BANNERS;
+  const banners = (config?.banners && Array.isArray(config.banners) && config.banners.length > 0)
+    ? config.banners 
+    : (config?.banners !== undefined && config.banners.length === 0 ? [] : DEFAULT_BANNERS);
+
+  const defaultFallbackBanner = {
+    id: 1,
+    title: config?.churchName || 'Culto & Adoração',
+    subtitle: 'Venha adorar e ter comunhão com a igreja',
+    description: 'Uma comunidade de fé, esperança e amor para todas as famílias.',
+    image: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=1600'
+  };
+
+  const activeBannersList = (banners && banners.length > 0) ? banners : [defaultFallbackBanner];
 
   useEffect(() => {
-    if (!banners || banners.length <= 1) return;
+    if (activeBannersList.length <= 1) return;
     const interval = setInterval(() => {
-      setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
+      setCurrentBannerIndex((prev) => (prev + 1) % activeBannersList.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, [banners]);
+  }, [activeBannersList.length]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -101,14 +113,14 @@ export default function Home() {
     setTimeout(() => setCopiedPix(false), 2000);
   };
 
-  const currentBanner = banners[currentBannerIndex] || banners[0];
+  const currentBanner = activeBannersList[currentBannerIndex % activeBannersList.length] || defaultFallbackBanner;
   const currentDevotional = getDailyDevotional();
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans w-full overflow-x-hidden pb-32">
       
       {/* Hero Section (iOS 26 Style) */}
-      <div className="relative w-full h-[88vh] lg:h-[95vh] flex items-end justify-start overflow-hidden lg:rounded-b-[40px] ios-shadow bg-black">
+      <div className="relative w-full min-h-[75vh] h-[85vh] lg:h-[92vh] flex items-end justify-start overflow-hidden lg:rounded-b-[40px] ios-shadow bg-black">
         <AnimatePresence mode="wait">
           {(!isCinematicMode || !currentBanner.videoUrl) ? (
             <motion.div
@@ -116,10 +128,15 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
-              className="absolute inset-0"
+              transition={{ duration: 0.8 }}
+              className="absolute inset-0 overflow-hidden"
             >
-              <motion.img style={{ y: y1 }} src={currentBanner.image || undefined} alt={currentBanner.title} className="w-full h-[120%] object-cover opacity-90" />
+              {/* Full Bleed Banner Image Filling Entire Hero Area */}
+              <img 
+                src={currentBanner.image || undefined} 
+                alt={currentBanner.title} 
+                className="w-full h-full object-cover object-center transition-transform duration-1000" 
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -152,10 +169,9 @@ export default function Home() {
             </motion.div>
           )}
         </AnimatePresence>
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent z-[2]"></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--theme-color)]/10 to-black pointer-events-none z-[2]"></div>
-        {/* iOS 26 Frost bottom fade */}
-        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#F2F2F7] dark:from-[#000000] to-transparent z-[5]"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none z-[2]"></div>
+        {/* Subtle Frost bottom fade */}
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none z-[3]"></div>
         
         <AnimatePresence mode="wait">
           <motion.div 
@@ -164,49 +180,34 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -30 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="relative z-10 p-6 lg:p-16 w-full max-w-7xl mx-auto mb-12"
+            className="relative z-10 p-6 lg:p-16 w-full max-w-7xl mx-auto mb-6"
           >
 
             <div className="flex items-center gap-4 mb-4">
               <button 
                 onClick={() => setSelectedBanner(currentBanner)} 
-                className="ios-button flex items-center justify-center gap-2 px-8 py-3.5 bg-white dark:bg-white text-black rounded-[24px] font-bold text-[15px]"
+                className="ios-button flex items-center justify-center gap-2 px-8 py-3.5 bg-white dark:bg-white text-black rounded-[24px] font-bold text-[15px] shadow-2xl hover:scale-105 active:scale-95 transition-all"
               >
                 <Play className="w-5 h-5 fill-current" />
                 <span>Visualizar</span>
               </button>
-              <button className="w-12 h-12 rounded-[20px] bg-white/20 backdrop-blur-[30px] border border-white/20 flex items-center justify-center transition-all active:scale-95 hover:bg-white/30">
+              <button className="w-12 h-12 rounded-[20px] bg-black/40 backdrop-blur-[30px] border border-white/20 flex items-center justify-center transition-all active:scale-95 hover:bg-white/20">
                 <Bell className="w-5 h-5 text-white" />
               </button>
             </div>
 
-            <div className="flex flex-col gap-1 max-w-xl">
-              <h1 className="text-2xl md:text-3xl font-black font-display tracking-tight text-white drop-shadow-lg uppercase">
+            <div className="flex flex-col gap-1 max-w-xl bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 w-fit">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-black font-display tracking-tight text-white drop-shadow-lg uppercase">
                 {currentBanner.title}
               </h1>
-              <p className="text-sm border-l-2 border-[var(--theme-color)] pl-3 text-white/80 font-medium uppercase drop-shadow-md line-clamp-2">
-                {currentBanner.subtitle}
-              </p>
+              {currentBanner.subtitle && (
+                <p className="text-xs md:text-sm border-l-2 border-[var(--theme-color)] pl-3 text-white/90 font-medium uppercase drop-shadow-md line-clamp-2">
+                  {currentBanner.subtitle}
+                </p>
+              )}
             </div>
           </motion.div>
         </AnimatePresence>
-        
-        {/* Carousel Indicators & Cinematic Toggle */}
-        <div className="absolute bottom-6 right-6 lg:right-16 z-20 flex flex-wrap justify-end items-center gap-3 lg:gap-4">
-          <button 
-            onClick={() => setIsCinematicMode(!isCinematicMode)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/10 text-xs font-bold uppercase tracking-wider text-white transition-all active:scale-95 shadow-lg"
-            title="Alternar Modo de Exibição"
-          >
-            <div className={`w-2 h-2 rounded-full ${isCinematicMode ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-400'}`} />
-            <span>{isCinematicMode ? 'Cinematográfico' : 'Estático'}</span>
-          </button>
-          <div className="flex gap-2">
-            {banners.map((_, i) => (
-              <button key={i} onClick={() => setCurrentBannerIndex(i)} className={`h-1.5 focus:outline-none rounded-full transition-all duration-500 ${i === currentBannerIndex ? 'w-8 bg-white' : 'w-2 bg-white/30 hover:bg-white/50'}`} />
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="w-full max-w-7xl mx-auto px-6 mt-8 space-y-12 pb-24">
@@ -845,24 +846,36 @@ export default function Home() {
                 <X className="w-5 h-5" />
               </button>
               
-              <div className="w-full aspect-[4/3] sm:aspect-video relative bg-black">
+              <div className="w-full min-h-[300px] max-h-[60vh] relative bg-black flex items-center justify-center overflow-hidden">
                 {selectedBanner.videoUrl ? (
                   <iframe 
                     src={`https://www.youtube.com/embed/${getYouTubeId(selectedBanner.videoUrl)}?autoplay=1&controls=1&rel=0`}
-                    className="w-full h-full border-0"
+                    className="w-full aspect-video border-0"
                     allow="autoplay; encrypted-media"
                     allowFullScreen
                     title={selectedBanner.title}
                   />
                 ) : (
-                  <img src={selectedBanner.image || undefined} alt={selectedBanner.title} className="w-full h-full object-cover" />
+                  <>
+                    <div 
+                      className="absolute inset-0 scale-125 bg-cover bg-center filter blur-2xl opacity-40"
+                      style={{ backgroundImage: `url(${selectedBanner.image})` }}
+                    />
+                    <img 
+                      src={selectedBanner.image || undefined} 
+                      alt={selectedBanner.title} 
+                      className="relative z-10 max-h-[55vh] w-auto max-w-full object-contain drop-shadow-2xl py-4" 
+                    />
+                  </>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] via-transparent to-transparent pointer-events-none z-10"></div>
               </div>
               
-              <div className="p-6 md:p-8 -mt-24 md:-mt-28 relative z-10">
+              <div className="p-6 md:p-8 relative z-20">
                 <h2 className="text-xl md:text-2xl font-black font-display tracking-tight text-white drop-shadow-md mb-1">{selectedBanner.title}</h2>
-                <p className="text-sm md:text-base text-white/90 font-medium mb-5">{selectedBanner.subtitle}</p>
+                {selectedBanner.subtitle && (
+                  <p className="text-sm md:text-base text-white/90 font-medium mb-5">{selectedBanner.subtitle}</p>
+                )}
                 
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 text-[13px] md:text-sm text-white/90 leading-relaxed font-medium mb-6 shadow-xl border border-white/10">
                   {selectedBanner.description || "As informações completas sobre este item estão sendo atualizadas. Fique ligado para mais novidades e detalhes na nossa programação!"}

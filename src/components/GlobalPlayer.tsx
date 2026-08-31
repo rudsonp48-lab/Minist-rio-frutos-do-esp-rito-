@@ -242,14 +242,24 @@ export default function GlobalPlayer() {
                 playsinline: 1,
                 rel: 0,
                 showinfo: 0,
+                enablejsapi: 1,
                 origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+                widget_referrer: typeof window !== 'undefined' ? window.location.href : undefined,
               },
             }}
             onReady={(e) => {
               playerRef.current = e.target;
-              if (playing) {
-                try { e.target.playVideo(); } catch(err) {}
-              }
+              try {
+                if (isMuted) {
+                  e.target.mute();
+                } else {
+                  e.target.unMute();
+                  e.target.setVolume(Math.round(volume * 100));
+                }
+                if (playing) {
+                  e.target.playVideo();
+                }
+              } catch(err) {}
             }}
             onError={handlePlayerError}
             onStateChange={(e) => {
@@ -262,7 +272,7 @@ export default function GlobalPlayer() {
               }
             }}
             className="w-full h-full"
-            iframeClassName="w-full h-full"
+            iframeClassName="w-full h-full border-0"
           />
         )}
         {selectedVideo && selectedVideo.id === 'radio-1' && (

@@ -40,6 +40,64 @@ app.use(express.json({ limit: "10mb" }));
 // Resolve keys either from process.env or import.meta.env equivalents
 const API_KEY = process.env.VITE_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY;
 const CHANNEL_ID = process.env.VITE_YOUTUBE_CHANNEL_ID || process.env.YOUTUBE_CHANNEL_ID || "@ministeriofrutodoespirito9132";
+const BRAVE_API_KEY = process.env.BRAVE_SEARCH_API_KEY || process.env.VITE_BRAVE_SEARCH_API_KEY;
+
+// Helper to search videos using Brave Search API (Gives direct YouTube IDs & titles without YouTube quota)
+async function searchBraveVideos(query: string): Promise<any[]> {
+  const apiKey = BRAVE_API_KEY;
+  if (!apiKey) return [];
+
+  try {
+    const formattedQuery = `${query} site:youtube.com/watch`;
+    const url = `https://api.search.brave.com/res/v1/videos/search?q=${encodeURIComponent(formattedQuery)}&count=15&search_lang=pt-br`;
+    
+    const response = await fetchWithTimeout(url, {
+      headers: {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": apiKey
+      }
+    });
+
+    if (!response.ok) {
+      console.warn(`[Brave Search API] Status: ${response.status} ${response.statusText}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = data.results || [];
+    const videos: any[] = [];
+
+    for (const item of results) {
+      const pageUrl = item.url || "";
+      let videoId = "";
+
+      if (pageUrl.includes("youtube.com/watch?v=")) {
+        const urlParams = new URL(pageUrl).searchParams;
+        videoId = urlParams.get("v") || "";
+      } else if (pageUrl.includes("youtu.be/")) {
+        const parts = pageUrl.split("youtu.be/");
+        videoId = (parts[1] || "").split("?")[0];
+      }
+
+      if (videoId && videoId.length === 11) {
+        videos.push({
+          id: videoId,
+          title: item.title?.replace(/ - YouTube$/, "") || "Louvor Gospel",
+          thumbnail: item.thumbnail?.src || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          publishedAt: item.age || new Date().toISOString(),
+          type: "music",
+          author: item.meta_url?.netloc || "YouTube Louvores"
+        });
+      }
+    }
+
+    return videos;
+  } catch (err: any) {
+    console.warn("[Brave Search API] Error querying Brave Search:", err?.message || err);
+    return [];
+  }
+}
 
 // Lazy Gemini API Client Initialization
 let genAIClient: any = null;
@@ -558,7 +616,20 @@ app.get("/api/youtube-search", async (req, res) => {
     return res.json([]);
   }
 
-  // If API Key is present, try standard search, otherwise fall back to scraping
+  // 1. Try Brave Search API if configured (Fast, independent, no YouTube API limits)
+  if (BRAVE_API_KEY) {
+    try {
+      const braveVideos = await searchBraveVideos(query);
+      if (braveVideos && braveVideos.length > 0) {
+        console.log(`[Search API] Found ${braveVideos.length} videos via Brave Search API for: "${query}"`);
+        return res.json(braveVideos);
+      }
+    } catch (braveErr) {
+      console.warn("[Search API] Brave Search error, continuing with alternative providers:", braveErr);
+    }
+  }
+
+  // 2. If API Key is present, try YouTube Data API v3
   if (API_KEY) {
     try {
       const response = await fetchWithTimeout(
@@ -585,16 +656,17 @@ app.get("/api/youtube-search", async (req, res) => {
     }
   }
 
-  // Scraper fallback
+  // 3. Scraper fallback
   const scraped = await scrapeYouTubeSearch(query);
   if (scraped && scraped.length > 0) {
     return res.json(scraped);
   }
 
-  // Resilient Curated Fallback
+  // 4. Resilient Curated Fallback
   console.log("[YouTube API] Search resolved via curated local video index successfully.");
   res.json(searchFallbackVideos(query));
 });
+
 
 // Channel Live status check API
 app.get("/api/youtube-live", async (req, res) => {
