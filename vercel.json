@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.ts",
+      "src": "api/**/*.ts",
       "use": "@vercel/node"
     },
     {
@@ -14,6 +14,14 @@
     }
   ],
   "routes": [
+    {
+      "src": "/api/ai/theology",
+      "dest": "api/ai/theology.ts"
+    },
+    {
+      "src": "/api/ai/chat",
+      "dest": "api/ai/chat.ts"
+    },
     {
       "src": "/api/(.*)",
       "dest": "api/index.ts"

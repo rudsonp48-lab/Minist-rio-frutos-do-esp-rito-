@@ -56,55 +56,54 @@ export const CHRISTIAN_AVATAR_PRESETS: ChristianAvatarPreset[] = [
   }
 ];
 
-export const compressImage = async (file: File, maxDim: number = 1080, quality: number = 0.8): Promise<string> => {
-  // Method 1: Try createImageBitmap (fastest, no DOM Image required, safe from CORS)
-  if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
-    try {
-      const bitmap = await createImageBitmap(file);
-      let { width, height } = bitmap;
-      if (width > 0 && height > 0) {
-        if (width > height && width > maxDim) {
-          height = Math.round((height * maxDim) / width);
-          width = maxDim;
-        } else if (height > maxDim) {
-          width = Math.round((width * maxDim) / height);
-          height = maxDim;
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(width));
-        canvas.height = Math.max(1, Math.round(height));
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          bitmap.close();
-          return canvas.toDataURL('image/jpeg', quality);
-        }
-      }
-      bitmap.close();
-    } catch (e) {
-      console.warn('createImageBitmap failed, falling back to FileReader:', e);
-    }
-  }
-
-  // Method 2: Standard Image + FileReader Data URL
+/**
+ * Converts a File object directly to a Base64 Data URL string safely
+ */
+export const fileToDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      if (!dataUrl) {
-        resolve('');
-        return;
-      }
+    reader.onload = () => {
+      resolve((reader.result as string) || '');
+    };
+    reader.onerror = () => {
+      resolve('');
+    };
+    reader.readAsDataURL(file);
+  });
+};
 
+/**
+ * Compresses an image file with multiple fail-safes.
+ * Always resolves to a valid base64 data URL (either compressed or original fallback).
+ * Supports ALL formats: JPG, PNG, WEBP, GIF (animated preserved), HEIC, HEIF, AVIF, BMP, SVG, TIFF.
+ */
+export const compressImage = async (file: File, maxDim: number = 1080, quality: number = 0.8): Promise<string> => {
+  // Step 1: Always obtain the raw data URL first as an absolute guarantee
+  const rawDataUrl = await fileToDataUrl(file);
+  if (!rawDataUrl) return '';
+
+  const fileName = (file.name || '').toLowerCase();
+  const fileType = (file.type || '').toLowerCase();
+
+  // For GIFs (preserve animation) and SVGs (vector), return raw data URL directly
+  if (fileType.includes('gif') || fileName.endsWith('.gif') || fileType.includes('svg') || fileName.endsWith('.svg')) {
+    return rawDataUrl;
+  }
+
+  // Step 2: Try Canvas compression for JPG, PNG, WEBP, HEIC, AVIF, BMP, TIFF
+  return new Promise((resolve) => {
+    try {
       const img = new Image();
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
           let width = img.naturalWidth || img.width;
           let height = img.naturalHeight || img.height;
+
+          if (!width || !height) {
+            resolve(rawDataUrl);
+            return;
+          }
 
           if (width > height && width > maxDim) {
             height = Math.round((height * maxDim) / width);
@@ -119,31 +118,35 @@ export const compressImage = async (file: File, maxDim: number = 1080, quality: 
 
           const ctx = canvas.getContext('2d');
           if (!ctx) {
-            resolve(dataUrl);
+            resolve(rawDataUrl);
             return;
           }
 
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        } catch {
-          resolve(dataUrl);
+
+          const compressedUrl = canvas.toDataURL('image/jpeg', quality);
+          if (compressedUrl && compressedUrl.length > 50) {
+            resolve(compressedUrl);
+          } else {
+            resolve(rawDataUrl);
+          }
+        } catch (e) {
+          console.warn('Canvas processing error, using raw image:', e);
+          resolve(rawDataUrl);
         }
       };
 
       img.onerror = () => {
-        resolve(dataUrl);
+        resolve(rawDataUrl);
       };
 
-      img.src = dataUrl;
-    };
-
-    reader.onerror = () => {
-      resolve('');
-    };
-
-    reader.readAsDataURL(file);
+      img.src = rawDataUrl;
+    } catch (err) {
+      console.warn('Image compression fallback triggered:', err);
+      resolve(rawDataUrl);
+    }
   });
 };
 

@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
+import { buildTheologyPrompts, generateContextualTheologyFallback, TheologyRequest, ChatMessage } from "./src/services/theologyEngine";
 
 dotenv.config();
 
@@ -43,10 +44,18 @@ const CHANNEL_ID = process.env.VITE_YOUTUBE_CHANNEL_ID || process.env.YOUTUBE_CH
 // Lazy Gemini API Client Initialization
 let genAIClient: any = null;
 async function getGeminiModel() {
-  if (!genAIClient && process.env.GEMINI_API_KEY) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+  if (!genAIClient && apiKey) {
     try {
       const { GoogleGenAI } = await import("@google/genai");
-      genAIClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      genAIClient = new GoogleGenAI({ 
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build'
+          }
+        }
+      });
     } catch (e) {
       console.warn("[Gemini API] Failed to initialize GoogleGenAI client:", e);
     }
@@ -743,103 +752,19 @@ app.get("/api/youtube-related", async (req, res) => {
 // GEMINI AI THEOLOGICAL & DEVOTIONAL ENGINE
 // ==========================================
 
-const FALLBACK_THEOLOGY: Record<string, string> = {
-  exegesis: `### 📖 Contexto Histórico e Cultural
-A passagem carrega profundas raízes na tradição do povo da Aliança. O texto original comunica a soberania, a fidelidade inabalável e o amor gracioso de Deus em meio às lutas do Seu povo.
-
-### 🏛️ Significado no Original (Hebraico / Grego)
-- **Hesed (חֶסֶד)**: Amor leal, fidelidade incondicional e misericórdia pactual.
-- **Agape (ἀγάπη)**: Amor sacrificial e perfeito, demonstrado por Cristo na cruz.
-- **Shalom (שָׁלוֹם)**: Plenitude de paz, harmonia integral com Deus, o próximo e a criação.
-
-### 💡 Aplicação Prática para a Vida Cristã
-1. **Confiança Ativa**: Entregue suas ansiedades e decisões nas mãos do Senhor diariamente.
-2. **Caminhar em Amor**: Pratique o perdão e o acolhimento dentro da sua comunidade e família.
-3. **Firmeza na Esperança**: Lembre-se de que as promessas de Deus permanecem inabaláveis em qualquer circunstância.
-
-### 🙏 Oração Inspirada
-*"Senhor Deus Todo-Poderoso, abre os meus olhos para contemplar as maravilhas da Tua Lei. Que esta Palavra gere raízes profundas no meu coração e frutifique em obras de justiça, amor e adoração. Em nome de Jesus, Amém."*`,
-
-  sermon: `# 📜 Esboço de Mensagem: Firmados na Promessa Inabalável
-
-**Texto Base:** Hebreus 10:23 / Romanos 8:31-39  
-**Objetivo:** Despertar a fé e a perseverança da igreja diante dos desafios do tempo presente.
-
----
-
-### 1. Introdução: O Fundamento Inabalável
-- A busca humana por segurança em um mundo de incertezas.
-- A fidelidade de Deus como âncora imutável para a alma.
-- *Ilustração:* O farol que resiste às tempestades mais violentas sem se mover.
-
-### 2. Ponto I: A Fidelidade dAquele que Prometeu
-- Deus não é homem para que minta, nem filho do homem para que se arrependa.
-- A certeza das promessas bíblicas seladas no sangue da Aliança em Cristo Jesus.
-
-### 3. Ponto II: A Resposta da Igreja — Firmeza e Comunhão
-- Não retroceder diante das oposições ou do desânimo passageiro.
-- O poder da comunhão, da oração comunitária e do encorajamento mútuo.
-
-### 4. Ponto III: A Vitória Eterna em Cristo
-- Em todas estas coisas somos mais do que vencedores por Aquele que nos amou.
-- Nada nos separará do amor de Deus.
-
-### 5. Conclusão e Apelo
-- Desafio prático: Entregar o controle de todas as áreas de nossa vida a Cristo.
-- Oração de consagração e renovo espiritual.`,
-
-  prayer: `🙏 **Oração de Paz e Conforto Pastoral**
-
-"Pai Celeste, Tu és o refúgio seguro e a fortaleza presente no dia da angústia. Neste momento, coloco a vida, o coração e a mente do Teu servo(a) sob a Tua santa proteção.
-
-Derrama a Tua paz que excede todo o entendimento humano, dissipando qualquer medo, dúvida ou ansiedade. Que o Teu Espírito Santo traga refrigério, cura interior e clareza para cada passo a ser dado.
-
-Declaramos que nenhuma arma forjada contra ti prosperará e que a graça abundante do Senhor te sustenta hoje e para sempre. Em nome de Jesus, Amém!"`
-};
-
 app.post("/api/ai/theology", async (req, res) => {
+  const payload: TheologyRequest = req.body || {};
   try {
-    const { mode = "exegesis", prompt = "", reference = "", audience = "Geral", feelings = "" } = req.body || {};
     const ai = await getGeminiModel();
 
     if (ai) {
-      let systemPrompt = "Você é o Mentor Teológico e Pastor Digital da plataforma Ecclesia Quantum. Responda em Português do Brasil de forma profunda, teologicamente fundamentada nas Escrituras Sagradas, empática, inspiradora e visualmente bem estruturada com Markdown elegante (títulos, listas, destaques).";
-      let userPrompt = "";
-
-      if (mode === "exegesis") {
-        userPrompt = `Realize uma exegese teológica completa e inspiradora da passagem bíblica: "${reference || prompt}".
-Estruture sua resposta com:
-1. Contexto Histórico, Geográfico e Cultural
-2. Análise Teológica e Palavras Chave no Original (Grego/Hebraico com transliteração)
-3. Conexão Cristocêntrica (como aponta para Cristo)
-4. Aplicação Prática Pessoal e Ministerial (3 pontos objetivos)
-5. Oração Guiada e Versículo de Apoio`;
-      } else if (mode === "sermon") {
-        userPrompt = `Crie um esboço expositivo completo de sermão/mensagem bíblica para o público "${audience}" baseado no tema/texto: "${prompt || reference}".
-Estruture com:
-- Título Marcante
-- Texto Bíblico Principal e Secundários
-- Quebra-gelo / Gancho de Introdução
-- 3 Pontos Principais com Subtópicos, Exegese, Aplicação e Ilustração Prática
-- Conclusão com Chamado / Apelo Prático
-- Oração Final para o Altar`;
-      } else if (mode === "prayer") {
-        userPrompt = `Escreva uma oração pastoral profunda, bíblica e acolhedora para alguém que está sentindo: "${feelings || prompt}".
-Inclua:
-- Uma declaração de fé fundamentada em promessas bíblicas específicas
-- Palavra de encorajamento pastoral
-- A oração completa em primeira pessoa
-- 2 versículos bíblicos de conforto para meditação diária`;
-      } else {
-        userPrompt = `Pergunta Teológica / Dúvida Bíblica: "${prompt}".
-Responda com clareza, fidelidade bíblica, referências das Escrituras e aplicabilidade pastoral acolhedora.`;
-      }
+      const { systemInstruction, userPrompt } = buildTheologyPrompts(payload);
 
       const response = await ai.models.generateContent({
         model: "gemini-3.7-flash",
         contents: userPrompt,
         config: {
-          systemInstruction: systemPrompt,
+          systemInstruction,
           temperature: 0.7,
         }
       });
@@ -853,15 +778,14 @@ Responda com clareza, fidelidade bíblica, referências das Escrituras e aplicab
     console.warn("[Gemini API] Error calling Gemini model:", error?.message || error);
   }
 
-  // Graceful theological fallback
-  const modeKey = (req.body?.mode || "exegesis") as string;
-  const fallback = FALLBACK_THEOLOGY[modeKey] || FALLBACK_THEOLOGY.exegesis;
+  // Resilient, deep contextual theological generation
+  const fallback = generateContextualTheologyFallback(payload);
   res.json({ result: fallback, source: "curated-theology" });
 });
 
 app.post("/api/ai/chat", async (req, res) => {
+  const { messages = [] } = req.body || {};
   try {
-    const { messages = [] } = req.body || {};
     const ai = await getGeminiModel();
 
     if (ai && Array.isArray(messages) && messages.length > 0) {
@@ -888,9 +812,9 @@ app.post("/api/ai/chat", async (req, res) => {
     console.warn("[Gemini AI Chat] Fallback triggered:", e?.message || e);
   }
 
-  res.json({
-    response: "A paz do Senhor! Deus é fiel em todas as Suas promessas. Busque ao Senhor em oração e na leitura contínua da Sua Palavra, pois Ele tem caminhos de bênção e paz para a sua vida."
-  });
+  const lastUserMsg = messages?.slice().reverse().find((m: any) => m.role === "user")?.content || "Dúvida bíblica";
+  const fallback = generateContextualTheologyFallback({ mode: "chat", prompt: lastUserMsg });
+  res.json({ response: fallback });
 });
 
 export default app;

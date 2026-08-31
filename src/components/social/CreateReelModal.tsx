@@ -151,8 +151,8 @@ export default function CreateReelModal({
                   <UploadCloud className="w-7 h-7" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">Carregar Arquivo de Vídeo (MP4, WebM)</p>
-                  <p className="text-xs text-white/50 mt-1">Toque para selecionar do celular ou computador</p>
+                  <p className="text-sm font-semibold text-white">Carregar Arquivo de Vídeo</p>
+                  <p className="text-xs text-white/50 mt-1">Aceita todos os formatos (MP4, MOV, WebM, AVI, MKV...)</p>
                 </div>
               </div>
             )}
@@ -160,7 +160,7 @@ export default function CreateReelModal({
             <input
               ref={fileInputRef}
               type="file"
-              accept="video/*"
+              accept="video/*,.mp4,.mov,.webm,.mkv,.avi,.3gp,.m4v,.wmv,.flv,.ogv,.ts"
               onChange={handleFileUpload}
               className="hidden"
             />

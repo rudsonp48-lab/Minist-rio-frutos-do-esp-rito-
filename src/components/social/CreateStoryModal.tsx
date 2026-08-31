@@ -3,7 +3,7 @@ import { X, Image as ImageIcon, Film, UploadCloud, Send, Sparkles, Check } from 
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../lib/firebase';
 import { createStory } from '../../services/socialService';
-import { compressImage } from '../../lib/imageUtils';
+import { compressImage, fileToDataUrl } from '../../lib/imageUtils';
 
 interface CreateStoryModalProps {
   isOpen: boolean;
@@ -31,52 +31,41 @@ export default function CreateStoryModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const isVideo = file.type.startsWith('video/');
+    setPreviewError(false);
+    const fileName = (file.name || '').toLowerCase();
+    const fileType = (file.type || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi|3gp|m4v|wmv|flv|ogv|ts)$/i.test(fileName);
+    
     setMediaType(isVideo ? 'video' : 'image');
+    setIsProcessing(true);
 
-    if (!isVideo) {
-      setIsProcessing(true);
-      try {
+    try {
+      if (!isVideo) {
         const compressed = await compressImage(file, 1080, 0.75);
         if (compressed) {
           setMediaUrl(compressed);
           setPreviewError(false);
         } else {
-          // If empty, read direct data url as final fallback
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (reader.result) {
-              setMediaUrl(reader.result as string);
-              setPreviewError(false);
-            }
-          };
-          reader.readAsDataURL(file);
-        }
-      } catch (err) {
-        console.error('Error compressing story photo:', err);
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (reader.result) {
-            setMediaUrl(reader.result as string);
-            setPreviewError(false);
-          }
-        };
-        reader.readAsDataURL(file);
-      } finally {
-        setIsProcessing(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-    } else {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.result) {
-          setMediaUrl(reader.result as string);
+          const raw = await fileToDataUrl(file);
+          setMediaUrl(raw);
           setPreviewError(false);
         }
-      };
-      reader.readAsDataURL(file);
+      } else {
+        const raw = await fileToDataUrl(file);
+        setMediaUrl(raw);
+        setPreviewError(false);
+      }
+    } catch (err) {
+      console.error('Error loading file for story:', err);
+      try {
+        const raw = await fileToDataUrl(file);
+        setMediaUrl(raw);
+        setPreviewError(false);
+      } catch {
+        setPreviewError(true);
+      }
+    } finally {
+      setIsProcessing(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -170,7 +159,7 @@ export default function CreateStoryModal({
                 <div className="w-12 h-12 rounded-full border-2 border-rose-500/30 border-t-rose-500 animate-spin flex items-center justify-center">
                   <Sparkles className="w-5 h-5 text-rose-400" />
                 </div>
-                <p className="text-xs font-bold text-white">Carregando e otimizando imagem...</p>
+                <p className="text-xs font-bold text-white">Processando mídia...</p>
                 <p className="text-[11px] text-white/50">Preparando para o Story</p>
               </div>
             ) : mediaUrl && !previewError ? (
@@ -182,18 +171,26 @@ export default function CreateStoryModal({
                     loop
                     muted
                     playsInline
+                    controls
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <img
                     src={mediaUrl}
                     alt="Story Preview"
-                    referrerPolicy="no-referrer"
-                    onError={() => setPreviewError(true)}
+                    onError={() => {
+                      if (!mediaUrl.startsWith('data:') && !mediaUrl.startsWith('blob:')) {
+                        setPreviewError(true);
+                      }
+                    }}
                     className="w-full h-full object-cover"
                   />
                 )}
-                {/* Overlay remove button */}
+                {/* Overlay badge & remove button */}
+                <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-black/60 backdrop-blur-md text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1 border border-white/10">
+                  {mediaType === 'video' ? <Film className="w-3 h-3 text-rose-400" /> : <ImageIcon className="w-3 h-3 text-amber-400" />}
+                  {mediaType === 'video' ? 'Vídeo' : 'Foto'}
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -217,8 +214,8 @@ export default function CreateStoryModal({
                 <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
                   <ImageIcon className="w-6 h-6" />
                 </div>
-                <p className="text-xs font-bold text-rose-300">Falha ao carregar foto</p>
-                <p className="text-[11px] text-white/50">Toque aqui para escolher outra foto</p>
+                <p className="text-xs font-bold text-rose-300">Falha ao carregar arquivo</p>
+                <p className="text-[11px] text-white/50">Toque aqui para escolher outro arquivo</p>
               </div>
             ) : (
               <div 
@@ -230,7 +227,7 @@ export default function CreateStoryModal({
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">Carregar Foto ou Vídeo</p>
-                  <p className="text-xs text-white/50 mt-1">Toque para selecionar da galeria ou câmera</p>
+                  <p className="text-[11px] text-white/50 mt-1">Aceita todos os formatos (JPG, PNG, GIF, HEIC/iPhone, MP4, MOV, WebM...)</p>
                 </div>
               </div>
             )}
@@ -238,7 +235,7 @@ export default function CreateStoryModal({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,video/*"
+              accept="image/*,video/*,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.avif,.bmp,.svg,.tiff,.ico,.mp4,.mov,.webm,.mkv,.avi,.3gp,.m4v,.wmv,.flv,.ogv,.ts"
               onChange={handleFileUpload}
               className="hidden"
             />

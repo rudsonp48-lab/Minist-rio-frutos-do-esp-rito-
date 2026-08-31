@@ -269,7 +269,7 @@ export default function EditProfileModal({
                         type="file" 
                         ref={fileInputRef}
                         onChange={handleFileSelect}
-                        accept="image/*"
+                        accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.avif,.bmp,.svg"
                         className="hidden"
                       />
                     </div>

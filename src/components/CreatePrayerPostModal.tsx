@@ -28,7 +28,7 @@ import { auth, db } from '../lib/firebase';
 import { addDoc, collection, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { VoiceRecorder, RecordedAudio } from '../services/audioRecorder';
 import VoicePrayerPlayer from './VoicePrayerPlayer';
-import { compressImage } from '../lib/imageUtils';
+import { compressImage, fileToDataUrl } from '../lib/imageUtils';
 
 interface CreatePrayerPostModalProps {
   isOpen: boolean;
@@ -87,7 +87,7 @@ export default function CreatePrayerPostModal({
 
   if (!isOpen) return null;
 
-  // Handle Photo File Upload with compression to keep Firestore document payload light & fast
+  // Handle Photo File Upload with compression & full format support (JPG, PNG, WEBP, GIF, HEIC, etc.)
   const handlePhotoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -97,14 +97,17 @@ export default function CreatePrayerPostModal({
       const compressedPhotos: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        if (file.type.startsWith('image/')) {
-          const compressed = await compressImage(file, 1080, 0.75);
+        const compressed = await compressImage(file, 1080, 0.75);
+        if (compressed) {
           compressedPhotos.push(compressed);
+        } else {
+          const raw = await fileToDataUrl(file);
+          if (raw) compressedPhotos.push(raw);
         }
       }
       setPhotosList(prev => [...prev, ...compressedPhotos]);
     } catch (err) {
-      console.error('Error compressing uploaded photos:', err);
+      console.error('Error processing uploaded photos:', err);
       alert('Não foi possível processar as fotos selecionadas. Tente novamente.');
     } finally {
       setIsProcessingPhotos(false);
@@ -125,19 +128,20 @@ export default function CreatePrayerPostModal({
     setPhotosList(prev => prev.filter((_, i) => i !== idx));
   };
 
-  // Handle Video File Upload
-  const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Video File Upload (MP4, MOV, WebM, MKV, AVI, etc.)
+  const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        setVideoFileInput(reader.result as string);
+    try {
+      const raw = await fileToDataUrl(file);
+      if (raw) {
+        setVideoFileInput(raw);
         setVideoUrl('');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error loading video file:', err);
+    }
   };
 
   // Voice Recording Functions
@@ -411,7 +415,7 @@ export default function CreatePrayerPostModal({
                   <input
                     type="file"
                     ref={photoFileInputRef}
-                    accept="image/*"
+                    accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.avif,.bmp,.svg,.tiff"
                     multiple
                     onChange={handlePhotoFileUpload}
                     className="hidden"
@@ -425,12 +429,12 @@ export default function CreatePrayerPostModal({
                     {isProcessingPhotos ? (
                       <>
                         <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
-                        Otimizando fotos...
+                        Processando fotos...
                       </>
                     ) : (
                       <>
                         <UploadCloud className="w-4 h-4 text-purple-400" />
-                        Enviar Fotos do Celular/PC
+                        Enviar Fotos (JPG, PNG, HEIC, GIF...)
                       </>
                     )}
                   </button>
@@ -479,7 +483,7 @@ export default function CreatePrayerPostModal({
                 <input
                   type="file"
                   ref={videoFileInputRef}
-                  accept="video/mp4,video/webm,video/quicktime"
+                  accept="video/*,.mp4,.mov,.webm,.mkv,.avi,.3gp,.m4v,.wmv,.flv,.ogv,.ts"
                   onChange={handleVideoFileUpload}
                   className="hidden"
                 />
@@ -491,7 +495,7 @@ export default function CreatePrayerPostModal({
                     className="flex-1 py-3 px-4 rounded-xl border border-dashed border-rose-500/40 hover:border-rose-500 bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
                   >
                     <UploadCloud className="w-4 h-4 text-rose-400" />
-                    Enviar Arquivo de Vídeo (MP4/WebM)
+                    Enviar Vídeo (MP4, MOV, WebM, AVI...)
                   </button>
 
                   <div className="flex items-center gap-1 flex-1">

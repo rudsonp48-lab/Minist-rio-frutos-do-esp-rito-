@@ -429,6 +429,35 @@ export default function AITheologicalAssistant() {
                       </button>
                     </form>
 
+                    {/* Quick sermon topic suggestions */}
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="text-white/40">Temas sugeridos:</span>
+                      {[
+                        'O Poder da Fé e da Perseverança',
+                        'Salmos 91: O Refúgio Seguro',
+                        'A Parábola do Filho Pródigo (Lucas 15)',
+                        'Romanos 8: Mais que Vencedores',
+                        'A Armadura de Deus (Efésios 6)'
+                      ].map((topic) => (
+                        <button
+                          key={topic}
+                          onClick={() => {
+                            setSermonTopic(topic);
+                            setIsSermonLoading(true);
+                            setSavedToNotes(false);
+                            requestTheologyInsight({ mode: 'sermon', prompt: topic, audience: sermonAudience })
+                              .then((res) => {
+                                setSermonResult(res);
+                                setIsSermonLoading(false);
+                              });
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-200/80 hover:text-amber-200 border border-white/5 transition-colors"
+                        >
+                          {topic}
+                        </button>
+                      ))}
+                    </div>
+
                     {sermonResult && (
                       <div className="bg-black/50 border border-white/10 rounded-2xl p-6 relative space-y-4">
                         <div className="flex items-center justify-between border-b border-white/10 pb-3">

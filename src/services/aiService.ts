@@ -1,20 +1,11 @@
-export interface TheologyRequest {
-  mode: 'exegesis' | 'sermon' | 'prayer' | 'chat';
-  prompt?: string;
-  reference?: string;
-  audience?: string;
-  feelings?: string;
-}
+import { 
+  TheologyRequest, 
+  TheologyResponse, 
+  ChatMessage, 
+  generateContextualTheologyFallback 
+} from './theologyEngine';
 
-export interface TheologyResponse {
-  result: string;
-  source: 'gemini' | 'curated-theology';
-}
-
-export interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+export type { TheologyRequest, TheologyResponse, ChatMessage };
 
 export async function requestTheologyInsight(payload: TheologyRequest): Promise<string> {
   try {
@@ -26,13 +17,16 @@ export async function requestTheologyInsight(payload: TheologyRequest): Promise<
 
     if (res.ok) {
       const data: TheologyResponse = await res.json();
-      return data.result || 'Conteúdo gerado com sucesso.';
+      if (data.result && data.result.trim().length > 20) {
+        return data.result;
+      }
     }
   } catch (error) {
-    console.warn('[AI Service] Request failed, using client fallback:', error);
+    console.warn('[AI Service] Request failed, using dynamic theological generator:', error);
   }
 
-  return 'A Palavra do Senhor é lâmpada para os nossos pés e luz para o nosso caminho. Medite de dia e de noite.';
+  // Rich dynamic context-aware fallback (never a short static phrase)
+  return generateContextualTheologyFallback(payload);
 }
 
 export async function sendTheologicalChat(messages: ChatMessage[]): Promise<string> {
@@ -45,11 +39,14 @@ export async function sendTheologicalChat(messages: ChatMessage[]): Promise<stri
 
     if (res.ok) {
       const data = await res.json();
-      return data.response || 'A paz do Senhor Jesus!';
+      if (data.response && data.response.trim().length > 10) {
+        return data.response;
+      }
     }
   } catch (error) {
-    console.warn('[AI Chat Service] Request failed:', error);
+    console.warn('[AI Chat Service] Request failed, using dynamic response:', error);
   }
 
-  return 'Que a graça e a paz de nosso Senhor Jesus Cristo estejam com você e sua família!';
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || 'Dúvida bíblica';
+  return generateContextualTheologyFallback({ mode: 'chat', prompt: lastUserMsg });
 }
