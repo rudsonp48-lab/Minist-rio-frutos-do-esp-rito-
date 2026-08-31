@@ -73,18 +73,23 @@ export default function TopNotificationBanner() {
       );
 
       if (incoming) {
-        // If user is currently in the active chat with this sender/channel, don't show intrusive banner
+        // If user is currently in the active chat AND the app is visible, don't show intrusive banner
         const searchParams = new URLSearchParams(location.search);
         const currentDm = searchParams.get('dm');
         const currentChannel = searchParams.get('channel');
 
-        const isCurrentlyInThisChat = 
+        const isAppVisible = typeof document !== 'undefined' && document.visibilityState === 'visible';
+        const isCurrentlyInThisChatAndVisible = 
+          isAppVisible &&
           location.pathname === '/chat' && 
           ((currentDm && incoming.senderUid === currentDm) || 
            (currentChannel && incoming.channelId === currentChannel));
 
-        if (!isCurrentlyInThisChat) {
+        if (!isCurrentlyInThisChatAndVisible) {
           triggerNotificationDisplay(incoming);
+        } else if (!isSoundMuted) {
+          // Soft sound feedback when inside active chat
+          playNotificationChime();
         }
       }
 

@@ -3,6 +3,7 @@ import { X, Image as ImageIcon, Film, UploadCloud, Send, Sparkles, Check } from 
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../lib/firebase';
 import { createStory } from '../../services/socialService';
+import { compressImage } from '../../lib/imageUtils';
 
 interface CreateStoryModalProps {
   isOpen: boolean;
@@ -19,27 +20,67 @@ export default function CreateStoryModal({
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [caption, setCaption] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [previewError, setPreviewError] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const isVideo = file.type.startsWith('video/');
     setMediaType(isVideo ? 'video' : 'image');
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        setMediaUrl(reader.result as string);
-        setPreviewError(false);
+    if (!isVideo) {
+      setIsProcessing(true);
+      try {
+        const compressed = await compressImage(file, 1080, 0.75);
+        if (compressed) {
+          setMediaUrl(compressed);
+          setPreviewError(false);
+        } else {
+          // If empty, read direct data url as final fallback
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (reader.result) {
+              setMediaUrl(reader.result as string);
+              setPreviewError(false);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (err) {
+        console.error('Error compressing story photo:', err);
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (reader.result) {
+            setMediaUrl(reader.result as string);
+            setPreviewError(false);
+          }
+        };
+        reader.readAsDataURL(file);
+      } finally {
+        setIsProcessing(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
-    };
-    reader.readAsDataURL(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) {
+          setMediaUrl(reader.result as string);
+          setPreviewError(false);
+        }
+      };
+      reader.readAsDataURL(file);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handlePresetSelect = (url: string, type: 'image' | 'video', presetCaption: string) => {
@@ -124,7 +165,15 @@ export default function CreateStoryModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1 scrollbar-hide">
           {/* Media Preview Box */}
           <div className="relative w-full aspect-[9/16] max-h-[320px] bg-black/50 border border-dashed border-white/20 rounded-2xl overflow-hidden flex flex-col items-center justify-center group mx-auto">
-            {mediaUrl ? (
+            {isProcessing ? (
+              <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+                <div className="w-12 h-12 rounded-full border-2 border-rose-500/30 border-t-rose-500 animate-spin flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-rose-400" />
+                </div>
+                <p className="text-xs font-bold text-white">Carregando e otimizando imagem...</p>
+                <p className="text-[11px] text-white/50">Preparando para o Story</p>
+              </div>
+            ) : mediaUrl && !previewError ? (
               <>
                 {mediaType === 'video' ? (
                   <video
@@ -139,6 +188,7 @@ export default function CreateStoryModal({
                   <img
                     src={mediaUrl}
                     alt="Story Preview"
+                    referrerPolicy="no-referrer"
                     onError={() => setPreviewError(true)}
                     className="w-full h-full object-cover"
                   />
@@ -146,12 +196,30 @@ export default function CreateStoryModal({
                 {/* Overlay remove button */}
                 <button
                   type="button"
-                  onClick={() => setMediaUrl('')}
-                  className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 text-white hover:bg-black transition-all"
+                  onClick={() => {
+                    setMediaUrl('');
+                    setPreviewError(false);
+                  }}
+                  className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 text-white hover:bg-black transition-all shadow-lg"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </>
+            ) : previewError ? (
+              <div 
+                onClick={() => {
+                  setPreviewError(false);
+                  setMediaUrl('');
+                  fileInputRef.current?.click();
+                }}
+                className="flex flex-col items-center gap-2 p-6 text-center cursor-pointer hover:bg-white/5 transition-colors"
+              >
+                <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+                <p className="text-xs font-bold text-rose-300">Falha ao carregar foto</p>
+                <p className="text-[11px] text-white/50">Toque aqui para escolher outra foto</p>
+              </div>
             ) : (
               <div 
                 onClick={() => fileInputRef.current?.click()}

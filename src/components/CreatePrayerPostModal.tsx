@@ -28,6 +28,7 @@ import { auth, db } from '../lib/firebase';
 import { addDoc, collection, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { VoiceRecorder, RecordedAudio } from '../services/audioRecorder';
 import VoicePrayerPlayer from './VoicePrayerPlayer';
+import { compressImage } from '../lib/imageUtils';
 
 interface CreatePrayerPostModalProps {
   isOpen: boolean;
@@ -65,6 +66,8 @@ export default function CreatePrayerPostModal({
   // Active composer media tab: 'text' | 'photos' | 'video' | 'audio'
   const [activeMediaTab, setActiveMediaTab] = useState<'text' | 'photos' | 'video' | 'audio'>('text');
 
+  const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
+
   // Photo Upload States (supports multiple photos)
   const [photosList, setPhotosList] = useState<string[]>([]);
   const [photoUrlInput, setPhotoUrlInput] = useState('');
@@ -84,20 +87,31 @@ export default function CreatePrayerPostModal({
 
   if (!isOpen) return null;
 
-  // Handle Photo File Upload
-  const handlePhotoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Photo File Upload with compression to keep Firestore document payload light & fast
+  const handlePhotoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.result) {
-          setPhotosList(prev => [...prev, reader.result as string]);
+    setIsProcessingPhotos(true);
+    try {
+      const compressedPhotos: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.type.startsWith('image/')) {
+          const compressed = await compressImage(file, 1080, 0.75);
+          compressedPhotos.push(compressed);
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+      setPhotosList(prev => [...prev, ...compressedPhotos]);
+    } catch (err) {
+      console.error('Error compressing uploaded photos:', err);
+      alert('Não foi possível processar as fotos selecionadas. Tente novamente.');
+    } finally {
+      setIsProcessingPhotos(false);
+      if (photoFileInputRef.current) {
+        photoFileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleAddPhotoUrl = () => {
@@ -405,10 +419,20 @@ export default function CreatePrayerPostModal({
                   <button
                     type="button"
                     onClick={() => photoFileInputRef.current?.click()}
-                    className="flex-1 py-3 px-4 rounded-xl border border-dashed border-purple-500/40 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20 text-purple-200 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                    disabled={isProcessingPhotos}
+                    className="flex-1 py-3 px-4 rounded-xl border border-dashed border-purple-500/40 hover:border-purple-500 bg-purple-500/10 hover:bg-purple-500/20 text-purple-200 text-xs font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                   >
-                    <UploadCloud className="w-4 h-4 text-purple-400" />
-                    Enviar Fotos do Celular/PC
+                    {isProcessingPhotos ? (
+                      <>
+                        <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
+                        Otimizando fotos...
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-4 h-4 text-purple-400" />
+                        Enviar Fotos do Celular/PC
+                      </>
+                    )}
                   </button>
 
                   <div className="flex items-center gap-1 flex-1">

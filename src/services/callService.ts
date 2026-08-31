@@ -177,7 +177,7 @@ export function playCallSound(type: 'ring' | 'connect' | 'disconnect' | 'raise_h
 }
 
 /**
- * Starts a repeating ring chime (Instagram style incoming ring)
+ * Starts a repeating ring chime (Instagram style incoming ring) with haptic vibration
  */
 export function startRingingLoop(type: 'incoming' | 'outgoing' = 'incoming'): () => void {
   let isStopped = false;
@@ -185,6 +185,11 @@ export function startRingingLoop(type: 'incoming' | 'outgoing' = 'incoming'): ()
   const playOnce = () => {
     if (isStopped) return;
     playCallSound(type === 'incoming' ? 'incoming_ring' : 'ring');
+    if (type === 'incoming' && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([600, 250, 600, 250, 600, 250]);
+      } catch {}
+    }
   };
 
   playOnce();
@@ -193,6 +198,11 @@ export function startRingingLoop(type: 'incoming' | 'outgoing' = 'incoming'): ()
   return () => {
     isStopped = true;
     clearInterval(interval);
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(0);
+      } catch {}
+    }
   };
 }
 

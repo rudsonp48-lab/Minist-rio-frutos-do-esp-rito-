@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRight, Moon, Globe, Terminal, Cpu, Share2, Youtube, ShieldAlert, LayoutDashboard, ChevronLeft, LogOut, User, Lock, Heart, Paintbrush, Camera, Loader2, Users, Edit3, Sparkles } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRight, Moon, Globe, Terminal, Cpu, Share2, Youtube, ShieldAlert, LayoutDashboard, ChevronLeft, LogOut, User, Lock, Heart, Paintbrush, Camera, Loader2, Users, Edit3, Sparkles, Download, Smartphone } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
@@ -176,6 +176,10 @@ export default function SettingsPage() {
       case 'storage':
         alert(`Configuração de ${actionName} em desenvolvimento.`);
         break;
+      case 'install_app':
+        localStorage.removeItem('church_app_install_dismissed');
+        window.location.reload();
+        break;
       case 'about':
         alert("Ecclesia App - Gestão e Comunhão.\nVersão 3.5.0");
         break;
@@ -192,6 +196,12 @@ export default function SettingsPage() {
       title: 'Minha Conta & Perfil',
       items: [
         { icon: User, label: 'Editar Nome & Foto de Perfil', color: 'bg-[var(--theme-color)]', value: 'Alterar', action: 'edit_profile' },
+      ]
+    },
+    {
+      title: 'Aplicativo & Atalho',
+      items: [
+        { icon: Download, label: 'Baixar Aplicativo no Celular', color: 'bg-gradient-to-r from-purple-600 to-emerald-500', value: 'Instalar', action: 'install_app' },
       ]
     },
     {

@@ -54,6 +54,9 @@ export default function CallRoomModal({
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
+  const [audioOutputMode, setAudioOutputMode] = useState<'speaker' | 'earpiece'>(
+    initialType === 'video' ? 'speaker' : 'earpiece'
+  );
   
   // Call status & timer
   const [callState, setCallState] = useState<'calling' | 'connected'>('calling');
@@ -890,6 +893,19 @@ export default function CallRoomModal({
               title={isVideoMuted ? 'Ligar câmera' : 'Desligar câmera'}
             >
               {isVideoMuted ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            </button>
+
+            {/* Audio Mode: Viva-Voz vs Normal */}
+            <button
+              onClick={() => setAudioOutputMode(audioOutputMode === 'speaker' ? 'earpiece' : 'speaker')}
+              className={`p-3 sm:p-3.5 rounded-2xl font-bold flex items-center justify-center transition-all shadow-lg active:scale-95 ${
+                audioOutputMode === 'speaker'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/50'
+                  : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-950/50'
+              }`}
+              title={audioOutputMode === 'speaker' ? 'Viva-Voz Ativado (Toque para Chamada Normal no Ouvido)' : 'Chamada Normal Ativada (Toque para Viva-Voz)'}
+            >
+              {audioOutputMode === 'speaker' ? <Volume2 className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
             </button>
 
             {/* Screen Share */}

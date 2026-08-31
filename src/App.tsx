@@ -40,7 +40,9 @@ import AITheologicalAssistant from './components/AITheologicalAssistant';
 import TopNotificationBanner from './components/TopNotificationBanner';
 import IncomingCallModal from './components/chat/IncomingCallModal';
 import DirectCallModal from './components/chat/DirectCallModal';
+import InstallAppModal from './components/InstallAppModal';
 import { CallSession, subscribeToIncomingCalls } from './services/callService';
+import { triggerCallNotification } from './services/notificationService';
 
 function SplashScreen({ onRetry }: { onRetry?: () => void }) {
   const [showRetry, setShowRetry] = useState(false);
@@ -235,6 +237,13 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
       // Only show incoming call if we are not already in that call
       if (call && activeDirectCall?.id !== call.id) {
         setIncomingCall(call);
+        // Trigger system background push notification & vibration (rings on lock screen / other apps)
+        triggerCallNotification({
+          callerName: call.caller.name,
+          callType: call.type,
+          callId: call.id,
+          callerPhoto: call.caller.photoURL
+        });
       } else if (!call) {
         setIncomingCall(null);
       }
@@ -311,6 +320,7 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
 
       <GlobalPlayer />
       <AITheologicalAssistant />
+      <InstallAppModal />
       <BottomNav />
     </div>
   );

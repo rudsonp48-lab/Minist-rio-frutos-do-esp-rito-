@@ -56,81 +56,163 @@ export const CHRISTIAN_AVATAR_PRESETS: ChristianAvatarPreset[] = [
   }
 ];
 
-export const compressImage = (file: File, maxDim: number = 1000, quality: number = 0.7): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        
+export const compressImage = async (file: File, maxDim: number = 1080, quality: number = 0.8): Promise<string> => {
+  // Method 1: Try createImageBitmap (fastest, no DOM Image required, safe from CORS)
+  if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
+    try {
+      const bitmap = await createImageBitmap(file);
+      let { width, height } = bitmap;
+      if (width > 0 && height > 0) {
         if (width > height && width > maxDim) {
-          height *= maxDim / width;
+          height = Math.round((height * maxDim) / width);
           width = maxDim;
         } else if (height > maxDim) {
-          width *= maxDim / height;
+          width = Math.round((width * maxDim) / height);
           height = maxDim;
         }
-        
-        canvas.width = Math.round(width);
-        canvas.height = Math.round(height);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(width));
+        canvas.height = Math.max(1, Math.round(height));
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          bitmap.close();
+          return canvas.toDataURL('image/jpeg', quality);
         }
-        
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      }
+      bitmap.close();
+    } catch (e) {
+      console.warn('createImageBitmap failed, falling back to FileReader:', e);
+    }
+  }
+
+  // Method 2: Standard Image + FileReader Data URL
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) {
+        resolve('');
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.naturalWidth || img.width;
+          let height = img.naturalHeight || img.height;
+
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+
+          canvas.width = Math.max(1, Math.round(width));
+          canvas.height = Math.max(1, Math.round(height));
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(dataUrl);
+            return;
+          }
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch {
+          resolve(dataUrl);
+        }
+      };
+
+      img.onerror = () => {
         resolve(dataUrl);
       };
-      img.onerror = reject;
+
+      img.src = dataUrl;
     };
-    reader.onerror = reject;
+
+    reader.onerror = () => {
+      resolve('');
+    };
+
+    reader.readAsDataURL(file);
   });
 };
 
 /**
  * Compresses an image specifically for user profile avatars (square cropped & optimized)
  */
-export const compressAvatar = (file: File, size: number = 320, quality: number = 0.8): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
+export const compressAvatar = async (file: File, size: number = 320, quality: number = 0.8): Promise<string> => {
+  if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const { width, height } = bitmap;
+      if (width > 0 && height > 0) {
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Canvas context not available'));
-          return;
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          const minDim = Math.min(width, height);
+          const startX = (width - minDim) / 2;
+          const startY = (height - minDim) / 2;
+          ctx.drawImage(bitmap, startX, startY, minDim, minDim, 0, 0, size, size);
+          bitmap.close();
+          return canvas.toDataURL('image/jpeg', quality);
         }
+      }
+      bitmap.close();
+    } catch (e) {
+      console.warn('Avatar createImageBitmap failed:', e);
+    }
+  }
 
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) return resolve('');
 
-        // Calculate square crop from center
-        const minDim = Math.min(img.width, img.height);
-        const startX = (img.width - minDim) / 2;
-        const startY = (img.height - minDim) / 2;
-
-        ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, size, size);
-
-        // Export as optimized jpeg
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            const width = img.naturalWidth || img.width;
+            const height = img.naturalHeight || img.height;
+            const minDim = Math.min(width, height);
+            const startX = (width - minDim) / 2;
+            const startY = (height - minDim) / 2;
+            ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, size, size);
+            return resolve(canvas.toDataURL('image/jpeg', quality));
+          }
+          resolve(dataUrl);
+        } catch {
+          resolve(dataUrl);
+        }
       };
-      img.onerror = (err) => reject(err);
+
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
     };
-    reader.onerror = (err) => reject(err);
+
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
   });
 };
 

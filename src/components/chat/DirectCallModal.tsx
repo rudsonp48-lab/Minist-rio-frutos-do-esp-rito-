@@ -9,7 +9,10 @@ import {
   VolumeX, 
   RotateCw, 
   Minimize2,
-  ShieldCheck
+  ShieldCheck,
+  Smartphone,
+  Headphones,
+  Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../lib/firebase';
@@ -48,6 +51,11 @@ export default function DirectCallModal({
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(initialCallSession.type === 'audio');
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
+  // Audio Mode: 'speaker' (Viva-voz) or 'earpiece' (Chamada Normal / Auricular no Ouvido)
+  const [audioOutputMode, setAudioOutputMode] = useState<'speaker' | 'earpiece'>(
+    initialCallSession.type === 'video' ? 'speaker' : 'earpiece'
+  );
+  const [modeFeedbackToast, setModeFeedbackToast] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
 
@@ -62,6 +70,82 @@ export default function DirectCallModal({
 
   const isVideo = callSession.type === 'video';
   const remoteUser = isInitiator ? callSession.receiver : callSession.caller;
+
+  // Apply audio volume and sink routing according to audioOutputMode
+  const applyAudioMode = async (mode: 'speaker' | 'earpiece', muted = isSpeakerMuted) => {
+    if (!remoteAudioRef.current) return;
+    
+    if (muted) {
+      remoteAudioRef.current.volume = 0;
+      return;
+    }
+
+    if (mode === 'earpiece') {
+      // Chamada Normal: comfortable 35% ear volume so user can hold phone to ear without hurting hearing
+      remoteAudioRef.current.volume = 0.35;
+      
+      // Attempt device sinkId switch if supported by browser/PWA
+      if ('setSinkId' in (remoteAudioRef.current as any)) {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const earpiece = devices.find(d => 
+            d.kind === 'audiooutput' && 
+            (d.label.toLowerCase().includes('earpiece') || 
+             d.label.toLowerCase().includes('auricular') ||
+             d.label.toLowerCase().includes('headset') ||
+             d.label.toLowerCase().includes('fone') ||
+             d.deviceId === 'earpiece')
+          );
+          if (earpiece) {
+            await (remoteAudioRef.current as any).setSinkId(earpiece.deviceId);
+          } else {
+            await (remoteAudioRef.current as any).setSinkId('default');
+          }
+        } catch (e) {
+          console.debug('[Audio] setSinkId earpiece note:', e);
+        }
+      }
+    } else {
+      // Viva-voz: 100% full loud speaker volume
+      remoteAudioRef.current.volume = 1.0;
+      
+      if ('setSinkId' in (remoteAudioRef.current as any)) {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const speaker = devices.find(d => 
+            d.kind === 'audiooutput' && 
+            (d.label.toLowerCase().includes('speaker') || 
+             d.label.toLowerCase().includes('alto-falante') ||
+             d.label.toLowerCase().includes('alto falante'))
+          );
+          if (speaker) {
+            await (remoteAudioRef.current as any).setSinkId(speaker.deviceId);
+          } else {
+            await (remoteAudioRef.current as any).setSinkId('default');
+          }
+        } catch (e) {
+          console.debug('[Audio] setSinkId speaker note:', e);
+        }
+      }
+    }
+  };
+
+  const handleToggleAudioMode = async () => {
+    const nextMode = audioOutputMode === 'speaker' ? 'earpiece' : 'speaker';
+    setAudioOutputMode(nextMode);
+    await applyAudioMode(nextMode, isSpeakerMuted);
+    
+    setModeFeedbackToast(
+      nextMode === 'speaker' ? '🔊 Viva-voz Ativado' : '📱 Chamada Normal (Auricular no Ouvido / Fone)'
+    );
+    setTimeout(() => {
+      setModeFeedbackToast(null);
+    }, 2400);
+  };
+
+  useEffect(() => {
+    applyAudioMode(audioOutputMode, isSpeakerMuted);
+  }, [isSpeakerMuted, audioOutputMode]);
 
   // 1. Subscribe to Firestore Call Session Updates (status, offer, answer)
   useEffect(() => {
@@ -344,7 +428,7 @@ export default function DirectCallModal({
                 <h3 className="text-base font-bold text-white leading-tight drop-shadow truncate max-w-[180px] sm:max-w-[220px]">
                   {remoteUser.name}
                 </h3>
-                <div className="flex items-center gap-1.5 text-xs text-white/80 font-medium">
+                <div className="flex items-center gap-2 text-xs text-white/80 font-medium">
                   {callState === 'ringing' ? (
                     <span className="flex items-center gap-1.5 text-emerald-400">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -356,6 +440,29 @@ export default function DirectCallModal({
                       {formatTimer(durationSeconds)}
                     </span>
                   )}
+
+                  {/* Audio Output Mode Quick Switch Badge */}
+                  <button
+                    onClick={handleToggleAudioMode}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all active:scale-95 flex items-center gap-1 ${
+                      audioOutputMode === 'speaker'
+                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                        : 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                    }`}
+                    title="Alternar entre Viva-Voz e Chamada Normal no ouvido"
+                  >
+                    {audioOutputMode === 'speaker' ? (
+                      <>
+                        <Volume2 className="w-3 h-3" />
+                        <span>Viva-Voz</span>
+                      </>
+                    ) : (
+                      <>
+                        <Phone className="w-3 h-3" />
+                        <span>Normal (Ouvido)</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -368,6 +475,20 @@ export default function DirectCallModal({
               <Minimize2 className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Audio Output Mode Feedback Toast Notification */}
+          <AnimatePresence>
+            {modeFeedbackToast && (
+              <motion.div
+                initial={{ opacity: 0, y: -15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="absolute top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-white text-xs font-bold shadow-2xl flex items-center gap-2"
+              >
+                <span>{modeFeedbackToast}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Main Visual Viewport */}
           <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">
@@ -479,20 +600,29 @@ export default function DirectCallModal({
                   ) : (
                     <>
                       <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      Em chamada de áudio • {formatTimer(durationSeconds)}
+                      Em chamada de voz • {formatTimer(durationSeconds)}
                     </>
                   )}
                 </p>
-                <span className="text-[11px] px-3 py-1 rounded-full bg-white/10 text-white/60 border border-white/10 font-medium">
-                  Comunhão Direta Privada
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] px-3 py-1 rounded-full bg-white/10 text-white/60 border border-white/10 font-medium">
+                    Comunhão Direta Privada
+                  </span>
+                  <span className={`text-[11px] px-3 py-1 rounded-full border font-bold ${
+                    audioOutputMode === 'speaker'
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                      : 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300'
+                  }`}>
+                    {audioOutputMode === 'speaker' ? '🔊 Viva-Voz' : '📱 Modo Normal'}
+                  </span>
+                </div>
               </div>
             )}
           </div>
 
           {/* Bottom Floating Control Bar (Instagram Style Capsule) */}
           <div className="relative z-30 p-5 sm:p-6 bg-gradient-to-t from-black via-black/80 to-transparent">
-            <div className="flex items-center justify-center gap-3 sm:gap-4 bg-white/10 backdrop-blur-xl border border-white/15 rounded-full p-2.5 sm:p-3 shadow-2xl max-w-sm mx-auto">
+            <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 bg-white/10 backdrop-blur-xl border border-white/15 rounded-full p-2.5 sm:p-3 shadow-2xl max-w-md mx-auto">
               {/* Mic Mute Toggle */}
               <button
                 onClick={toggleMic}
@@ -532,6 +662,23 @@ export default function DirectCallModal({
                 </>
               )}
 
+              {/* Audio Mode Toggle: Viva-voz vs Chamada Normal */}
+              <button
+                onClick={handleToggleAudioMode}
+                className={`p-3 sm:p-3.5 rounded-full transition-all active:scale-95 flex items-center justify-center ${
+                  audioOutputMode === 'speaker'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40'
+                    : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-950/40'
+                }`}
+                title={audioOutputMode === 'speaker' ? 'Viva-Voz Ativado (Toque para Chamada Normal no Ouvido)' : 'Chamada Normal Ativada (Toque para Viva-Voz)'}
+              >
+                {audioOutputMode === 'speaker' ? (
+                  <Volume2 className="w-5 h-5" />
+                ) : (
+                  <Phone className="w-5 h-5" />
+                )}
+              </button>
+
               {/* Speaker Mute Toggle */}
               <button
                 onClick={() => setIsSpeakerMuted(!isSpeakerMuted)}
@@ -540,9 +687,9 @@ export default function DirectCallModal({
                     ? 'bg-amber-500 text-white shadow-md shadow-amber-900/40'
                     : 'bg-white/15 hover:bg-white/25 text-white'
                 }`}
-                title={isSpeakerMuted ? 'Ativar som' : 'Silenciar som'}
+                title={isSpeakerMuted ? 'Ativar som' : 'Silenciar áudio'}
               >
-                {isSpeakerMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                {isSpeakerMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5 opacity-60" />}
               </button>
 
               {/* Big Red End Call Button */}

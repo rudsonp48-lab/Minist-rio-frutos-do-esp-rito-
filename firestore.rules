@@ -61,16 +61,33 @@ service cloud.firestore {
       allow delete: if isOwner(existing().userId);
     }
 
-    // 4. PHOTOS
+    // 4. PHOTOS & FEED MEDIA
     match /photos/{photoId} {
       allow read: if true;
-      allow create: if isSignedIn() && (isValidPhoto(incoming()) || isAdmin());
-      allow update: if isSignedIn() && (
-        (isOwner(existing().userId) && isValidPhoto(incoming())) ||
-        (incoming().diff(existing()).affectedKeys().hasOnly(['likes']) && 
-         incoming().likes == (existing().likes + 1)) || isAdmin()
-      );
-      allow delete: if isOwner(existing().userId) || isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    // STORIES (24h)
+    match /stories/{storyId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    // REELS & SHORT VIDEOS
+    match /reels/{reelId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if isSignedIn();
+      }
     }
 
     // 5. GLOBAL CONFIGS

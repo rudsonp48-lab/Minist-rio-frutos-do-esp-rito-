@@ -14,11 +14,13 @@ import {
   Heart, 
   Phone, 
   Video, 
-  UserCheck
+  UserCheck,
+  Bell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { auth } from '../lib/firebase';
+import { requestNotificationPermission } from '../services/notificationService';
 import { 
   CHAT_CHANNELS, 
   ChatChannel, 
@@ -31,7 +33,7 @@ import {
   ConversationSummary,
   BibleVerseSnippet 
 } from '../services/chatService';
-import { ActiveUser, subscribeToActiveUsers } from '../services/presenceService';
+import { ActiveUser, subscribeToActiveUsers, isUserReallyOnline, formatUserLastSeen } from '../services/presenceService';
 import { getCachedUserPhoto } from '../services/userService';
 import ChatMessageBubble from '../components/chat/ChatMessageBubble';
 import VoiceMessageRecorder from '../components/chat/VoiceMessageRecorder';
@@ -69,6 +71,15 @@ export default function Chat() {
   const [showMobileList, setShowMobileList] = useState(!initialDmUser && !searchParams.get('channel'));
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'channels' | 'direct'>('channels');
+  const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [hasNotificationPermission, setHasNotificationPermission] = useState(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission === 'granted' : false
+  );
+
+  const handleEnableNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    setHasNotificationPermission(granted);
+  };
 
   // Direct 1-on-1 Call State (Instagram Style)
   const [activeDirectCall, setActiveDirectCall] = useState<CallSession | null>(null);
@@ -388,6 +399,117 @@ export default function Chat() {
             </div>
           </div>
 
+          {/* Quick Online / Offline Presence Filter for Direct Messages */}
+          {activeTab === 'direct' && (() => {
+            const onlineCount = otherMembers.filter(m => isUserReallyOnline(m)).length;
+            const offlineCount = otherMembers.length - onlineCount;
+            return (
+              <div className="px-3 pb-2 flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                <button
+                  onClick={() => setPresenceFilter('all')}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 ${
+                    presenceFilter === 'all'
+                      ? 'bg-white/20 text-white border border-white/20 shadow-sm'
+                      : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  Todos ({otherMembers.length})
+                </button>
+                <button
+                  onClick={() => setPresenceFilter('online')}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all shrink-0 ${
+                    presenceFilter === 'online'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                      : 'bg-white/5 text-white/50 hover:text-emerald-400 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Online ({onlineCount})
+                </button>
+                <button
+                  onClick={() => setPresenceFilter('offline')}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all shrink-0 ${
+                    presenceFilter === 'offline'
+                      ? 'bg-zinc-700/40 text-zinc-300 border border-zinc-500/30 shadow-sm'
+                      : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+                  Offline ({offlineCount})
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Background Notification Enable Alert Banner for Mobile & Lock Screen Alerts */}
+          {!hasNotificationPermission && (
+            <div className="mx-3 mb-2 p-2.5 rounded-2xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-between gap-2 shadow-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-1.5 rounded-xl bg-purple-500/20 text-purple-300 shrink-0">
+                  <Bell className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold text-white leading-tight">Receber chamadas fora do app</p>
+                  <p className="text-[10px] text-white/50 truncate">Ative notificações no celular</p>
+                </div>
+              </div>
+              <button
+                onClick={handleEnableNotifications}
+                className="px-2.5 py-1 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold shrink-0 transition-colors shadow"
+              >
+                Ativar
+              </button>
+            </div>
+          )}
+
+          {/* Online Brothers Horizontal Story Reel (Only on Direct tab & 'all'/'online' filter) */}
+          {activeTab === 'direct' && presenceFilter !== 'offline' && !searchQuery && (() => {
+            const onlineList = otherMembers.filter(m => isUserReallyOnline(m));
+            if (onlineList.length === 0) return null;
+            return (
+              <div className="px-3 py-2 border-b border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    Irmãos Online Agora ({onlineList.length})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-hide">
+                  {onlineList.map(member => (
+                    <button
+                      key={`story_${member.uid}`}
+                      onClick={() => handleSelectDm(member)}
+                      className="flex flex-col items-center gap-1 shrink-0 group focus:outline-none"
+                    >
+                      <div className="relative">
+                        <div className="w-11 h-11 rounded-2xl p-[2px] bg-gradient-to-tr from-emerald-400 via-teal-400 to-cyan-400 group-hover:scale-105 transition-transform shadow-md">
+                          {member.photoURL ? (
+                            <img
+                              src={member.photoURL}
+                              alt={member.name}
+                              className="w-full h-full object-cover rounded-[14px]"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-[#161622] rounded-[14px] flex items-center justify-center font-bold text-white text-xs">
+                              {member.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#13131A] ring-1 ring-emerald-400/50 flex items-center justify-center">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-semibold text-white/80 max-w-[54px] truncate text-center group-hover:text-emerald-300">
+                        {member.name.split(' ')[0]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Channels / DMs List */}
           <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1 scrollbar-hide">
             {activeTab === 'channels' ? (
@@ -429,7 +551,7 @@ export default function Chat() {
               </>
             ) : (
               <>
-                {/* Other community members dynamically sorted with most recent message at the top */}
+                {/* Other community members dynamically filtered and sorted with presence */}
                 {(() => {
                   const processedMembers = otherMembers.map((member) => {
                     const dmId = currentUser ? getDirectMessageChannelId(currentUser.uid, member.uid) : '';
@@ -439,27 +561,39 @@ export default function Chat() {
                     );
                     const unreadCount = (conv?.unreadCounts && currentUser?.uid) ? (conv.unreadCounts[currentUser.uid] || 0) : 0;
                     const lastTime = conv?.lastMessageIso ? new Date(conv.lastMessageIso).getTime() : 0;
+                    const isOnline = isUserReallyOnline(member);
                     return {
                       member,
                       conv,
                       unreadCount,
                       lastTime,
+                      isOnline,
                       lastMessage: conv?.lastMessage || '',
                       lastMessageSenderId: conv?.lastMessageSenderId || '',
                       lastMessageIso: conv?.lastMessageIso
                     };
-                  }).filter(({ member, lastMessage }) => 
-                    member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    (member.role && member.role.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                    lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-                  ).sort((a, b) => {
-                    // Highest priority: Most recent message conversation on top
+                  }).filter(({ member, lastMessage, isOnline }) => {
+                    // Presence filter
+                    if (presenceFilter === 'online' && !isOnline) return false;
+                    if (presenceFilter === 'offline' && isOnline) return false;
+
+                    // Search filter
+                    return (
+                      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      (member.role && member.role.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                      lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                  }).sort((a, b) => {
+                    // Highest priority: Unread messages
+                    if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
+                    if (b.unreadCount > 0 && a.unreadCount === 0) return 1;
+                    // Next priority: Most recent message conversation
                     if (a.lastTime > 0 || b.lastTime > 0) {
                       return b.lastTime - a.lastTime;
                     }
                     // Next priority: Online users
-                    if (a.member.isOnline !== b.member.isOnline) {
-                      return a.member.isOnline ? -1 : 1;
+                    if (a.isOnline !== b.isOnline) {
+                      return a.isOnline ? -1 : 1;
                     }
                     return a.member.name.localeCompare(b.member.name);
                   });
@@ -467,16 +601,21 @@ export default function Chat() {
                   if (processedMembers.length === 0) {
                     return (
                       <div className="p-6 text-center text-xs text-white/40">
-                        Nenhum irmão encontrado
+                        {presenceFilter === 'online' 
+                          ? 'Nenhum irmão online no momento' 
+                          : presenceFilter === 'offline'
+                            ? 'Nenhum irmão offline'
+                            : 'Nenhum irmão encontrado'}
                       </div>
                     );
                   }
 
-                  return processedMembers.map(({ member, unreadCount, lastMessage, lastMessageSenderId, lastMessageIso, lastTime }) => {
+                  return processedMembers.map(({ member, unreadCount, lastMessage, lastMessageSenderId, lastMessageIso, isOnline }) => {
                     const isCurrent = activeDmUser?.uid === member.uid;
                     const isSentByMe = lastMessageSenderId === currentUser?.uid;
                     const hasUnread = unreadCount > 0 && !isCurrent;
                     const timeLabel = formatRelativeChatTime(lastMessageIso);
+                    const lastSeenText = formatUserLastSeen(member);
 
                     return (
                       <button
@@ -494,7 +633,9 @@ export default function Chat() {
                           <div className={`w-10 h-10 rounded-2xl p-[2px] ${
                             hasUnread 
                               ? 'bg-gradient-to-tr from-rose-500 via-purple-500 to-amber-400 animate-pulse ring-2 ring-purple-500/50' 
-                              : 'bg-gradient-to-tr from-purple-500 to-emerald-400'
+                              : isOnline
+                                ? 'bg-gradient-to-tr from-emerald-400 to-cyan-400'
+                                : 'bg-zinc-700'
                           }`}>
                             {member.photoURL ? (
                               <img
@@ -509,8 +650,12 @@ export default function Chat() {
                               </div>
                             )}
                           </div>
-                          {member.isOnline && (
-                            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#13131A]" />
+                          {isOnline ? (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#13131A] ring-1 ring-emerald-400/50 flex items-center justify-center">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                            </span>
+                          ) : (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-[#13131A]" title="Offline" />
                           )}
                         </div>
 
@@ -520,9 +665,18 @@ export default function Chat() {
                               {member.name}
                             </h4>
                             <div className="flex items-center gap-1.5 shrink-0">
-                              {timeLabel && (
+                              {timeLabel ? (
                                 <span className={`text-[10px] ${hasUnread ? 'text-purple-300 font-bold' : 'text-white/40'}`}>
                                   {timeLabel}
+                                </span>
+                              ) : isOnline ? (
+                                <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                  Online
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-white/30">
+                                  Offline
                                 </span>
                               )}
                               {hasUnread && (
@@ -538,7 +692,9 @@ export default function Chat() {
                               ? 'text-purple-200 font-semibold' 
                               : lastMessage 
                                 ? 'text-white/60' 
-                                : 'text-white/40'
+                                : isOnline 
+                                  ? 'text-emerald-400/80' 
+                                  : 'text-white/40'
                           }`}>
                             {lastMessage ? (
                               <span>
@@ -546,7 +702,13 @@ export default function Chat() {
                                 {lastMessage}
                               </span>
                             ) : (
-                              member.statusMessage || (member.isOnline ? 'Online na congregação' : 'Ausente')
+                              <span>
+                                {isOnline ? (
+                                  <span className="text-emerald-400 font-medium">🟢 {member.statusMessage || 'Online agora'}</span>
+                                ) : (
+                                  <span>⚫ {lastSeenText}</span>
+                                )}
+                              </span>
                             )}
                           </p>
                         </div>
@@ -578,42 +740,62 @@ export default function Chat() {
                 <span className="text-xs font-bold">Voltar</span>
               </button>
 
-              {activeDmUser ? (
-                <>
-                  <div className="relative shrink-0">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-purple-500 to-emerald-400 p-[2px] shadow-md">
-                      {activeDmUser.photoURL ? (
-                        <img
-                          src={activeDmUser.photoURL}
-                          alt={activeDmUser.name}
-                          className="w-full h-full object-cover rounded-[14px]"
-                          referrerPolicy="no-referrer"
-                        />
+              {activeDmUser ? (() => {
+                const isOnline = isUserReallyOnline(activeDmUser);
+                const lastSeenText = formatUserLastSeen(activeDmUser);
+                return (
+                  <>
+                    <div className="relative shrink-0">
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl p-[2px] shadow-md ${
+                        isOnline 
+                          ? 'bg-gradient-to-tr from-emerald-400 to-cyan-400' 
+                          : 'bg-zinc-700'
+                      }`}>
+                        {activeDmUser.photoURL ? (
+                          <img
+                            src={activeDmUser.photoURL}
+                            alt={activeDmUser.name}
+                            className="w-full h-full object-cover rounded-[14px]"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-black rounded-[14px] flex items-center justify-center font-bold text-white text-sm">
+                            {activeDmUser.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      {isOnline ? (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 sm:w-3.5 h-3 sm:h-3.5 rounded-full bg-emerald-500 border-2 border-black ring-1 ring-emerald-400/50 flex items-center justify-center">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        </span>
                       ) : (
-                        <div className="w-full h-full bg-black rounded-[14px] flex items-center justify-center font-bold text-white text-sm">
-                          {activeDmUser.name.charAt(0).toUpperCase()}
-                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full bg-zinc-600 border-2 border-black" />
                       )}
                     </div>
-                    {activeDmUser.isOnline && (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500 border-2 border-black" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
-                      <span className="truncate">{activeDmUser.name}</span>
-                      {activeDmUser.role && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 text-white/60 font-semibold hidden md:inline shrink-0">
-                          {activeDmUser.role}
-                        </span>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                        <span className="truncate">{activeDmUser.name}</span>
+                        {activeDmUser.role && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 text-white/60 font-semibold hidden md:inline shrink-0">
+                            {activeDmUser.role}
+                          </span>
+                        )}
+                      </h3>
+                      {isOnline ? (
+                        <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 truncate">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                          <span className="truncate">Online agora {activeDmUser.statusMessage ? `• ${activeDmUser.statusMessage}` : ''}</span>
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-white/50 flex items-center gap-1 truncate">
+                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0" />
+                          <span className="truncate">{lastSeenText}</span>
+                        </p>
                       )}
-                    </h3>
-                    <p className="text-[11px] text-emerald-400 truncate">
-                      {activeDmUser.statusMessage || (activeDmUser.isOnline ? 'Online no chat' : 'Membro')}
-                    </p>
-                  </div>
-                </>
-              ) : (
+                    </div>
+                  </>
+                );
+              })() : (
                 <>
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/10 flex items-center justify-center text-lg sm:text-xl shadow-md shrink-0">
                     {currentChannelMeta?.icon || '🕊️'}

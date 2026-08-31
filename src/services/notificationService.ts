@@ -76,27 +76,98 @@ export function playNotificationChime() {
 export async function requestBrowserNotificationPermission(): Promise<boolean> {
   if (typeof window === 'undefined' || !('Notification' in window)) return false;
   if (Notification.permission === 'granted') return true;
-  if (Notification.permission !== 'denied') {
-    try {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    } catch (err) {
-      console.debug('Notification permission request error:', err);
-      return false;
-    }
+  try {
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  } catch (err) {
+    console.debug('Notification permission request error:', err);
+    return false;
   }
-  return false;
+}
+
+export const requestNotificationPermission = requestBrowserNotificationPermission;
+
+/**
+ * Dispatches a high-priority native call notification with vibration and action buttons
+ */
+export async function triggerCallNotification(params: {
+  callerName: string;
+  callType: 'audio' | 'video';
+  callId: string;
+  callerPhoto?: string;
+}) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+
+  const title = params.callType === 'video' 
+    ? `📹 Chamada de Vídeo de ${params.callerName}` 
+    : `📞 Chamada de Voz de ${params.callerName}`;
+
+  const body = `Tocando no Frutos do Espírito... Toque para atender.`;
+  const icon = params.callerPhoto || '/icon.svg';
+
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, {
+          body,
+          icon,
+          badge: '/icon.svg',
+          tag: `call_${params.callId}`,
+          renotify: true,
+          requireInteraction: true,
+          vibrate: [500, 200, 500, 200, 500, 200, 1000],
+          data: {
+            url: `/chat`,
+            callId: params.callId,
+            type: 'call_incoming'
+          },
+          actions: [
+            { action: 'answer', title: '📞 Atender' },
+            { action: 'decline', title: '❌ Recusar' }
+          ]
+        } as any);
+        return;
+      }
+    }
+
+    const notif = new Notification(title, {
+      body,
+      icon,
+      tag: `call_${params.callId}`,
+      requireInteraction: true
+    } as any);
+    notif.onclick = () => {
+      window.focus();
+    };
+  } catch (e) {
+    console.debug('[NotificationService] Call notification dispatch notice:', e);
+  }
 }
 
 /**
  * Dispatches a native browser desktop/mobile notification if supported and permitted
  */
-export function triggerBrowserNotification(title: string, options?: NotificationOptions) {
+export async function triggerBrowserNotification(title: string, options?: NotificationOptions) {
   if (typeof window === 'undefined' || !('Notification' in window)) return;
   if (Notification.permission === 'granted') {
     try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        if (reg && reg.showNotification) {
+          await reg.showNotification(title, {
+            icon: '/icon.svg',
+            badge: '/icon.svg',
+            vibrate: [200, 100, 200],
+            ...options
+          } as any);
+          return;
+        }
+      }
+
       const notif = new Notification(title, {
-        icon: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=128',
+        icon: '/icon.svg',
         ...options
       });
       notif.onclick = () => {

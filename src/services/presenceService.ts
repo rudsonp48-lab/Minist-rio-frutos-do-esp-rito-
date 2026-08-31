@@ -85,6 +85,90 @@ const DEFAULT_COMMUNITY_MEMBERS: ActiveUser[] = [
 ];
 
 /**
+ * Checks with high precision whether a user is currently Online
+ * Validates both isOnline flag and recency of lastSeen heartbeat (< 2.5 minutes)
+ */
+export function isUserReallyOnline(user: ActiveUser): boolean {
+  if (user.uid.startsWith('system-')) {
+    return user.isOnline;
+  }
+  if (!user.isOnline) return false;
+  if (!user.lastSeen) return !!user.isOnline;
+  
+  let lastSeenMs = 0;
+  if (typeof user.lastSeen?.toDate === 'function') {
+    lastSeenMs = user.lastSeen.toDate().getTime();
+  } else if (typeof user.lastSeen?.seconds === 'number') {
+    lastSeenMs = user.lastSeen.seconds * 1000;
+  } else if (typeof user.lastSeen === 'number') {
+    lastSeenMs = user.lastSeen;
+  } else if (typeof user.lastSeen === 'string') {
+    lastSeenMs = new Date(user.lastSeen).getTime();
+  }
+
+  if (!lastSeenMs || isNaN(lastSeenMs)) return !!user.isOnline;
+  
+  const now = Date.now();
+  // Active within the last 2.5 minutes (150,000ms)
+  return (now - lastSeenMs) < 150000;
+}
+
+/**
+ * Formats a user's presence / last seen time in a beautiful, humanized manner
+ */
+export function formatUserLastSeen(user: ActiveUser): string {
+  if (isUserReallyOnline(user)) {
+    return 'Online agora';
+  }
+
+  if (!user.lastSeen) {
+    return 'Offline';
+  }
+
+  let lastSeenDate: Date;
+  if (typeof user.lastSeen?.toDate === 'function') {
+    lastSeenDate = user.lastSeen.toDate();
+  } else if (typeof user.lastSeen?.seconds === 'number') {
+    lastSeenDate = new Date(user.lastSeen.seconds * 1000);
+  } else if (typeof user.lastSeen === 'number') {
+    lastSeenDate = new Date(user.lastSeen);
+  } else if (typeof user.lastSeen === 'string') {
+    lastSeenDate = new Date(user.lastSeen);
+  } else {
+    return 'Offline';
+  }
+
+  if (isNaN(lastSeenDate.getTime())) return 'Offline';
+
+  const now = new Date();
+  const diffMs = now.getTime() - lastSeenDate.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffMinutes < 1) {
+    return 'Visto há instantes';
+  }
+  if (diffMinutes < 60) {
+    return `Visto há ${diffMinutes} min`;
+  }
+  
+  const isToday = now.toDateString() === lastSeenDate.toDateString();
+  const timeStr = lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  if (isToday) {
+    return `Visto hoje às ${timeStr}`;
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (yesterday.toDateString() === lastSeenDate.toDateString()) {
+    return `Visto ontem às ${timeStr}`;
+  }
+
+  return `Visto em ${lastSeenDate.toLocaleDateString([], { day: '2-digit', month: '2-digit' })} às ${timeStr}`;
+}
+
+/**
  * Updates the current user's presence state in Firestore
  */
 export async function updateUserPresence(statusMessage?: string, currentActivity?: ActiveUser['currentActivity']) {
@@ -139,31 +223,48 @@ export function startPresenceHeartbeat() {
   // Immediately update presence
   updateUserPresence();
 
-  // Heartbeat interval every 2 minutes
+  // Heartbeat interval every 45 seconds while active
   const interval = setInterval(() => {
     if (document.visibilityState === 'visible') {
       updateUserPresence();
     }
-  }, 120000);
+  }, 45000);
+
+  // User activity triggers immediate presence refresh throttled to 30s
+  let lastActivityUpdate = Date.now();
+  const handleUserActivity = () => {
+    if (Date.now() - lastActivityUpdate > 30000) {
+      lastActivityUpdate = Date.now();
+      updateUserPresence();
+    }
+  };
 
   const handleVisibilityChange = () => {
     if (document.visibilityState === 'visible') {
+      updateUserPresence();
+    } else {
+      // In background, record last seen timestamp
       updateUserPresence();
     }
   };
 
   const handleBeforeUnload = () => {
-    // Attempt best-effort offline notification
     setUserOffline();
   };
 
   window.addEventListener('visibilitychange', handleVisibilityChange);
   window.addEventListener('beforeunload', handleBeforeUnload);
+  window.addEventListener('touchstart', handleUserActivity, { passive: true });
+  window.addEventListener('click', handleUserActivity, { passive: true });
+  window.addEventListener('keydown', handleUserActivity, { passive: true });
 
   return () => {
     clearInterval(interval);
     window.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.removeEventListener('touchstart', handleUserActivity);
+    window.removeEventListener('click', handleUserActivity);
+    window.removeEventListener('keydown', handleUserActivity);
   };
 }
 
@@ -207,18 +308,30 @@ export function subscribeToActiveUsers(callback: (users: ActiveUser[]) => void) 
     // Merge with default community leaders so the community is always rich and active
     const mergedMap = new Map<string, ActiveUser>();
 
-    // Add default community leaders
-    DEFAULT_COMMUNITY_MEMBERS.forEach(m => {
-      mergedMap.set(m.uid, m);
+    // Add default community leaders (with dynamic active states)
+    DEFAULT_COMMUNITY_MEMBERS.forEach((m, idx) => {
+      // Rotate some leaders to simulate realistic church ministry activity
+      const isSimulatedOnline = idx < 4;
+      mergedMap.set(m.uid, {
+        ...m,
+        isOnline: isSimulatedOnline
+      });
     });
 
-    // Overwrite / add real Firestore users
+    // Overwrite / add real Firestore users with calculated real-time presence
     firestoreUsers.forEach(u => {
-      mergedMap.set(u.uid, u);
+      const reallyOnline = isUserReallyOnline(u);
+      mergedMap.set(u.uid, {
+        ...u,
+        isOnline: reallyOnline
+      });
     });
 
-    // Ensure current user is at the top if logged in
-    const userList = Array.from(mergedMap.values()).sort((a, b) => {
+    // Ensure current user is at the top if logged in, followed by online members
+    const userList = Array.from(mergedMap.values()).map(u => ({
+      ...u,
+      isOnline: isUserReallyOnline(u)
+    })).sort((a, b) => {
       if (a.uid === currentUid) return -1;
       if (b.uid === currentUid) return 1;
       if (a.isOnline && !b.isOnline) return -1;

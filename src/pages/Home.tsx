@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin, Sparkles, Scroll } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin, Sparkles, Scroll, Download, Smartphone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
@@ -30,9 +30,22 @@ export default function Home() {
   const [liveStream, setLiveStream] = useState<YouTubeVideo | null>(null);
   const [liveStreams, setLiveStreams] = useState<YouTubeVideo[]>([]);
   const [currentLiveIndex, setCurrentLiveIndex] = useState(0);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [isHomeBannerDismissed, setIsHomeBannerDismissed] = useState(false);
   const { themeColor, churchName } = useTheme();
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 500], [0, 150]);
+
+  useEffect(() => {
+    const isStandalone = 
+      window.matchMedia('(display-mode: standalone)').matches || 
+      (window.navigator as any).standalone === true ||
+      document.referrer.includes('android-app://') ||
+      localStorage.getItem('church_app_installed') === 'true';
+    
+    setIsAppInstalled(isStandalone);
+    setIsHomeBannerDismissed(localStorage.getItem('church_home_banner_dismissed') === 'true');
+  }, []);
   
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, 'app_config', 'main'), (snapshot) => {
@@ -198,6 +211,68 @@ export default function Home() {
 
       <div className="w-full max-w-7xl mx-auto px-6 mt-8 space-y-12 pb-24">
         
+        {/* Prominent App Download Banner Card (Only shown if not installed/dismissed) */}
+        {!isAppInstalled && !isHomeBannerDismissed && (
+          <section className="relative overflow-hidden rounded-[32px] p-6 lg:p-8 bg-gradient-to-r from-purple-950/60 via-[#13131A] to-emerald-950/40 border border-white/10 shadow-2xl backdrop-blur-xl group">
+            <div className="absolute -right-16 -top-16 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -left-16 -bottom-16 w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Close banner button */}
+            <button
+              onClick={() => {
+                setIsHomeBannerDismissed(true);
+                localStorage.setItem('church_home_banner_dismissed', 'true');
+              }}
+              className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors"
+              title="Fechar aviso"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 pr-6 md:pr-0">
+              <div className="flex items-center gap-4 sm:gap-6 w-full md:w-auto">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-emerald-400 p-[2.5px] shadow-xl shrink-0">
+                  <img
+                    src="/icon.svg"
+                    alt="App Icon"
+                    className="w-full h-full object-cover rounded-[22px] bg-black"
+                  />
+                  <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-[#13131A] flex items-center justify-center text-xs font-black text-white">
+                    ✓
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold tracking-wider uppercase border border-emerald-500/30 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" /> Aplicativo Oficial
+                    </span>
+                    <span className="text-xs text-white/40 font-medium hidden sm:inline">• Rápido & Leve</span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                    Instale o Ministério Frutos no seu Celular
+                  </h3>
+                  <p className="text-xs sm:text-sm text-white/60 max-w-xl">
+                    Acesse louvores, bíblia sagrada, devocionais e receba notificações de cultos e chamadas em tempo real.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 w-full md:w-auto justify-end shrink-0">
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('church_app_install_dismissed');
+                    window.location.reload();
+                  }}
+                  className="w-full md:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-500 hover:from-purple-500 hover:to-emerald-400 text-white font-bold text-sm shadow-[0_10px_25px_rgba(138,43,226,0.35)] flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Download className="w-5 h-5 animate-bounce" />
+                  <span>Baixar Aplicativo Agora</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Live Alert Banner */}
         {liveStreams.length > 0 && (
           <section className="relative group">

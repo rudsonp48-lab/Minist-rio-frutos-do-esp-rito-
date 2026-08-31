@@ -3,7 +3,7 @@ import { User } from 'firebase/auth';
 import { 
   Church, Home, BookOpen, Radio, Calendar, Heart, 
   Map, Headphones, Users, User as UserIcon, 
-  Settings, Info, Shield, Search, MessageSquare 
+  Settings, Info, Shield, Search, MessageSquare, Download 
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -137,6 +137,17 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
 
       {/* Bottom Navigation */}
       <div className="px-4 pb-8 space-y-1 relative z-10">
+        <button
+          onClick={() => {
+            localStorage.removeItem('church_app_install_dismissed');
+            window.location.reload();
+          }}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 font-medium"
+        >
+          <Download className="w-5 h-5 text-emerald-500 transition-transform group-hover:scale-110" />
+          <span className="text-[14px] tracking-wide">Baixar Aplicativo</span>
+        </button>
+
         {bottomItems.map((item) => {
           const isActive = location.pathname === item.to;
           const Icon = item.icon;

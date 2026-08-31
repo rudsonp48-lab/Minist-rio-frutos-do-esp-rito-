@@ -39,15 +39,17 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Clean up any stale service workers safely without forcing page reloads
+// Register service worker for background notifications, call rings, and PWA capabilities
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    for (const registration of registrations) {
-      registration.unregister().catch(err => {
-        console.warn('Could not unregister service worker:', err);
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.debug('[ServiceWorker] Registered successfully with scope:', registration.scope);
+      })
+      .catch(err => {
+        console.debug('[ServiceWorker] Registration notice:', err);
       });
-    }
-  }).catch(() => {});
+  });
 }
 
 // Global window error listener for module loading / chunk recovery
