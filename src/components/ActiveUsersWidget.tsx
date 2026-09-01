@@ -142,76 +142,82 @@ export default function ActiveUsersWidget() {
 
       {/* Horizontal Reel of Online Users */}
       <div className="relative">
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-3 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory">
-          {users.map((member, idx) => {
-            const isMe = member.uid === currentUser?.uid;
-            return (
-              <motion.div
-                key={member.uid}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.04 }}
-                className="shrink-0 snap-start"
-              >
-                <div
-                  onClick={() => setSelectedUser(member)}
-                  className={`group cursor-pointer relative p-3 rounded-[24px] bg-[#141419]/80 hover:bg-[#1C1C24] border transition-all duration-300 w-[140px] sm:w-[155px] flex flex-col items-center text-center shadow-lg ${
-                    isMe 
-                      ? 'border-[var(--theme-color)]/50 ring-1 ring-[var(--theme-color)]/30' 
-                      : 'border-white/10 hover:border-white/20'
-                  }`}
+        {users.length === 0 ? (
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-white/50">
+            Nenhum irmão online no momento.
+          </div>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-3 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory">
+            {users.map((member, idx) => {
+              const isMe = member.uid === currentUser?.uid;
+              return (
+                <motion.div
+                  key={member.uid}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.04 }}
+                  className="shrink-0 snap-start"
                 >
-                  {/* Avatar with Online Pulse Indicator */}
-                  <div className="relative mb-2">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-emerald-500 p-[2px] shadow-md group-hover:scale-105 transition-transform duration-300">
-                      {member.photoURL ? (
-                        <img 
-                          src={member.photoURL} 
-                          alt={member.name} 
-                          className="w-full h-full object-cover rounded-[14px]"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-black rounded-[14px] flex items-center justify-center font-bold text-white text-base">
-                          {member.name?.charAt(0).toUpperCase()}
-                        </div>
+                  <div
+                    onClick={() => setSelectedUser(member)}
+                    className={`group cursor-pointer relative p-3 rounded-[24px] bg-[#141419]/80 hover:bg-[#1C1C24] border transition-all duration-300 w-[140px] sm:w-[155px] flex flex-col items-center text-center shadow-lg ${
+                      isMe 
+                        ? 'border-[var(--theme-color)]/50 ring-1 ring-[var(--theme-color)]/30' 
+                        : 'border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {/* Avatar with Online Pulse Indicator */}
+                    <div className="relative mb-2">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-emerald-500 p-[2px] shadow-md group-hover:scale-105 transition-transform duration-300">
+                        {member.photoURL ? (
+                          <img 
+                            src={member.photoURL} 
+                            alt={member.name} 
+                            className="w-full h-full object-cover rounded-[14px]"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-black rounded-[14px] flex items-center justify-center font-bold text-white text-base">
+                            {member.name?.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Online status dot */}
+                      {member.isOnline && (
+                        <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#141419] flex items-center justify-center shadow-sm">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        </span>
+                      )}
+
+                      {/* Disciple Level / Role Tag */}
+                      {member.level && (
+                        <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-[9px] font-black text-black shadow-md border border-amber-300">
+                          Nv.{member.level}
+                        </span>
                       )}
                     </div>
 
-                    {/* Online status dot */}
-                    {member.isOnline && (
-                      <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#141419] flex items-center justify-center shadow-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                      </span>
-                    )}
-
-                    {/* Disciple Level / Role Tag */}
-                    {member.level && (
-                      <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-[9px] font-black text-black shadow-md border border-amber-300">
-                        Nv.{member.level}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Name & Role */}
-                  <h4 className="text-xs font-bold text-white truncate max-w-full group-hover:text-[var(--theme-color)] transition-colors">
-                    {member.name}
-                  </h4>
-                  <span className="text-[10px] text-white/50 font-medium truncate max-w-full mb-1">
-                    {isMe ? 'Você' : (member.role || 'Membro')}
-                  </span>
-
-                  {/* Spiritual Status Pill */}
-                  <div className="w-full mt-1 px-2 py-1 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center gap-1">
-                    <span className="text-[9px] text-white/80 font-medium truncate">
-                      {member.statusMessage || 'Em comunhão'}
+                    {/* Name & Role */}
+                    <h3 className="text-xs font-bold text-white truncate max-w-full group-hover:text-[var(--theme-color)] transition-colors">
+                      {member.name}
+                    </h3>
+                    <span className="text-[10px] text-white/50 font-medium truncate max-w-full mb-1">
+                      {isMe ? 'Você' : (member.role || 'Membro')}
                     </span>
+
+                    {/* Spiritual Status Pill */}
+                    <div className="w-full mt-1 px-2 py-1 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center gap-1">
+                      <span className="text-[9px] text-white/80 font-medium truncate">
+                        {member.statusMessage || 'Em comunhão'}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Selected Member Detail Modal */}

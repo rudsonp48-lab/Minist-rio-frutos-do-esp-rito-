@@ -133,6 +133,11 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
+    match /conversations/{convId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
     match /chat_channels/{channelId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();

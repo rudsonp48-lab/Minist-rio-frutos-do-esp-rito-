@@ -12,6 +12,7 @@ import {
   updateDoc
 } from 'firebase/firestore';
 
+// Real registered users only - No simulated/fake contacts
 export interface ActiveUser {
   uid: string;
   name: string;
@@ -26,71 +27,13 @@ export interface ActiveUser {
   currentActivity?: 'praying' | 'reading_bible' | 'listening_worship' | 'fellowship' | 'studying';
 }
 
-const DEFAULT_COMMUNITY_MEMBERS: ActiveUser[] = [
-  {
-    uid: 'system-pastor-marcos',
-    name: 'Pr. Marcos Silva',
-    photoURL: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-    isOnline: true,
-    statusMessage: 'Intercedendo pelas famílias da congregação 🙏',
-    role: 'Pastor Presidente',
-    level: 12,
-    xp: 4800,
-    currentActivity: 'praying'
-  },
-  {
-    uid: 'system-pra-sarah',
-    name: 'Pra. Sarah Oliveira',
-    photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-    isOnline: true,
-    statusMessage: 'Preparando estudo bíblico de quinta-feira 📖',
-    role: 'Pastora de Ensino',
-    level: 10,
-    xp: 3950,
-    currentActivity: 'studying'
-  },
-  {
-    uid: 'system-lucas-worship',
-    name: 'Lucas Alencar',
-    photoURL: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
-    isOnline: true,
-    statusMessage: 'Ouvindo Web Rádio & Louvores 🎶',
-    role: 'Ministério de Louvor',
-    level: 7,
-    xp: 2400,
-    currentActivity: 'listening_worship'
-  },
-  {
-    uid: 'system-carolina-mendes',
-    name: 'Carolina Mendes',
-    photoURL: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
-    isOnline: true,
-    statusMessage: 'Lendo Salmos e clamando no Mural ✨',
-    role: 'Intercessora',
-    level: 8,
-    xp: 2900,
-    currentActivity: 'praying'
-  },
-  {
-    uid: 'system-joao-lider',
-    name: 'João Batista',
-    photoURL: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200',
-    isOnline: true,
-    statusMessage: 'Em comunhão com a célula Betel 👥',
-    role: 'Líder de Célula',
-    level: 9,
-    xp: 3400,
-    currentActivity: 'fellowship'
-  }
-];
-
 /**
  * Checks with high precision whether a user is currently Online
  * Validates both isOnline flag and recency of lastSeen heartbeat (< 2.5 minutes)
  */
 export function isUserReallyOnline(user: ActiveUser): boolean {
-  if (user.uid.startsWith('system-')) {
-    return user.isOnline;
+  if (user.uid.startsWith('system-') || user.uid.startsWith('seed-')) {
+    return false;
   }
   if (!user.isOnline) return false;
   if (!user.lastSeen) return !!user.isOnline;
@@ -269,65 +212,76 @@ export function startPresenceHeartbeat() {
 }
 
 /**
- * Subscribes to real-time active users from Firestore
+ * Subscribes to real-time active users from Firestore (Real members only)
  */
 export function subscribeToActiveUsers(callback: (users: ActiveUser[]) => void) {
   const usersRef = collection(db, 'users');
-  const q = query(usersRef, limit(20));
+  const q = query(usersRef, limit(50));
 
   return onSnapshot(q, (snapshot) => {
-    const currentUid = auth.currentUser?.uid;
-    const firestoreUsers: ActiveUser[] = [];
+    const currentUser = auth.currentUser;
+    const currentUid = currentUser?.uid;
+    const mergedMap = new Map<string, ActiveUser>();
 
     snapshot.docs.forEach((docSnapshot) => {
+      const docId = docSnapshot.id;
+      // Strictly exclude fake or system mock user IDs
+      if (docId.startsWith('system-') || docId.startsWith('seed-') || docId.startsWith('user-sim-')) {
+        return;
+      }
+
       const data = docSnapshot.data();
-      if (data.name || data.email) {
+      if (data.name || data.email || data.displayName) {
         let userPhoto = data.photoURL || data.avatarUrl || '';
-        if (!userPhoto && docSnapshot.id === currentUid) {
+        if (!userPhoto && docId === currentUid) {
           try {
             userPhoto = localStorage.getItem(`church_user_photo_${currentUid}`) || '';
           } catch {}
         }
 
-        firestoreUsers.push({
-          uid: docSnapshot.id,
-          name: data.name || data.displayName || data.email?.split('@')[0] || 'Membro',
-          email: data.email,
+        const realUser: ActiveUser = {
+          uid: docId,
+          name: data.displayName || data.name || data.email?.split('@')[0] || 'Membro',
+          email: data.email || '',
           photoURL: userPhoto,
           isOnline: data.isOnline !== undefined ? data.isOnline : true,
           lastSeen: data.lastSeen,
           statusMessage: data.statusMessage || 'Em comunhão no aplicativo',
           role: data.role || (data.email === 'rudson.p48@gmail.com' ? 'Administrador' : 'Membro'),
-          level: data.level || 5,
-          xp: data.xp || 1200,
+          level: data.level || 1,
+          xp: data.xp || 100,
           currentActivity: data.currentActivity || 'fellowship'
-        });
+        };
+
+        realUser.isOnline = isUserReallyOnline(realUser);
+        mergedMap.set(docId, realUser);
       }
     });
 
-    // Merge with default community leaders so the community is always rich and active
-    const mergedMap = new Map<string, ActiveUser>();
+    // Ensure current logged-in user is always present even before their first Firestore write
+    if (currentUid && currentUser) {
+      if (!mergedMap.has(currentUid)) {
+        let photo = currentUser.photoURL || '';
+        try {
+          photo = photo || localStorage.getItem(`church_user_photo_${currentUid}`) || '';
+        } catch {}
+        
+        mergedMap.set(currentUid, {
+          uid: currentUid,
+          name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Meu Perfil',
+          email: currentUser.email || '',
+          photoURL: photo,
+          isOnline: true,
+          statusMessage: 'Online agora',
+          role: currentUser.email === 'rudson.p48@gmail.com' ? 'Administrador' : 'Membro',
+          level: 1,
+          xp: 100,
+          currentActivity: 'fellowship'
+        });
+      }
+    }
 
-    // Add default community leaders (with dynamic active states)
-    DEFAULT_COMMUNITY_MEMBERS.forEach((m, idx) => {
-      // Rotate some leaders to simulate realistic church ministry activity
-      const isSimulatedOnline = idx < 4;
-      mergedMap.set(m.uid, {
-        ...m,
-        isOnline: isSimulatedOnline
-      });
-    });
-
-    // Overwrite / add real Firestore users with calculated real-time presence
-    firestoreUsers.forEach(u => {
-      const reallyOnline = isUserReallyOnline(u);
-      mergedMap.set(u.uid, {
-        ...u,
-        isOnline: reallyOnline
-      });
-    });
-
-    // Ensure current user is at the top if logged in, followed by online members
+    // Sort: Current user first, then active/online members, then alphabetical
     const userList = Array.from(mergedMap.values()).map(u => ({
       ...u,
       isOnline: isUserReallyOnline(u)
@@ -336,12 +290,28 @@ export function subscribeToActiveUsers(callback: (users: ActiveUser[]) => void) 
       if (b.uid === currentUid) return 1;
       if (a.isOnline && !b.isOnline) return -1;
       if (!a.isOnline && b.isOnline) return 1;
-      return (b.level || 0) - (a.level || 0);
+      return a.name.localeCompare(b.name);
     });
 
     callback(userList);
   }, (err) => {
-    console.debug('[Presence] Snapshot fallback:', err);
-    callback(DEFAULT_COMMUNITY_MEMBERS);
+    console.debug('[Presence] Snapshot fallback notice:', err);
+    if (auth.currentUser) {
+      const u = auth.currentUser;
+      callback([{
+        uid: u.uid,
+        name: u.displayName || u.email?.split('@')[0] || 'Meu Perfil',
+        email: u.email || '',
+        photoURL: u.photoURL || '',
+        isOnline: true,
+        statusMessage: 'Online',
+        role: u.email === 'rudson.p48@gmail.com' ? 'Administrador' : 'Membro',
+        level: 1,
+        xp: 100,
+        currentActivity: 'fellowship'
+      }]);
+    } else {
+      callback([]);
+    }
   });
 }

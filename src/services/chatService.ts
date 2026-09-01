@@ -142,140 +142,13 @@ export const CHAT_CHANNELS: ChatChannel[] = [
 ];
 
 export const INITIAL_CHANNEL_SEEDS: Record<string, Omit<ChatMessage, 'id'>[]> = {
-  general: [
-    {
-      channelId: 'general',
-      senderId: 'system-pastor-marcos',
-      senderName: 'Pr. Marcos Silva',
-      senderPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Pastor Presidente',
-      text: 'A paz do Senhor a todos os irmãos e irmãs! Sejam muito bem-vindos ao novo Chat da nossa Rede Social da Igreja. Que este ambiente seja um instrumento de edificação, amor fraternal e comunhão.',
-      bibleVerse: {
-        reference: 'Hebreus 10:24-25',
-        text: 'Cuidemos também de nos animar uns aos outros no amor e na prática de boas obras. Não deixemos de nos congregar, como é costume de alguns, mas encorajemo-nos uns aos outros.',
-        version: 'NVI'
-      },
-      reactions: { '❤️': ['system-pra-sarah', 'system-lucas-worship'], '🙏': ['system-carolina-mendes'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 5).toISOString()
-    },
-    {
-      channelId: 'general',
-      senderId: 'system-pra-sarah',
-      senderName: 'Pra. Sarah Oliveira',
-      senderPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Pastora de Ensino',
-      text: 'Amém Pastor! Que alegria ver nossa igreja conectada! Irmãos, não deixem de compartilhar versículos e testemunhos durante o dia.',
-      reactions: { '👏': ['system-pastor-marcos'], '🕊️': ['system-joao-lider'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 3).toISOString()
-    },
-    {
-      channelId: 'general',
-      senderId: 'system-lucas-worship',
-      senderName: 'Lucas Alencar',
-      senderPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Ministério de Louvor',
-      text: 'Glória a Deus! Domingo teremos louvores novos no culto matutino. Já estamos em oração pelos corações que serão tocados!',
-      reactions: { '🔥': ['system-pastor-marcos', 'system-pra-sarah'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 1).toISOString()
-    }
-  ],
-  intercession: [
-    {
-      channelId: 'intercession',
-      senderId: 'system-carolina-mendes',
-      senderName: 'Carolina Mendes',
-      senderPhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Intercessora',
-      text: 'Irmãos amados, estamos abrindo agora a sala de oração contínua. Deixem aqui seus pedidos urgentes de oração ou áudios com clamores da alma para intercedermos juntos!',
-      bibleVerse: {
-        reference: 'Tiago 5:16',
-        text: 'A oração de um justo é poderosa e eficaz.',
-        version: 'NVI'
-      },
-      reactions: { '🙏': ['system-pastor-marcos', 'system-joao-lider'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 4).toISOString()
-    },
-    {
-      channelId: 'intercession',
-      senderId: 'system-joao-lider',
-      senderName: 'João Batista',
-      senderPhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Líder de Célula',
-      text: 'Peço oração pela saúde da família do irmão Roberto que está hospitalizado, cremos na cura em Nome de Jesus!',
-      reactions: { '🙏': ['system-carolina-mendes', 'system-pastor-marcos', 'system-pra-sarah'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 2).toISOString()
-    }
-  ],
-  studies: [
-    {
-      channelId: 'studies',
-      senderId: 'system-pra-sarah',
-      senderName: 'Pra. Sarah Oliveira',
-      senderPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Pastora de Ensino',
-      text: 'Reflexão bíblica de hoje: Em Efésios 6:10 o apóstolo Paulo nos ensina a nos fortalecer no Senhor e na força do Seu poder. Qual armadura de Deus você mais tem exercitado esta semana?',
-      bibleVerse: {
-        reference: 'Efésios 6:11',
-        text: 'Vistam toda a armadura de Deus, para poderem ficar firmes contra as ciladas do diabo.',
-        version: 'NVI'
-      },
-      reactions: { '✨': ['system-pastor-marcos', 'system-lucas-worship'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 6).toISOString()
-    }
-  ],
-  youth: [
-    {
-      channelId: 'youth',
-      senderId: 'system-lucas-worship',
-      senderName: 'Lucas Alencar',
-      senderPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Líder de Jovens',
-      text: 'Fala galera abençoada! 🚀 Este sábado teremos nosso Luau com Palavra e Louvor acústico no salão nobre às 19h30! Chamem seus amigos!',
-      reactions: { '🔥': ['system-joao-lider', 'system-carolina-mendes'], '❤️': ['system-pra-sarah'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 3).toISOString()
-    }
-  ],
-  worship: [
-    {
-      channelId: 'worship',
-      senderId: 'system-lucas-worship',
-      senderName: 'Lucas Alencar',
-      senderPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Ministério de Louvor',
-      text: 'Levitas, o ensaio geral desta semana será sexta às 19:30. Repertório: "Bondade de Deus", "A Ele a Glória" e "Ruja o Leão". Vamos chegar 15 min antes para oração!',
-      reactions: { '🎸': ['system-pastor-marcos'], '🙏': ['system-pra-sarah'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 2).toISOString()
-    }
-  ],
-  family: [
-    {
-      channelId: 'family',
-      senderId: 'system-pastor-marcos',
-      senderName: 'Pr. Marcos Silva',
-      senderPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Pastor Presidente',
-      text: 'Casais e pais de nossa congregação: que a paz reine em cada lar hoje. Lembrem-se de orar juntos antes de dormir e abençoar seus filhos diariamente.',
-      bibleVerse: {
-        reference: 'Josué 24:15',
-        text: 'Eu e a minha casa serviremos ao Senhor.',
-        version: 'ARC'
-      },
-      reactions: { '❤️': ['system-pra-sarah', 'system-joao-lider'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 7).toISOString()
-    }
-  ],
-  leaders: [
-    {
-      channelId: 'leaders',
-      senderId: 'system-pastor-marcos',
-      senderName: 'Pr. Marcos Silva',
-      senderPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-      senderRole: 'Pastor Presidente',
-      text: 'Amados líderes e obreiros, reunião de alinhamento pastoral nesta terça às 20h. Manter os relatórios de células atualizados no app.',
-      reactions: { '🛡️': ['system-joao-lider', 'system-pra-sarah'] },
-      createdAtIso: new Date(Date.now() - 3600000 * 8).toISOString()
-    }
-  ]
+  general: [],
+  intercession: [],
+  studies: [],
+  youth: [],
+  worship: [],
+  family: [],
+  leaders: []
 };
 
 /**
@@ -400,9 +273,16 @@ export async function sendChatMessage(params: {
       let recipientUid = '';
       if (params.participants && params.participants.length > 0) {
         recipientUid = params.participants.find(p => p !== currentUser.uid) || '';
-      } else if (params.channelId.startsWith('dm_')) {
-        const parts = params.channelId.replace('dm_', '').split('_');
-        recipientUid = parts.find(p => p !== currentUser.uid) || '';
+      }
+      
+      if (!recipientUid && params.channelId.startsWith('dm_')) {
+        const withoutPrefix = params.channelId.replace(/^dm_/, '');
+        const parts = withoutPrefix.split('_');
+        if (parts.length === 2) {
+          recipientUid = parts.find(p => p !== currentUser.uid) || '';
+        } else if (withoutPrefix.includes(currentUser.uid)) {
+          recipientUid = withoutPrefix.replace(currentUser.uid, '').replace(/^_+|_+$/g, '');
+        }
       }
 
       const allParticipants = params.participants && params.participants.length > 0
@@ -410,39 +290,47 @@ export async function sendChatMessage(params: {
         : (recipientUid ? Array.from(new Set([currentUser.uid, recipientUid])) : [currentUser.uid]);
 
       // Save/update conversation summary for real-time contact list sorting
-      const convRef = doc(db, 'conversations', params.channelId);
-      await setDoc(convRef, {
-        id: params.channelId,
-        channelId: params.channelId,
-        participants: allParticipants,
-        lastMessage: messagePreview,
-        lastMessageSenderId: currentUser.uid,
-        lastMessageSenderName: senderDisplayName,
-        lastMessageSenderPhoto: senderPhotoUrl,
-        lastMessageTime: serverTimestamp(),
-        lastMessageIso: new Date().toISOString(),
-        ...(recipientUid ? {
-          [`unreadCounts.${recipientUid}`]: increment(1),
-          [`unreadCounts.${currentUser.uid}`]: 0
-        } : {}),
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      // Send Push / In-App Notification to recipient
-      if (recipientUid && recipientUid !== currentUser.uid && !recipientUid.startsWith('system_')) {
-        await notifyChatMessage({
-          recipientUid,
-          senderUid: currentUser.uid,
-          senderName: senderDisplayName,
-          senderPhoto: senderPhotoUrl,
+      try {
+        const convRef = doc(db, 'conversations', params.channelId);
+        await setDoc(convRef, {
+          id: params.channelId,
           channelId: params.channelId,
-          message: messagePreview,
-          isDirect: true
-        });
+          participants: allParticipants,
+          lastMessage: messagePreview,
+          lastMessageSenderId: currentUser.uid,
+          lastMessageSenderName: senderDisplayName,
+          lastMessageSenderPhoto: senderPhotoUrl,
+          lastMessageTime: serverTimestamp(),
+          lastMessageIso: new Date().toISOString(),
+          ...(recipientUid ? {
+            [`unreadCounts.${recipientUid}`]: increment(1),
+            [`unreadCounts.${currentUser.uid}`]: 0
+          } : {}),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (convErr) {
+        console.debug('[ChatService] Conversation tracking update note:', convErr);
+      }
+
+      // Send Push / In-App Notification to recipient (Always executed)
+      if (recipientUid && recipientUid !== currentUser.uid && !recipientUid.startsWith('system_')) {
+        try {
+          await notifyChatMessage({
+            recipientUid,
+            senderUid: currentUser.uid,
+            senderName: senderDisplayName,
+            senderPhoto: senderPhotoUrl,
+            channelId: params.channelId,
+            message: messagePreview,
+            isDirect: true
+          });
+        } catch (notifErr) {
+          console.debug('[ChatService] Notification dispatch note:', notifErr);
+        }
       }
     }
-  } catch (convErr) {
-    console.debug('[ChatService] Conversation tracking update:', convErr);
+  } catch (err) {
+    console.debug('[ChatService] Post-message actions error:', err);
   }
 
   // If this is a direct chat with the AI Pastor, trigger AI response
@@ -514,10 +402,6 @@ export async function markConversationAsRead(channelId: string, userUid: string)
 async function handleAIPastorResponse(channelId: string, userPrompt: string, userUid?: string) {
   try {
     const aiContext: AIChatMessage[] = [
-      {
-        role: 'assistant',
-        content: 'Você é o Pastor Virtual e Conselheiro Bíblico da Igreja Ecclesia. Responda com acolhimento cristão, sabedoria bíblica pastoral, citando ao menos um versículo relevante e terminando com uma breve bênção de oração.'
-      },
       {
         role: 'user',
         content: userPrompt

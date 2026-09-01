@@ -103,11 +103,11 @@ async function searchBraveVideos(query: string): Promise<any[]> {
 let genAIClient: any = null;
 async function getGeminiModel() {
   const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
-  if (!genAIClient && apiKey) {
+  if (!genAIClient && (apiKey || process.env.GEMINI_API_KEY)) {
     try {
       const { GoogleGenAI } = await import("@google/genai");
       genAIClient = new GoogleGenAI({ 
-        apiKey,
+        apiKey: apiKey || process.env.GEMINI_API_KEY,
         httpOptions: {
           headers: {
             'User-Agent': 'aistudio-build'
@@ -824,6 +824,52 @@ app.get("/api/youtube-related", async (req, res) => {
 // GEMINI AI THEOLOGICAL & DEVOTIONAL ENGINE
 // ==========================================
 
+const CANDIDATE_GEMINI_MODELS = [
+  "gemini-3.7-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-latest",
+  "gemini-2.5-flash"
+];
+
+async function generateGeminiTextWithResilience(
+  ai: any,
+  params: {
+    contents: any;
+    systemInstruction?: string;
+    temperature?: number;
+  }
+): Promise<string> {
+  const { contents, systemInstruction, temperature = 0.7 } = params;
+
+  for (const modelName of CANDIDATE_GEMINI_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents,
+        config: {
+          systemInstruction,
+          temperature,
+        }
+      });
+      const text = response.text || "";
+      if (text && text.trim().length > 10) {
+        return text;
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      const is503OrDemand = errMsg.includes("503") || errMsg.includes("high demand") || errMsg.includes("UNAVAILABLE") || errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");
+      
+      console.warn(`[Gemini AI] Model '${modelName}' notice (${is503OrDemand ? '503 High Demand' : 'Notice'}):`, errMsg.slice(0, 140));
+      
+      if (is503OrDemand) {
+        await new Promise(r => setTimeout(r, 150));
+      }
+    }
+  }
+
+  return "";
+}
+
 app.post("/api/ai/theology", async (req, res) => {
   const payload: TheologyRequest = req.body || {};
   try {
@@ -831,18 +877,13 @@ app.post("/api/ai/theology", async (req, res) => {
 
     if (ai) {
       const { systemInstruction, userPrompt } = buildTheologyPrompts(payload);
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
+      const text = await generateGeminiTextWithResilience(ai, {
         contents: userPrompt,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        }
+        systemInstruction,
+        temperature: 0.7
       });
 
-      const text = response.text || "";
-      if (text.trim()) {
+      if (text && text.trim().length > 25) {
         return res.json({ result: text, source: "gemini" });
       }
     }
@@ -861,23 +902,29 @@ app.post("/api/ai/chat", async (req, res) => {
     const ai = await getGeminiModel();
 
     if (ai && Array.isArray(messages) && messages.length > 0) {
-      const contents = messages.map((m: any) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }]
-      }));
+      // Clean and sanitize messages for Gemini API
+      // 1. Skip leading assistant messages because Gemini multi-turn must start with user turn
+      let startIndex = 0;
+      while (startIndex < messages.length && messages[startIndex].role === 'assistant') {
+        startIndex++;
+      }
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
-        contents: contents,
-        config: {
-          systemInstruction: "Você é o Conselheiro e Mentor Bíblico Ecclesia IA. Ofereça respostas gentis, sábias, biblicamente fundamentadas e acolhedoras. Use versículos relevantes quando oportuno e formate as respostas com clareza em Markdown.",
-          temperature: 0.7,
+      const validMessages = messages.slice(startIndex);
+      if (validMessages.length > 0) {
+        const contents = validMessages.map((m: any) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: String(m.content || "") }]
+        }));
+
+        const text = await generateGeminiTextWithResilience(ai, {
+          contents,
+          systemInstruction: "Você é o Doutor em Teologia Bíblica, Conselheiro Pastoral e Mentor Espiritual da Igreja Ecclesia. Responda diretamente e com fidelidade às Sagradas Escrituras à pergunta ou tema trazido pelo usuário. Forneça versículos bíblicos citados com clareza, contexto teológico e aplicações práticas e acolhedoras para a vida cristã. Formate a resposta com títulos, listas e destaques em Markdown.",
+          temperature: 0.7
+        });
+
+        if (text && text.trim().length > 10) {
+          return res.json({ response: text });
         }
-      });
-
-      const text = response.text || "";
-      if (text.trim()) {
-        return res.json({ response: text });
       }
     }
   } catch (e: any) {

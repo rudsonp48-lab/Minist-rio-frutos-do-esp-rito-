@@ -20,14 +20,17 @@ export interface AppNotification {
   senderUid: string;
   senderName: string;
   senderPhoto?: string;
-  type: 'chat_dm' | 'chat_message' | 'prayer_intercession' | 'prayer_testimony' | 'volunteer_reminder' | 'cell_notice' | 'general';
+  type: 'chat_dm' | 'chat_message' | 'call_incoming' | 'call_missed' | 'prayer_intercession' | 'prayer_testimony' | 'volunteer_reminder' | 'cell_notice' | 'general';
   title: string;
   message: string;
   channelId?: string;
   isDirect?: boolean;
+  callId?: string;
+  callType?: 'audio' | 'video';
   prayerId?: string;
   read: boolean;
   createdAt: any;
+  createdAtIso?: string;
   actionUrl?: string;
 }
 
@@ -311,7 +314,92 @@ export async function notifyPrayerTestimony(params: {
 }
 
 /**
- * Subscribes to user notifications in real time
+ * Sends a high-priority notification when a user initiates a 1-on-1 audio/video call
+ */
+export async function notifyCallIncoming(params: {
+  recipientUid: string;
+  callerUid: string;
+  callerName: string;
+  callerPhoto?: string;
+  callId: string;
+  callType: 'audio' | 'video';
+}) {
+  const currentUser = auth.currentUser;
+  if (currentUser && currentUser.uid === params.recipientUid) return;
+
+  try {
+    const notificationsRef = collection(db, 'notifications');
+    const isVideo = params.callType === 'video';
+    const title = isVideo 
+      ? `📹 Chamada de Vídeo de ${params.callerName}` 
+      : `📞 Chamada de Voz de ${params.callerName}`;
+
+    await addDoc(notificationsRef, {
+      recipientUid: params.recipientUid,
+      senderUid: params.callerUid,
+      senderName: params.callerName,
+      senderPhoto: params.callerPhoto || '',
+      type: 'call_incoming',
+      title,
+      message: `Chamada ${isVideo ? 'de vídeo' : 'de voz'} ao vivo. Toque para atender.`,
+      callId: params.callId,
+      callType: params.callType,
+      read: false,
+      createdAt: serverTimestamp(),
+      createdAtIso: new Date().toISOString(),
+      actionUrl: '/chat'
+    });
+
+    // Also trigger system background browser push notification
+    triggerCallNotification({
+      callerName: params.callerName,
+      callType: params.callType,
+      callId: params.callId,
+      callerPhoto: params.callerPhoto
+    });
+  } catch (error) {
+    console.error('[NotificationService] Error sending call incoming notification:', error);
+  }
+}
+
+/**
+ * Sends a notification when a call was missed or declined
+ */
+export async function notifyCallMissed(params: {
+  recipientUid: string;
+  callerUid: string;
+  callerName: string;
+  callerPhoto?: string;
+  callType: 'audio' | 'video';
+}) {
+  try {
+    const notificationsRef = collection(db, 'notifications');
+    const isVideo = params.callType === 'video';
+    const title = isVideo 
+      ? `📹 Chamada de Vídeo Perdida` 
+      : `📞 Chamada de Voz Perdida`;
+
+    await addDoc(notificationsRef, {
+      recipientUid: params.recipientUid,
+      senderUid: params.callerUid,
+      senderName: params.callerName,
+      senderPhoto: params.callerPhoto || '',
+      type: 'call_missed',
+      title,
+      message: `Você perdeu uma chamada de ${params.callerName}.`,
+      callType: params.callType,
+      read: false,
+      createdAt: serverTimestamp(),
+      createdAtIso: new Date().toISOString(),
+      actionUrl: `/chat?dm=${params.callerUid}`
+    });
+  } catch (error) {
+    console.error('[NotificationService] Error sending call missed notification:', error);
+  }
+}
+
+/**
+ * Subscribes to user notifications in real time with high reliability and in-memory sorting
  */
 export function subscribeToUserNotifications(
   userId: string, 
@@ -319,22 +407,55 @@ export function subscribeToUserNotifications(
 ) {
   if (!userId) return () => {};
 
+  // Query notifications for this user or broadcast 'all'
+  // Note: We avoid composite index dependency by sorting in-memory
   const q = query(
     collection(db, 'notifications'),
     where('recipientUid', 'in', [userId, 'all']),
-    orderBy('createdAt', 'desc'),
-    limit(40)
+    limit(60)
   );
 
   return onSnapshot(q, (snapshot) => {
-    const notifs = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as AppNotification[];
+    const notifs = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data
+      };
+    }) as AppNotification[];
+
+    // Sort descending by timestamp or iso string
+    notifs.sort((a, b) => {
+      const getMillis = (item: any) => {
+        if (item.createdAt?.toMillis) return item.createdAt.toMillis();
+        if (item.createdAt?.seconds) return item.createdAt.seconds * 1000;
+        if (item.createdAtIso) return new Date(item.createdAtIso).getTime();
+        return 0;
+      };
+      return getMillis(b) - getMillis(a);
+    });
+
     callback(notifs);
   }, (err) => {
-    console.debug('[NotificationService] Fallback reading notifications:', err);
-    callback([]);
+    console.debug('[NotificationService] Error in composite query, using direct fallback:', err);
+    // Direct single-value fallback query
+    const fallbackQ = query(
+      collection(db, 'notifications'),
+      where('recipientUid', '==', userId),
+      limit(40)
+    );
+    return onSnapshot(fallbackQ, (snapshot) => {
+      const notifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as AppNotification[];
+      notifs.sort((a: any, b: any) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      });
+      callback(notifs);
+    }, (fallbackErr) => {
+      console.debug('[NotificationService] Fallback reading notifications failed:', fallbackErr);
+      callback([]);
+    });
   });
 }
 

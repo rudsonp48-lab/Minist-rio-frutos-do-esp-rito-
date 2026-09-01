@@ -4,6 +4,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  getDocs,
   onSnapshot, 
   updateDoc, 
   deleteDoc, 
@@ -13,6 +14,7 @@ import {
   addDoc
 } from 'firebase/firestore';
 import { getCachedUserPhoto } from './userService';
+import { notifyCallIncoming, notifyCallMissed } from './notificationService';
 
 export interface CallParticipant {
   uid: string;
@@ -225,6 +227,7 @@ export async function createDirectCall(params: {
 
   const cachedPhoto = getCachedUserPhoto(user.uid);
   const callerPhoto = cachedPhoto || user.photoURL || '';
+  const callerName = user.displayName || user.email?.split('@')[0] || 'Irmão(ã)';
 
   const callId = `call_${user.uid}_${params.receiverUid}_${Date.now()}`;
   const callRef = doc(db, 'calls', callId);
@@ -235,7 +238,7 @@ export async function createDirectCall(params: {
     status: 'ringing',
     caller: {
       uid: user.uid,
-      name: user.displayName || user.email?.split('@')[0] || 'Irmão(ã)',
+      name: callerName,
       photoURL: callerPhoto
     },
     receiver: {
@@ -250,7 +253,26 @@ export async function createDirectCall(params: {
     createdAt: serverTimestamp()
   };
 
-  await setDoc(callRef, callSession);
+  // Save call session document with both top-level and nested recipient IDs
+  await setDoc(callRef, {
+    ...callSession,
+    callerUid: user.uid,
+    receiverUid: params.receiverUid,
+    createdAtIso: new Date().toISOString()
+  });
+
+  // Dispatch instant in-app and browser call notification to the recipient
+  notifyCallIncoming({
+    recipientUid: params.receiverUid,
+    callerUid: user.uid,
+    callerName,
+    callerPhoto,
+    callId,
+    callType: params.type
+  }).catch((err) => {
+    console.debug('[CallService] Instant notification dispatch note:', err);
+  });
+
   return callSession;
 }
 
@@ -262,21 +284,45 @@ export function subscribeToIncomingCalls(receiverUid: string, callback: (call: C
 
   const callsQuery = query(
     collection(db, 'calls'),
-    where('receiver.uid', '==', receiverUid),
+    where('receiverUid', '==', receiverUid),
     where('status', '==', 'ringing')
   );
 
   return onSnapshot(callsQuery, (snapshot) => {
     if (!snapshot.empty) {
-      // Get most recent ringing call
       const docData = snapshot.docs[0].data() as CallSession;
       callback(docData);
     } else {
-      callback(null);
+      // Fallback query using nested receiver.uid
+      const fallbackQuery = query(
+        collection(db, 'calls'),
+        where('receiver.uid', '==', receiverUid),
+        where('status', '==', 'ringing')
+      );
+      getDocs(fallbackQuery).then((fbSnap) => {
+        if (!fbSnap.empty) {
+          callback(fbSnap.docs[0].data() as CallSession);
+        } else {
+          callback(null);
+        }
+      }).catch(() => {
+        callback(null);
+      });
     }
   }, (err) => {
-    console.debug('[CallService] Error subscribing to incoming calls:', err);
-    callback(null);
+    console.debug('[CallService] Error subscribing to incoming calls, attempting fallback:', err);
+    const fallbackQuery = query(
+      collection(db, 'calls'),
+      where('receiver.uid', '==', receiverUid),
+      where('status', '==', 'ringing')
+    );
+    return onSnapshot(fallbackQuery, (fbSnap) => {
+      if (!fbSnap.empty) {
+        callback(fbSnap.docs[0].data() as CallSession);
+      } else {
+        callback(null);
+      }
+    });
   });
 }
 

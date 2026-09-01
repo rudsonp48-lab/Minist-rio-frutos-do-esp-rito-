@@ -171,6 +171,9 @@ export default function Profile({ user }: ProfileProps) {
     }
   ];
 
+  const [isFlipped, setIsFlipped] = useState(false);
+  const memberRegistrationId = `MEM-${(user.uid || '000000').slice(0, 6).toUpperCase()}-2026`;
+
   return (
     <div className="min-h-screen bg-transparent w-full text-white font-sans max-w-4xl mx-auto px-4 sm:px-6 pb-32">
       {/* Toast Notification */}
@@ -213,6 +216,146 @@ export default function Profile({ user }: ProfileProps) {
           </Link>
         </div>
       </header>
+
+      {/* ========================================================= */}
+      {/* CARTEIRINHA DIGITAL ECLESIÁSTICA DE MEMBRO               */}
+      {/* ========================================================= */}
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <Award className="w-5 h-5 text-amber-400" />
+            Carteirinha Digital de Membro
+          </h3>
+          <button
+            onClick={() => setIsFlipped(!isFlipped)}
+            className="text-xs text-amber-300 hover:text-amber-200 font-bold flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 active:scale-95 transition-all"
+          >
+            🔄 {isFlipped ? 'Ver Frente' : 'Girar Carteirinha'}
+          </button>
+        </div>
+
+        <div 
+          onClick={() => setIsFlipped(!isFlipped)}
+          className="relative cursor-pointer select-none rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 bg-gradient-to-br from-[#1E1B2E] via-[#151324] to-[#0D0B18] border-2 border-amber-500/40 shadow-2xl overflow-hidden transition-all duration-300 hover:shadow-amber-500/10"
+        >
+          {/* Golden Holo Edge Glow */}
+          <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-amber-500/15 via-purple-600/10 to-transparent blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-indigo-600/15 via-transparent to-transparent blur-3xl pointer-events-none" />
+
+          {!isFlipped ? (
+            /* FRONT OF THE CARD */
+            <div className="relative z-10 space-y-6">
+              {/* Church Crest Header */}
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-amber-600 p-0.5 shadow-md flex items-center justify-center text-black font-extrabold text-xl">
+                    ✝
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-extrabold text-amber-300 uppercase tracking-wider font-serif">
+                      Igreja Batista & Ministério Fé
+                    </h4>
+                    <p className="text-[10px] text-white/50 tracking-widest uppercase">Credencial Eclesiástica Oficial</p>
+                  </div>
+                </div>
+
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold uppercase border border-emerald-500/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Membro Ativo
+                </span>
+              </div>
+
+              {/* Member Core Details */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+                <div className="relative shrink-0">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl p-0.5 bg-gradient-to-tr from-amber-400 via-purple-500 to-amber-300 shadow-xl overflow-hidden">
+                    {currentPhotoURL ? (
+                      <img
+                        src={currentPhotoURL}
+                        alt={currentDisplayName}
+                        className="w-full h-full object-cover rounded-[14px]"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[#1e1e24] rounded-[14px] flex items-center justify-center font-bold text-white text-xl">
+                        {currentDisplayName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 p-1 rounded-full bg-amber-400 text-black text-[10px] shadow">
+                    ✨
+                  </span>
+                </div>
+
+                <div className="flex-1 text-center sm:text-left space-y-1">
+                  <h3 className="text-lg sm:text-xl font-bold text-white tracking-wide">
+                    {currentDisplayName}
+                  </h3>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-0.5">
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-lg bg-amber-500/15 text-amber-300 font-semibold border border-amber-500/25">
+                      {currentMinistry}
+                    </span>
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-lg bg-white/10 text-white/70 font-mono">
+                      {memberRegistrationId}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-white/50 pt-1 font-mono">
+                    Consagração / Ingresso: 2024 • Congregação Sede
+                  </p>
+                </div>
+              </div>
+
+              {/* Card Footer with Security Hologram / Microtext */}
+              <div className="flex items-center justify-between pt-3 border-t border-white/10 text-[10px] text-white/40">
+                <span>Válido em todos os eventos e assembleias</span>
+                <span className="font-mono text-amber-400/80 font-bold">Toque para girar ➔</span>
+              </div>
+            </div>
+          ) : (
+            /* BACK OF THE CARD (QR CODE & BAPTISM DETAILS) */
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider">
+                  Credenciamento & Código de Acesso
+                </h4>
+                <span className="text-[10px] text-white/40 font-mono">SEGURANÇA ELETRÔNICA</span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-6 justify-center py-2">
+                {/* Simulated high contrast QR Code for check-in */}
+                <div className="p-3 bg-white rounded-2xl shadow-xl shrink-0 flex flex-col items-center">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 bg-black p-1.5 rounded-xl flex flex-col justify-between">
+                    <div className="flex justify-between">
+                      <div className="w-6 h-6 border-2 border-white bg-black flex items-center justify-center"><div className="w-3 h-3 bg-white" /></div>
+                      <div className="w-6 h-6 border-2 border-white bg-black flex items-center justify-center"><div className="w-3 h-3 bg-white" /></div>
+                    </div>
+                    <div className="text-white text-[7px] text-center font-mono">CONECTA•FE</div>
+                    <div className="flex justify-between items-end">
+                      <div className="w-6 h-6 border-2 border-white bg-black flex items-center justify-center"><div className="w-3 h-3 bg-white" /></div>
+                      <div className="w-3 h-3 bg-white" />
+                    </div>
+                  </div>
+                  <span className="text-[9px] text-black font-bold font-mono mt-1">{memberRegistrationId}</span>
+                </div>
+
+                <div className="space-y-2 text-center sm:text-left text-xs text-white/70">
+                  <p className="font-semibold text-white">
+                    Apresente este QR Code na portaria da igreja ou nos retiros para check-in automático.
+                  </p>
+                  <p className="text-[11px] text-white/50 leading-relaxed">
+                    "Portanto, já não sois estrangeiros nem forasteiros, mas concidadãos dos santos e membros da família de Deus." — Efésios 2:19
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[10px] text-white/40">
+                <span>Secretaria Pastoral Central</span>
+                <span className="font-mono text-amber-400 font-bold">Toque para ver a frente ➔</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Profile Card Header */}
       <section className="bg-[#121216] border border-white/10 rounded-[36px] p-6 sm:p-10 relative overflow-hidden shadow-2xl mb-8">

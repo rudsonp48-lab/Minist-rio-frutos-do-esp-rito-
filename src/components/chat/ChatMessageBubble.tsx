@@ -81,13 +81,13 @@ export default function ChatMessageBubble({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`group relative flex gap-2 sm:gap-3 my-2 w-full max-w-full ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
+      className={`group relative flex gap-1.5 sm:gap-2.5 my-1.5 w-full max-w-full min-w-0 ${isMe ? 'flex-row-reverse pl-3 sm:pl-8' : 'flex-row pr-3 sm:pr-8'}`}
     >
       {/* Sender Avatar */}
       <div className="shrink-0 flex flex-col items-center">
-        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-2xl p-[2px] shadow-md relative ${
+        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl p-[2px] shadow-md relative ${
           isAIPastor 
             ? 'bg-gradient-to-tr from-amber-400 to-indigo-500' 
             : isMe 
@@ -98,17 +98,17 @@ export default function ChatMessageBubble({
             <img
               src={message.senderPhoto}
               alt={message.senderName}
-              className="w-full h-full object-cover rounded-[14px]"
+              className="w-full h-full object-cover rounded-[10px] sm:rounded-[14px]"
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-full h-full bg-[#1e1e24] rounded-[14px] flex items-center justify-center font-bold text-white text-xs">
+            <div className="w-full h-full bg-[#1e1e24] rounded-[10px] sm:rounded-[14px] flex items-center justify-center font-bold text-white text-[11px] sm:text-xs">
               {message.senderName?.charAt(0).toUpperCase() || 'U'}
             </div>
           )}
 
           {isAIPastor && (
-            <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 border border-black flex items-center justify-center text-[9px] text-black">
+            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-400 border border-black flex items-center justify-center text-[8px] text-black">
               ✨
             </span>
           )}
@@ -116,14 +116,14 @@ export default function ChatMessageBubble({
       </div>
 
       {/* Message Body & Actions Container */}
-      <div className={`flex flex-col min-w-0 max-w-[88%] sm:max-w-[80%] md:max-w-[70%] ${isMe ? 'items-end' : 'items-start'}`}>
+      <div className={`flex flex-col min-w-0 max-w-[85%] sm:max-w-[78%] md:max-w-[70%] ${isMe ? 'items-end' : 'items-start'}`}>
         {/* Sender metadata bar */}
         <div className={`flex items-center gap-1.5 mb-1 text-xs max-w-full flex-wrap ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-          <span className="font-bold text-white/90 truncate max-w-[130px] sm:max-w-[180px]">
+          <span className="font-bold text-white/90 truncate max-w-[110px] sm:max-w-[160px]">
             {isMe ? 'Você' : message.senderName}
           </span>
           {message.senderRole && (
-            <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-md font-semibold shrink-0 ${
+            <span className={`text-[9px] px-1.5 py-0.2 rounded-md font-semibold shrink-0 ${
               message.senderRole.includes('Pastor') || message.senderRole.includes('Aconselhamento')
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                 : message.senderRole.includes('Líder') || message.senderRole.includes('Admin')

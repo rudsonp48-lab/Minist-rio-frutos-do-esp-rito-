@@ -4,7 +4,8 @@ import {
   Download, Wifi, WifiOff, Target, Zap, Globe, Cpu, BookOpen, 
   List, PenTool, Highlighter, Edit3, Volume2, VolumeX, Sparkles, 
   CheckCircle2, Copy, Check, Save, Play, Pause, RotateCcw,
-  Type, Sliders, Layers, Library
+  Type, Sliders, Layers, Library, Music, Mic2, Radio, SlidersHorizontal,
+  Flame, Heart, Calendar, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BIBLE_STRUCTURE, SAMPLE_VERSES } from '../lib/bibleData';
@@ -15,6 +16,7 @@ import Notes from './Notes';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
+import { devotionalAudio, VoiceArchetype } from '../lib/devotionalAudioEngine';
 
 interface Verse {
   book_name: string;
@@ -23,53 +25,66 @@ interface Verse {
   text: string;
 }
 
+export type HighlightColor = 'gold' | 'emerald' | 'azure' | 'rose';
+
+export interface VerseHighlight {
+  id: string;
+  book_name: string;
+  chapter: number;
+  verse: number;
+  text: string;
+  color: HighlightColor;
+  date: string;
+  note?: string;
+}
+
 interface ReadingPlan {
   id: string;
   title: string;
   description: string;
   totalDays: number;
   category: string;
-  days: { day: number; reference: string; completed?: boolean }[];
+  days: { day: number; reference: string; targetBook: string; targetChapter: number }[];
 }
 
 const READING_PLANS: ReadingPlan[] = [
   {
     id: 'plan-nt-90',
-    title: 'Novo Testamento em 90 Dias',
+    title: 'Novo Testamento Completo',
     description: 'Uma jornada inspiradora por todos os 27 livros do Novo Testamento.',
     totalDays: 14,
     category: 'Novo Testamento',
     days: [
-      { day: 1, reference: 'Mateus 1-3' },
-      { day: 2, reference: 'Mateus 4-6' },
-      { day: 3, reference: 'Mateus 7-9' },
-      { day: 4, reference: 'Mateus 10-12' },
-      { day: 5, reference: 'Mateus 13-15' },
-      { day: 6, reference: 'Marcos 1-3' },
-      { day: 7, reference: 'Marcos 4-6' },
-      { day: 8, reference: 'Lucas 1-3' },
-      { day: 9, reference: 'Lucas 4-6' },
-      { day: 10, reference: 'João 1-3' },
-      { day: 11, reference: 'João 4-6' },
-      { day: 12, reference: 'Atos 1-3' },
-      { day: 13, reference: 'Romanos 1-4' },
-      { day: 14, reference: 'Apocalipse 21-22' },
+      { day: 1, reference: 'Mateus 1', targetBook: 'Mateus', targetChapter: 1 },
+      { day: 2, reference: 'Mateus 5 (Sermão do Monte)', targetBook: 'Mateus', targetChapter: 5 },
+      { day: 3, reference: 'Mateus 28 (A Grande Comissão)', targetBook: 'Mateus', targetChapter: 28 },
+      { day: 4, reference: 'Marcos 1', targetBook: 'Marcos', targetChapter: 1 },
+      { day: 5, reference: 'Lucas 1', targetBook: 'Lucas', targetChapter: 1 },
+      { day: 6, reference: 'Lucas 15 (O Filho Pródigo)', targetBook: 'Lucas', targetChapter: 15 },
+      { day: 7, reference: 'João 1 (O Verbo de Deus)', targetBook: 'João', targetChapter: 1 },
+      { day: 8, reference: 'João 3 (O Novo Nascimento)', targetBook: 'João', targetChapter: 3 },
+      { day: 9, reference: 'João 14 (O Consolador)', targetBook: 'João', targetChapter: 14 },
+      { day: 10, reference: 'Atos 2 (O Pentecostes)', targetBook: 'Atos', targetChapter: 2 },
+      { day: 11, reference: 'Romanos 8 (Vida no Espírito)', targetBook: 'Romanos', targetChapter: 8 },
+      { day: 12, reference: '1 Coríntios 13 (O Amor)', targetBook: '1 Coríntios', targetChapter: 13 },
+      { day: 13, reference: 'Efésios 6 (A Armadura de Deus)', targetBook: 'Efésios', targetChapter: 6 },
+      { day: 14, reference: 'Apocalipse 21 (O Novo Céu)', targetBook: 'Apocalipse', targetChapter: 21 },
     ]
   },
   {
     id: 'plan-salmos-sabedoria',
     title: 'Salmos de Paz & Provérbios de Sabedoria',
-    description: 'Alimento diário para o coração e direcionamento prático para a mente.',
+    description: 'Alimento diário para o coração e direcionamento celestial para a vida prática.',
     totalDays: 7,
     category: 'Devocional',
     days: [
-      { day: 1, reference: 'Salmos 23 & Provérbios 3' },
-      { day: 2, reference: 'Salmos 91 & Provérbios 4' },
-      { day: 3, reference: 'Salmos 121 & Provérbios 16' },
-      { day: 4, reference: 'Salmos 46 & Provérbios 18' },
-      { day: 5, reference: 'Salmos 103 & Provérbios 22' },
-      { day: 6, reference: 'Salmos 139 & Provérbios 27' },
-      { day: 7, reference: 'Salmos 150 & Provérbios 31' },
+      { day: 1, reference: 'Salmos 23 (O Bom Pastor)', targetBook: 'Salmos', targetChapter: 23 },
+      { day: 2, reference: 'Salmos 91 (O Refúgio do Altíssimo)', targetBook: 'Salmos', targetChapter: 91 },
+      { day: 3, reference: 'Salmos 121 (O Socorro que vem do Senhor)', targetBook: 'Salmos', targetChapter: 121 },
+      { day: 4, reference: 'Salmos 46 (Deus é Nosso Refúgio)', targetBook: 'Salmos', targetChapter: 46 },
+      { day: 5, reference: 'Provérbios 3 (Confiança no Senhor)', targetBook: 'Provérbios', targetChapter: 3 },
+      { day: 6, reference: 'Salmos 139 (Onisciência e Amor)', targetBook: 'Salmos', targetChapter: 139 },
+      { day: 7, reference: 'Salmos 150 (Tudo que tem fôlego Louve)', targetBook: 'Salmos', targetChapter: 150 },
     ]
   }
 ];
@@ -83,7 +98,7 @@ export default function Bible() {
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
-  const [view, setView] = useState<'books' | 'chapters' | 'chapter' | 'search' | 'notes' | 'plans' | 'dictionary'>('books');
+  const [view, setView] = useState<'books' | 'chapters' | 'chapter' | 'search' | 'notes' | 'plans' | 'dictionary' | 'highlights'>('books');
   const [selectedBook, setSelectedBook] = useState<typeof BIBLE_STRUCTURE[0] | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [chapterVerses, setChapterVerses] = useState<Verse[]>([]);
@@ -103,15 +118,17 @@ export default function Bible() {
   const [fontFamily, setFontFamily] = useState<'sans' | 'serif'>('sans');
   const [showTypographySettings, setShowTypographySettings] = useState(false);
 
+  // Audio & Devotional Narration Engine State
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [showAudioControls, setShowAudioControls] = useState(false);
+  const [voiceArchetype, setVoiceArchetype] = useState<VoiceArchetype>(devotionalAudio.voiceArchetype);
+  const [musicVolume, setMusicVolume] = useState<number>(devotionalAudio.musicVolume);
+  const [activeSpokenVerse, setActiveSpokenVerse] = useState<number | null>(null);
+
   // Verse selection modal / drawer
   const [activeVerse, setActiveVerse] = useState<Verse | null>(null);
   const [copiedVerse, setCopiedVerse] = useState(false);
   const [savedVerse, setSavedVerse] = useState(false);
-
-  // Audio Speech Synthesis state
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [speechSpeed, setSpeechSpeed] = useState<number>(1);
-  const [currentSpokenVerse, setCurrentSpokenVerse] = useState<number | null>(null);
 
   // Reading Plans progress state
   const [planProgress, setPlanProgress] = useState<Record<string, number[]>>(() => {
@@ -131,20 +148,67 @@ export default function Bible() {
     });
   };
 
-  const [highlightedVerses, setHighlightedVerses] = useState<string[]>(() => {
-    const cached = localStorage.getItem('bible_highlights');
-    return cached ? JSON.parse(cached) : [];
+  // Structured Multi-Color Highlights
+  const [highlights, setHighlights] = useState<Record<string, VerseHighlight>>(() => {
+    const cached = localStorage.getItem('bible_colored_highlights');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {}
+    }
+    // Backward compatibility with previous array highlights
+    const oldArr = localStorage.getItem('bible_highlights');
+    if (oldArr) {
+      try {
+        const parsed = JSON.parse(oldArr);
+        const map: Record<string, VerseHighlight> = {};
+        parsed.forEach((k: string) => {
+          const parts = k.split('_');
+          if (parts.length >= 3) {
+            map[k] = {
+              id: k,
+              book_name: parts[0],
+              chapter: parseInt(parts[1], 10),
+              verse: parseInt(parts[2], 10),
+              text: '',
+              color: 'gold',
+              date: new Date().toLocaleDateString('pt-BR')
+            };
+          }
+        });
+        return map;
+      } catch {}
+    }
+    return {};
   });
 
   useEffect(() => {
-    localStorage.setItem('bible_highlights', JSON.stringify(highlightedVerses));
-  }, [highlightedVerses]);
+    localStorage.setItem('bible_colored_highlights', JSON.stringify(highlights));
+  }, [highlights]);
 
-  const toggleHighlight = (book: string, chapter: number, verse: number) => {
-    const key = `${book}_${chapter}_${verse}`;
-    setHighlightedVerses(prev => 
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
+  const applyHighlight = (v: Verse, color: HighlightColor) => {
+    const key = `${v.book_name}_${v.chapter}_${v.verse}`;
+    setHighlights(prev => ({
+      ...prev,
+      [key]: {
+        id: key,
+        book_name: v.book_name,
+        chapter: v.chapter,
+        verse: v.verse,
+        text: v.text,
+        color,
+        date: new Date().toLocaleDateString('pt-BR')
+      }
+    }));
+  };
+
+  const removeHighlight = (v: Verse) => {
+    const key = `${v.book_name}_${v.chapter}_${v.verse}`;
+    setHighlights(prev => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
   };
 
   const updateFontSize = (size: number) => {
@@ -161,16 +225,26 @@ export default function Bible() {
     const handleStatus = () => setIsOffline(!navigator.onLine);
     window.addEventListener('online', handleStatus);
     window.addEventListener('offline', handleStatus);
+
+    // Audio Engine State Listener
+    devotionalAudio.onStateChange((playing) => {
+      setIsAudioPlaying(playing);
+      if (!playing) {
+        setActiveSpokenVerse(null);
+      }
+    });
+
     return () => {
       window.removeEventListener('online', handleStatus);
       window.removeEventListener('offline', handleStatus);
+      devotionalAudio.stop();
     };
   }, []);
 
   const fetchChapter = useCallback(async (bookName: string, chapterNum: number, trans: string = translation) => {
     setLoading(true);
     setError(null);
-    stopAudio();
+    devotionalAudio.stop();
 
     if (navigator.onLine) {
       try {
@@ -212,47 +286,33 @@ export default function Bible() {
     setLoading(false);
   }, [translation]);
 
-  const stopAudio = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      setIsPlayingAudio(false);
-      setCurrentSpokenVerse(null);
-    }
-  };
-
-  const toggleSpeechAudio = () => {
-    if (!('speechSynthesis' in window)) {
-      alert('Seu navegador não suporta leitura de áudio.');
-      return;
-    }
-
-    if (isPlayingAudio) {
-      stopAudio();
+  // Devotional Soft Voice Playback Handler (Inspired by YouTube reference)
+  const handleToggleDevotionalNarration = () => {
+    if (isAudioPlaying) {
+      devotionalAudio.stop();
+      setIsAudioPlaying(false);
+      setActiveSpokenVerse(null);
       return;
     }
 
     if (chapterVerses.length === 0) return;
 
-    const fullChapterText = chapterVerses
-      .map(v => `Versículo ${v.verse}. ${v.text}`)
-      .join(' ');
-
-    const utterance = new SpeechSynthesisUtterance(fullChapterText);
-    utterance.lang = 'pt-BR';
-    utterance.rate = speechSpeed;
-
-    utterance.onend = () => {
-      setIsPlayingAudio(false);
-      setCurrentSpokenVerse(null);
-    };
-
-    utterance.onerror = () => {
-      setIsPlayingAudio(false);
-      setCurrentSpokenVerse(null);
-    };
-
-    window.speechSynthesis.speak(utterance);
-    setIsPlayingAudio(true);
+    setShowAudioControls(true);
+    devotionalAudio.narrateVerses(chapterVerses, {
+      onVerseChange: (verseNum) => {
+        setActiveSpokenVerse(verseNum);
+        // Scroll active verse smoothly into view
+        const el = document.getElementById(`verse-${verseNum}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      },
+      onFinish: () => {
+        setIsAudioPlaying(false);
+        setActiveSpokenVerse(null);
+      },
+      includeBackgroundMusic: musicVolume > 0
+    });
   };
 
   const handleOpenAIExegesis = (reference: string) => {
@@ -340,12 +400,25 @@ export default function Bible() {
     window.scrollTo({ top: 0 });
   };
 
+  const startPlanChapter = (targetBookName: string, targetChapterNum: number) => {
+    const bookData = BIBLE_STRUCTURE.find(b => b.book === targetBookName) || {
+      book: targetBookName,
+      chapters: 50,
+      testament: 'old' as const
+    };
+    setSelectedBook(bookData);
+    setSelectedChapter(targetChapterNum);
+    setView('chapter');
+    fetchChapter(targetBookName, targetChapterNum);
+    window.scrollTo({ top: 0 });
+  };
+
   const goBack = () => {
-    stopAudio();
+    devotionalAudio.stop();
     if (view === 'chapter') {
       setView('chapters');
       setChapterVerses([]);
-    } else if (view === 'chapters' || view === 'search' || view === 'notes' || view === 'plans' || view === 'dictionary') {
+    } else if (view === 'chapters' || view === 'search' || view === 'notes' || view === 'plans' || view === 'dictionary' || view === 'highlights') {
       setView('books');
       setSelectedBook(null);
       setSelectedChapter(null);
@@ -363,6 +436,42 @@ export default function Bible() {
     return true;
   });
 
+  const allHighlightsList = Object.values(highlights);
+
+  // Color helper mappings for aesthetic rendering
+  const getColorStyles = (color: HighlightColor) => {
+    switch (color) {
+      case 'gold':
+        return {
+          bg: 'bg-amber-500/15 border-amber-500/35',
+          text: 'text-amber-300',
+          dot: 'bg-amber-400',
+          label: 'Promessa & Fé'
+        };
+      case 'emerald':
+        return {
+          bg: 'bg-emerald-500/15 border-emerald-500/35',
+          text: 'text-emerald-300',
+          dot: 'bg-emerald-400',
+          label: 'Vida & Esperança'
+        };
+      case 'azure':
+        return {
+          bg: 'bg-cyan-500/15 border-cyan-500/35',
+          text: 'text-cyan-300',
+          dot: 'bg-cyan-400',
+          label: 'Paz & Conforto'
+        };
+      case 'rose':
+        return {
+          bg: 'bg-purple-500/15 border-purple-500/35',
+          text: 'text-purple-300',
+          dot: 'bg-purple-400',
+          label: 'Graça & Amor'
+        };
+    }
+  };
+
   return (
     <div className="min-h-screen pb-32">
       {/* Navigation Header */}
@@ -379,11 +488,22 @@ export default function Bible() {
           </Link>
         )}
         <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2">
-          {view === 'books' ? 'Bíblia Sagrada' : view === 'chapters' ? selectedBook?.book : view === 'chapter' ? `${selectedBook?.book} ${selectedChapter}` : view === 'plans' ? 'Planos de Leitura' : view === 'dictionary' ? 'Dicionário Teológico' : view === 'notes' ? 'Bloco de Notas' : 'Busca'}
+          {view === 'books' ? 'Bíblia Sagrada' : view === 'chapters' ? selectedBook?.book : view === 'chapter' ? `${selectedBook?.book} ${selectedChapter}` : view === 'plans' ? 'Planos de Leitura' : view === 'highlights' ? 'Meus Versículos Grifados' : view === 'dictionary' ? 'Dicionário Teológico' : view === 'notes' ? 'Bloco de Notas' : 'Busca'}
         </h1>
         <div className="flex items-center gap-1.5">
           {view === 'chapter' && (
             <>
+              <button
+                onClick={() => setShowAudioControls(!showAudioControls)}
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                  isAudioPlaying 
+                    ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30 animate-pulse' 
+                    : 'bg-black/5 dark:bg-white/5 text-white/80 hover:text-white'
+                }`}
+                title="Narração com Voz Suave & Fundo de Oração"
+              >
+                <Radio className="w-4 h-4" />
+              </button>
               <button
                 onClick={() => setShowTypographySettings(!showTypographySettings)}
                 className="w-9 h-9 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center text-white/80 hover:text-white"
@@ -408,6 +528,117 @@ export default function Bible() {
           )}
         </div>
       </nav>
+
+      {/* Devotional Audio Control Bar (YouTube Gentle Voice Style) */}
+      <AnimatePresence>
+        {showAudioControls && view === 'chapter' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-16 left-0 right-0 z-30 bg-[#14141C]/95 backdrop-blur-xl border-b border-amber-500/20 p-4 max-w-xl mx-auto shadow-2xl rounded-b-3xl"
+          >
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-xl bg-amber-500/20 text-amber-300">
+                  <Mic2 className="w-4 h-4" />
+                </span>
+                <div>
+                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    Narração Suave & Fundo de Oração
+                    {isAudioPlaying && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />}
+                  </h4>
+                  <p className="text-[10px] text-white/50">Voz solene inspiradora com harmonia celestial</p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleToggleDevotionalNarration}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
+                  isAudioPlaying
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-gradient-to-r from-amber-500 to-amber-600 text-black font-extrabold'
+                }`}
+              >
+                {isAudioPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                {isAudioPlaying ? 'Pausar' : 'Ouvir Capítulo'}
+              </button>
+            </div>
+
+            {/* Voice Archetype Selector */}
+            <div className="grid grid-cols-3 gap-2 text-[11px] font-bold mb-3">
+              <button
+                onClick={() => {
+                  setVoiceArchetype('solene');
+                  devotionalAudio.setArchetype('solene');
+                }}
+                className={`p-2 rounded-xl border flex flex-col items-center gap-0.5 text-center transition-all ${
+                  voiceArchetype === 'solene'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
+                    : 'bg-black/30 border-white/10 text-white/60'
+                }`}
+              >
+                <span>🎙️ Solene & Profunda</span>
+                <span className="text-[9px] text-white/40 font-normal">Cid Moreira / Solene</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setVoiceArchetype('suave');
+                  devotionalAudio.setArchetype('suave');
+                }}
+                className={`p-2 rounded-xl border flex flex-col items-center gap-0.5 text-center transition-all ${
+                  voiceArchetype === 'suave'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
+                    : 'bg-black/30 border-white/10 text-white/60'
+                }`}
+              >
+                <span>🕊️ Suave & Acolhedora</span>
+                <span className="text-[9px] text-white/40 font-normal">Paz & Oração</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setVoiceArchetype('feminina');
+                  devotionalAudio.setArchetype('feminina');
+                }}
+                className={`p-2 rounded-xl border flex flex-col items-center gap-0.5 text-center transition-all ${
+                  voiceArchetype === 'feminina'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
+                    : 'bg-black/30 border-white/10 text-white/60'
+                }`}
+              >
+                <span>🌸 Serena Feminina</span>
+                <span className="text-[9px] text-white/40 font-normal">Voz Doce & Clara</span>
+              </button>
+            </div>
+
+            {/* Background Music Volume Slider */}
+            <div className="flex items-center justify-between gap-3 text-xs text-white/80 bg-black/40 px-3 py-2 rounded-xl border border-white/10">
+              <div className="flex items-center gap-2">
+                <Music className="w-3.5 h-3.5 text-purple-400" />
+                <span className="text-[11px] font-semibold">Fundo Celestial (Pad de Paz):</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={musicVolume}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setMusicVolume(val);
+                  devotionalAudio.setMusicVolume(val);
+                }}
+                className="w-28 accent-amber-400"
+              />
+              <span className="text-[10px] font-mono text-amber-300 w-8 text-right">
+                {Math.round(musicVolume * 100)}%
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Accessibility / Typography Floating Settings Bar */}
       <AnimatePresence>
@@ -452,99 +683,84 @@ export default function Bible() {
         )}
       </AnimatePresence>
 
-      <div className="pt-20 px-4 md:px-6 space-y-6 max-w-3xl mx-auto">
-        {/* Navigation Tabs between Books, Plans, and Dictionary */}
-        {view !== 'notes' && (
-          <header className="space-y-4">
-            <div className="flex gap-1.5 p-1 bg-black/5 dark:bg-white/5 rounded-2xl">
-              <button
-                onClick={() => setView('books')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  view === 'books' || view === 'chapters' || view === 'chapter' ? 'bg-white dark:bg-white/10 shadow-sm text-black dark:text-white' : 'text-[#8E8E93]'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                Livros
-              </button>
-              <button
-                onClick={() => setView('plans')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  view === 'plans' ? 'bg-white dark:bg-white/10 shadow-sm text-black dark:text-white' : 'text-[#8E8E93]'
-                }`}
-              >
-                <Target className="w-3.5 h-3.5 text-emerald-400" />
-                Planos
-              </button>
-              <button
-                onClick={() => setView('dictionary')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  view === 'dictionary' ? 'bg-white dark:bg-white/10 shadow-sm text-black dark:text-white' : 'text-[#8E8E93]'
-                }`}
-              >
-                <Library className="w-3.5 h-3.5 text-amber-400" />
-                Dicionário
-              </button>
-            </div>
+      {/* Main Content Area */}
+      <main className="max-w-4xl mx-auto px-4 pt-20">
+        {/* Secondary Subtabs when in Books View */}
+        {view === 'books' && (
+          <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+            <button 
+              onClick={() => setView('books')}
+              className="px-4 py-2 rounded-full text-xs font-bold bg-white text-black shadow-md shrink-0 flex items-center gap-1.5"
+            >
+              <Book className="w-3.5 h-3.5" /> Livros
+            </button>
+            <button 
+              onClick={() => setView('plans')}
+              className="px-4 py-2 rounded-full text-xs font-bold bg-[#14141A] text-white/80 hover:text-white border border-white/10 shadow-sm shrink-0 flex items-center gap-1.5"
+            >
+              <Calendar className="w-3.5 h-3.5 text-amber-400" /> Planos de Leitura
+            </button>
+            <button 
+              onClick={() => setView('highlights')}
+              className="px-4 py-2 rounded-full text-xs font-bold bg-[#14141A] text-white/80 hover:text-white border border-white/10 shadow-sm shrink-0 flex items-center gap-1.5"
+            >
+              <Highlighter className="w-3.5 h-3.5 text-purple-400" /> Grifados ({allHighlightsList.length})
+            </button>
+            <button 
+              onClick={() => setView('dictionary')}
+              className="px-4 py-2 rounded-full text-xs font-bold bg-[#14141A] text-white/80 hover:text-white border border-white/10 shadow-sm shrink-0 flex items-center gap-1.5"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-cyan-400" /> Dicionário Bíblico
+            </button>
+          </div>
+        )}
 
-            {view !== 'dictionary' && (
+        <AnimatePresence mode="wait">
+          {/* Books Grid View */}
+          {view === 'books' && (
+            <motion.div key="books" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+              {/* Search Bar */}
               <form onSubmit={searchSingleVerse} className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93]" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                 <input 
                   type="text" 
                   value={searchReference}
                   onChange={(e) => setSearchReference(e.target.value)}
-                  placeholder="Buscar versículo (Ex: João 3:16, Salmos 23)"
-                  className="w-full bg-black/5 dark:bg-white/5 rounded-2xl py-3 pl-10 pr-4 text-[14px] focus:outline-none focus:ring-2 transition-all"
-                  style={{ '--tw-ring-color': themeColor } as any}
+                  placeholder="Buscar versículo (ex: João 3:16, Salmos 23)..."
+                  className="w-full bg-[#121216] border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-xs text-white placeholder:text-white/30 outline-none focus:border-[var(--theme-color)]"
                 />
               </form>
-            )}
 
-            {view !== 'dictionary' && (
-              <div className="flex gap-2 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
-                {translations.map((t) => (
+              {/* Devotional Hero Banner with gentle audio callout */}
+              <div className="bg-gradient-to-br from-amber-500/10 via-[#181824] to-purple-900/20 border border-amber-500/20 rounded-[28px] p-5 relative overflow-hidden shadow-xl">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1 max-w-md">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
+                      ✨ Experiência Devocional
+                    </span>
+                    <h3 className="text-base sm:text-lg font-bold text-white">
+                      Narração Suave & Leitura Imersiva
+                    </h3>
+                    <p className="text-xs text-white/60 leading-relaxed">
+                      Escute a Palavra narrada com voz solene e fundo instrumental celestial de oração.
+                    </p>
+                  </div>
                   <button
-                    key={t.id}
-                    onClick={() => { setTranslation(t.id); if(view==='chapter' && selectedBook && selectedChapter) fetchChapter(selectedBook.book, selectedChapter, t.id); }}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-                      translation === t.id ? 'bg-white dark:bg-white/10 shadow-sm' : 'text-[#8E8E93]'
-                    }`}
+                    onClick={() => {
+                      setSelectedBook(BIBLE_STRUCTURE.find(b => b.book === 'Salmos') || BIBLE_STRUCTURE[0]);
+                      setSelectedChapter(23);
+                      setView('chapter');
+                      fetchChapter('Salmos', 23);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition-all shrink-0"
                   >
-                    {t.label}
+                    <Play className="w-3.5 h-3.5 fill-current" /> Ouvir Salmos 23
                   </button>
-                ))}
-              </div>
-            )}
-          </header>
-        )}
-
-        {/* Dynamic View Area */}
-        <AnimatePresence mode="wait">
-          {view === 'books' && (
-            <motion.div key="books" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-              <div className="ios-card bg-[var(--theme-color)] p-6 rounded-[24px] relative overflow-hidden group mb-8 shadow-xl">
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
-                <div className="relative z-10 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-white pb-2 border-b border-white/20">
-                    <Sparkles className="w-4 h-4 text-yellow-300" />
-                    <span className="text-xs font-bold uppercase tracking-widest leading-none">Estudo Teológico com IA</span>
-                  </div>
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <h4 className="text-2xl font-bold tracking-tight text-white mb-1">Pastor Digital & Exegese</h4>
-                      <p className="text-sm text-white/80 font-medium">Analise passagens no hebraico e grego original com 1 toque.</p>
-                    </div>
-                    <button 
-                      className="h-10 px-6 rounded-full bg-white text-[var(--theme-color)] font-bold text-sm shadow-xl active:scale-95 transition-transform shrink-0" 
-                      onClick={() => handleOpenAIExegesis('João 3:16')}
-                    >
-                      Abrir IA
-                    </button>
-                  </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              {/* Testament Sections */}
+              <div className="space-y-6">
                 <h3 className="text-sm font-bold text-[#8E8E93] uppercase tracking-widest pl-2">Antigo Testamento</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {BIBLE_STRUCTURE.filter(b => b.testament === 'old').map(book => (
@@ -579,20 +795,32 @@ export default function Bible() {
           {/* Chapter Reading View */}
           {view === 'chapter' && (
             <motion.div key="chapter" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-              <div className="flex items-center justify-between bg-black/5 dark:bg-white/5 p-4 rounded-2xl">
+              <div className="flex flex-wrap items-center justify-between bg-black/5 dark:bg-white/5 p-4 rounded-2xl gap-2">
                 <div>
                   <h2 className="text-xl font-bold">{selectedBook?.book} {selectedChapter}</h2>
                   <span className="text-xs text-white/50 uppercase font-semibold">{translation.toUpperCase()}</span>
                 </div>
-                <button
-                  onClick={toggleSpeechAudio}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 ${
-                    isPlayingAudio ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
-                >
-                  {isPlayingAudio ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                  {isPlayingAudio ? 'Parar Leitura' : 'Ouvir Capítulo'}
-                </button>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowAudioControls(!showAudioControls)}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-amber-300 text-xs font-bold flex items-center gap-1.5 border border-amber-500/20"
+                    title="Configurações de Voz & Fundo Musical"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Voz & Música</span>
+                  </button>
+
+                  <button
+                    onClick={handleToggleDevotionalNarration}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 ${
+                      isAudioPlaying ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-500 text-black font-extrabold shadow-md'
+                    }`}
+                  >
+                    {isAudioPlaying ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                    {isAudioPlaying ? 'Parar Leitura' : 'Ouvir Capítulo'}
+                  </button>
+                </div>
               </div>
 
               {loading ? (
@@ -602,8 +830,11 @@ export default function Bible() {
               ) : (
                 <div className={`space-y-3 ${fontFamily === 'serif' ? 'font-serif' : 'font-sans'}`}>
                   {chapterVerses.map(v => {
-                    const isHighlighted = highlightedVerses.includes(`${v.book_name}_${v.chapter}_${v.verse}`);
+                    const key = `${v.book_name}_${v.chapter}_${v.verse}`;
+                    const hl = highlights[key];
                     const isSelected = activeVerse?.verse === v.verse;
+                    const isSpoken = activeSpokenVerse === v.verse;
+                    const hlStyles = hl ? getColorStyles(hl.color) : null;
 
                     return (
                       <div 
@@ -611,24 +842,28 @@ export default function Bible() {
                         id={`verse-${v.verse}`}
                         onClick={() => setActiveVerse(isSelected ? null : v)}
                         className={`p-3.5 rounded-2xl cursor-pointer transition-all border ${
-                          isSelected
-                            ? 'bg-purple-900/30 border-purple-500/50 shadow-md'
-                            : isHighlighted
-                            ? 'bg-[var(--theme-color)]/15 border-[var(--theme-color)]/30'
-                            : 'bg-black/5 dark:bg-white/5 border-transparent hover:bg-black/10 dark:hover:bg-white/10'
+                          isSpoken
+                            ? 'bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/40 shadow-lg scale-[1.01]'
+                            : isSelected
+                              ? 'bg-purple-900/30 border-purple-500/50 shadow-md'
+                              : hlStyles
+                                ? `${hlStyles.bg} ${hlStyles.text}`
+                                : 'bg-black/5 dark:bg-white/5 border-transparent hover:bg-black/10 dark:hover:bg-white/10'
                         }`}
                       >
                         <div className="flex gap-3">
-                          <span className="text-[12px] font-bold mt-0.5 w-6 text-right shrink-0" style={{ color: isHighlighted ? themeColor : '#8E8E93' }}>{v.verse}</span>
+                          <span className={`text-[12px] font-bold mt-0.5 w-6 text-right shrink-0 ${isSpoken ? 'text-amber-400 font-extrabold' : hlStyles ? hlStyles.text : 'text-[#8E8E93]'}`}>
+                            {v.verse}
+                          </span>
                           <div className="flex-1">
                             <p 
                               style={{ fontSize: `${fontSize}px` }}
-                              className={`leading-relaxed font-medium ${isHighlighted ? 'text-[var(--theme-color)]' : 'text-black/90 dark:text-white/90'}`}
+                              className={`leading-relaxed font-medium ${isSpoken ? 'text-white font-semibold' : hlStyles ? hlStyles.text : 'text-black/90 dark:text-white/90'}`}
                             >
                               {v.text}
                             </p>
 
-                            {/* Verse Quick Action Bar when clicked */}
+                            {/* Verse Quick Action & Color Highlighter Bar when clicked */}
                             {isSelected && (
                               <motion.div
                                 initial={{ opacity: 0, y: 5 }}
@@ -644,15 +879,56 @@ export default function Bible() {
                                 >
                                   <Sparkles className="w-3.5 h-3.5" /> Exegese IA
                                 </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleHighlight(v.book_name, v.chapter, v.verse);
-                                  }}
-                                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium flex items-center gap-1"
-                                >
-                                  <Highlighter className="w-3.5 h-3.5" /> {isHighlighted ? 'Desmarcar' : 'Destacar'}
-                                </button>
+
+                                {/* Multi-Color Highlight Selection */}
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-black/50 border border-white/15">
+                                  <span className="text-[10px] text-white/50 font-bold uppercase mr-1">Grifar:</span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      applyHighlight(v, 'gold');
+                                    }}
+                                    className="w-5 h-5 rounded-full bg-amber-400 hover:scale-110 active:scale-95 transition-transform"
+                                    title="Dourado: Promessa & Fé"
+                                  />
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      applyHighlight(v, 'emerald');
+                                    }}
+                                    className="w-5 h-5 rounded-full bg-emerald-400 hover:scale-110 active:scale-95 transition-transform"
+                                    title="Esmeralda: Vida & Esperança"
+                                  />
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      applyHighlight(v, 'azure');
+                                    }}
+                                    className="w-5 h-5 rounded-full bg-cyan-400 hover:scale-110 active:scale-95 transition-transform"
+                                    title="Azul: Paz & Conforto"
+                                  />
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      applyHighlight(v, 'rose');
+                                    }}
+                                    className="w-5 h-5 rounded-full bg-purple-400 hover:scale-110 active:scale-95 transition-transform"
+                                    title="Púrpura: Graça & Amor"
+                                  />
+                                  {hl && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeHighlight(v);
+                                      }}
+                                      className="ml-1 p-0.5 rounded text-red-400 hover:text-red-300"
+                                      title="Remover marcação"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -682,6 +958,152 @@ export default function Bible() {
                   })}
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* Highlights & Grifos Tab View */}
+          {view === 'highlights' && (
+            <motion.div key="highlights" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Versículos Grifados & Marcados</h2>
+                  <p className="text-xs text-white/50">Seu tesouro espiritual organizado por cores</p>
+                </div>
+                <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold border border-purple-500/30">
+                  {allHighlightsList.length} Destaques
+                </span>
+              </div>
+
+              {allHighlightsList.length === 0 ? (
+                <div className="text-center py-16 bg-[#121216] rounded-3xl border border-white/5 space-y-3">
+                  <Highlighter className="w-10 h-10 text-white/20 mx-auto" />
+                  <h3 className="text-base font-bold text-white">Nenhum versículo grifado ainda</h3>
+                  <p className="text-xs text-white/50 max-w-sm mx-auto">
+                    Ao ler qualquer capítulo da Bíblia, toque no versículo e escolha uma cor para destacá-lo aqui.
+                  </p>
+                  <button
+                    onClick={() => setView('books')}
+                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors"
+                  >
+                    Explorar a Bíblia
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {allHighlightsList.map(h => {
+                    const st = getColorStyles(h.color);
+                    return (
+                      <div
+                        key={h.id}
+                        onClick={() => startPlanChapter(h.book_name, h.chapter)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.01] ${st.bg}`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2.5 h-2.5 rounded-full ${st.dot}`} />
+                            <h4 className="font-bold text-sm text-white">
+                              {h.book_name} {h.chapter}:{h.verse}
+                            </h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-black/40 text-white/60">
+                              {st.label}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-white/40">{h.date}</span>
+                        </div>
+                        <p className="text-xs text-white/90 leading-relaxed italic">
+                          "{h.text}"
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Reading Plans Tab View */}
+          {view === 'plans' && (
+            <motion.div key="plans" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Planos de Leitura da Bíblia</h2>
+                  <p className="text-xs text-white/50">Acompanhe seu crescimento e constância diária</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {READING_PLANS.map(plan => {
+                  const completedDays = planProgress[plan.id] || [];
+                  const percent = Math.round((completedDays.length / plan.totalDays) * 100);
+
+                  return (
+                    <div key={plan.id} className="bg-[#121216] border border-white/10 rounded-[28px] p-5 sm:p-6 space-y-4 shadow-xl">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 text-[10px] font-bold uppercase tracking-wider border border-amber-500/25">
+                            {plan.category}
+                          </span>
+                          <h3 className="text-base sm:text-lg font-bold text-white mt-1">{plan.title}</h3>
+                          <p className="text-xs text-white/50">{plan.description}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-base font-bold text-amber-300">{percent}%</span>
+                          <p className="text-[10px] text-white/40 font-mono">{completedDays.length} de {plan.totalDays} dias</p>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full h-2 bg-black/60 rounded-full overflow-hidden border border-white/10">
+                        <div 
+                          className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500" 
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+
+                      {/* Days Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                        {plan.days.map(d => {
+                          const isDone = completedDays.includes(d.day);
+                          return (
+                            <div 
+                              key={d.day}
+                              className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                                isDone 
+                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
+                                  : 'bg-black/30 border-white/10 hover:border-white/20'
+                              }`}
+                            >
+                              <button
+                                onClick={() => startPlanChapter(d.targetBook, d.targetChapter)}
+                                className="flex items-center gap-2.5 text-left flex-1 min-w-0"
+                              >
+                                <span className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold shrink-0">
+                                  {d.day}
+                                </span>
+                                <span className="text-xs font-bold truncate text-white hover:text-amber-300 transition-colors">
+                                  {d.reference}
+                                </span>
+                              </button>
+
+                              <button
+                                onClick={() => togglePlanDay(plan.id, d.day)}
+                                className={`p-1.5 rounded-lg border transition-all shrink-0 ${
+                                  isDone 
+                                    ? 'bg-emerald-500 text-black border-emerald-400' 
+                                    : 'bg-white/5 border-white/20 text-white/40 hover:text-white'
+                                }`}
+                                title={isDone ? 'Marcar como não lido' : 'Marcar como concluído'}
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </motion.div>
           )}
 
@@ -750,15 +1172,15 @@ export default function Bible() {
                       </span>
                     </div>
 
-                    <p className="text-xs text-white/80 leading-relaxed">
+                    <p className="text-xs text-white/80 leading-relaxed font-sans">
                       {term.definition}
                     </p>
 
-                    <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-white/40">
-                      <span>Ref. Chave: <strong className="text-white">{term.keyVerse}</strong></span>
+                    <div className="pt-2 flex items-center justify-between text-[11px] text-white/40 border-t border-white/5">
+                      <span>Ref: <strong className="text-white/70">{term.keyVerse}</strong></span>
                       <button
-                        onClick={() => handleOpenAIExegesis(`Dicionário: ${term.term} (${term.original})`)}
-                        className="text-[var(--theme-color)] hover:underline font-bold flex items-center gap-1"
+                        onClick={() => handleOpenAIExegesis(`Estudo aprofundado do termo bíblico: ${term.term} (${term.original})`)}
+                        className="text-[var(--theme-color)] hover:underline flex items-center gap-1 font-bold"
                       >
                         <Sparkles className="w-3 h-3" /> Aprofundar Estudo
                       </button>
@@ -769,96 +1191,31 @@ export default function Bible() {
             </motion.div>
           )}
 
-          {/* Reading Plans Tab View */}
-          {view === 'plans' && (
-            <motion.div key="plans" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              {READING_PLANS.map(plan => {
-                const completed = planProgress[plan.id] || [];
-                const pct = Math.round((completed.length / plan.totalDays) * 100);
-
-                return (
-                  <div key={plan.id} className="bg-[#121216] border border-white/10 rounded-[28px] p-6 space-y-4 shadow-xl">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-[10px] font-bold text-[var(--theme-color)] uppercase tracking-wider">{plan.category}</span>
-                        <h3 className="text-lg font-bold text-white">{plan.title}</h3>
-                        <p className="text-xs text-white/50">{plan.description}</p>
-                      </div>
-                      <span className="text-xs font-bold text-emerald-400">{pct}% Concluído</span>
-                    </div>
-
-                    <div className="w-full h-2 bg-black/60 rounded-full overflow-hidden border border-white/10">
-                      <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                      {plan.days.map(d => {
-                        const isDone = completed.includes(d.day);
-
-                        return (
-                          <button
-                            key={d.day}
-                            onClick={() => togglePlanDay(plan.id, d.day)}
-                            className={`p-3 rounded-2xl border text-left transition-all ${
-                              isDone ? 'bg-emerald-500/20 border-emerald-500/40 text-white' : 'bg-black/30 border-white/5 text-white/70 hover:bg-black/50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] font-bold uppercase text-white/40">Dia {d.day}</span>
-                              {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-                            </div>
-                            <div className="text-xs font-bold truncate">{d.reference}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </motion.div>
-          )}
-
-          {/* Search Single Verse View */}
+          {/* Verse Search Results */}
           {view === 'search' && (
-            <motion.div key="search" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="ios-card p-6 min-h-[300px] flex flex-col justify-center">
-              {loading ? (
-                <div className="flex flex-col items-center">
-                  <Cpu className="w-8 h-8 animate-spin opacity-20 mb-4" style={{ color: themeColor }} />
-                </div>
-              ) : error ? (
-                <div className="flex flex-col items-center text-center">
-                  <WifiOff className="w-8 h-8 text-[#FF3B30] mb-2" />
-                  <p className="text-[#FF3B30] font-bold">{error}</p>
-                </div>
-              ) : searchedVerse && (
-                <div className="space-y-6 text-center">
-                  <div>
-                    <h3 className="font-bold text-lg" style={{ color: themeColor }}>{searchedVerse.book_name} {searchedVerse.chapter}:{searchedVerse.verse}</h3>
-                    <div className="w-8 h-1 mx-auto mt-2 rounded-full opacity-20" style={{ backgroundColor: themeColor }} />
-                  </div>
-                  <p className="text-2xl font-bold tracking-tight leading-snug italic text-black/90 dark:text-white/90">"{searchedVerse.text.trim()}"</p>
-                  
-                  <div className="flex justify-center gap-3">
-                    <button
-                      onClick={() => handleOpenAIExegesis(`${searchedVerse.book_name} ${searchedVerse.chapter}:${searchedVerse.verse}`)}
-                      className="px-4 py-2 rounded-full bg-[var(--theme-color)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg"
-                    >
-                      <Sparkles className="w-4 h-4" /> Exegese Teológica
-                    </button>
-                  </div>
+            <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+              <h2 className="text-xl font-bold">Resultado da Busca</h2>
+              {loading && <div className="text-center py-10 text-white/40 text-xs font-bold">Pesquisando versículo...</div>}
+              {error && <div className="p-4 rounded-xl bg-red-500/20 text-red-300 text-xs">{error}</div>}
+              {searchedVerse && !loading && (
+                <div className="p-5 rounded-2xl bg-black/5 dark:bg-white/5 space-y-2 border border-white/10">
+                  <h3 className="font-bold text-base text-[var(--theme-color)]">
+                    {searchedVerse.book_name} {searchedVerse.chapter}:{searchedVerse.verse}
+                  </h3>
+                  <p className="text-sm leading-relaxed">{searchedVerse.text}</p>
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* Notes View */}
+          {/* Notes Tab View */}
           {view === 'notes' && (
-            <motion.div key="notes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full">
-              <Notes embedded={true} />
+            <motion.div key="notes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <Notes />
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </main>
     </div>
   );
 }

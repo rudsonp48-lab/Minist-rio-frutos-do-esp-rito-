@@ -88,48 +88,54 @@ export default function AITheologicalAssistant() {
     }
   }, [isOpen]);
 
-  const handleExegesisSubmit = async (e?: React.FormEvent) => {
+  const handleExegesisSubmit = async (e?: React.FormEvent, customRef?: string) => {
     if (e) e.preventDefault();
-    if (!verseRef.trim()) return;
+    const target = customRef || verseRef;
+    if (!target.trim()) return;
     setIsExegesisLoading(true);
     setSavedToNotes(false);
-    const res = await requestTheologyInsight({ mode: 'exegesis', reference: verseRef });
+    const res = await requestTheologyInsight({ mode: 'exegesis', reference: target, prompt: target });
     setExegesisResult(res);
     setIsExegesisLoading(false);
   };
 
-  const handleSermonSubmit = async (e?: React.FormEvent) => {
+  const handleSermonSubmit = async (e?: React.FormEvent, customTopic?: string) => {
     if (e) e.preventDefault();
-    if (!sermonTopic.trim()) return;
+    const target = customTopic || sermonTopic;
+    if (!target.trim()) return;
     setIsSermonLoading(true);
     setSavedToNotes(false);
     const res = await requestTheologyInsight({ 
       mode: 'sermon', 
-      prompt: sermonTopic, 
+      prompt: target, 
+      reference: target,
       audience: sermonAudience 
     });
     setSermonResult(res);
     setIsSermonLoading(false);
   };
 
-  const handlePrayerSubmit = async (e?: React.FormEvent) => {
+  const handlePrayerSubmit = async (e?: React.FormEvent, customFeeling?: string) => {
     if (e) e.preventDefault();
-    if (!prayerFeeling.trim()) return;
+    const target = customFeeling || prayerFeeling;
+    if (!target.trim()) return;
     setIsPrayerLoading(true);
     setSavedToNotes(false);
     const res = await requestTheologyInsight({ 
       mode: 'prayer', 
-      feelings: prayerFeeling 
+      feelings: target,
+      prompt: target
     });
     setPrayerResult(res);
     setIsPrayerLoading(false);
   };
 
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || isChatLoading) return;
+  const handleChatSubmit = async (e?: React.FormEvent, customText?: string) => {
+    if (e) e.preventDefault();
+    const textToSend = customText || chatInput;
+    if (!textToSend.trim() || isChatLoading) return;
 
-    const newMsg: ChatMessage = { role: 'user', content: chatInput.trim() };
+    const newMsg: ChatMessage = { role: 'user', content: textToSend.trim() };
     const updatedMessages = [...chatMessages, newMsg];
     setChatMessages(updatedMessages);
     setChatInput('');
@@ -318,12 +324,13 @@ export default function AITheologicalAssistant() {
                     {/* Quick suggestions */}
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="text-white/40">Sugestões rápidas:</span>
-                      {['Salmos 23:1', 'João 3:16', 'Romanos 8:28', 'Filipenses 4:6', 'Isaías 40:31'].map((ref) => (
+                      {['Salmos 23:1', 'João 3:16', 'Salmos 91:1-2', 'Lucas 15:11-32', 'Romanos 8:28', 'Efésios 6:10-18', 'Filipenses 4:13', 'Isaías 40:31'].map((ref) => (
                         <button
                           key={ref}
+                          type="button"
                           onClick={() => {
                             setVerseRef(ref);
-                            requestTheologyInsight({ mode: 'exegesis', reference: ref }).then(setExegesisResult);
+                            handleExegesisSubmit(undefined, ref);
                           }}
                           className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/5 transition-colors"
                         >
@@ -436,20 +443,18 @@ export default function AITheologicalAssistant() {
                         'O Poder da Fé e da Perseverança',
                         'Salmos 91: O Refúgio Seguro',
                         'A Parábola do Filho Pródigo (Lucas 15)',
+                        'Dízimos e Ofertas: Fidelidade no Reino',
+                        'A Armadura de Deus (Efésios 6)',
                         'Romanos 8: Mais que Vencedores',
-                        'A Armadura de Deus (Efésios 6)'
+                        'O Fruto do Espírito Santo (Gálatas 5)',
+                        'Vencendo a Ansiedade pela Oração'
                       ].map((topic) => (
                         <button
                           key={topic}
+                          type="button"
                           onClick={() => {
                             setSermonTopic(topic);
-                            setIsSermonLoading(true);
-                            setSavedToNotes(false);
-                            requestTheologyInsight({ mode: 'sermon', prompt: topic, audience: sermonAudience })
-                              .then((res) => {
-                                setSermonResult(res);
-                                setIsSermonLoading(false);
-                              });
+                            handleSermonSubmit(undefined, topic);
                           }}
                           className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-200/80 hover:text-amber-200 border border-white/5 transition-colors"
                         >
@@ -513,6 +518,7 @@ export default function AITheologicalAssistant() {
                               type="button"
                               onClick={() => {
                                 setPrayerFeeling(theme);
+                                handlePrayerSubmit(undefined, theme);
                               }}
                               className={`p-2.5 rounded-xl border text-xs text-left transition-all ${
                                 prayerFeeling === theme
@@ -612,7 +618,28 @@ export default function AITheologicalAssistant() {
                       <div ref={chatBottomRef} />
                     </div>
 
-                    <form onSubmit={handleChatSubmit} className="pt-4 flex gap-2">
+                    {/* Quick Chat Questions */}
+                    <div className="pt-2 pb-2 flex flex-wrap items-center gap-1.5 text-xs">
+                      <span className="text-white/40 text-[10px]">Perguntas sugeridas:</span>
+                      {[
+                        'O que a Bíblia ensina sobre o dízimo e a generosidade?',
+                        'Como vencer a ansiedade pela fé?',
+                        'Qual a mensagem da Parábola do Filho Pródigo?',
+                        'Como praticar uma vida de oração eficaz?'
+                      ].map((q) => (
+                        <button
+                          key={q}
+                          type="button"
+                          disabled={isChatLoading}
+                          onClick={() => handleChatSubmit(undefined, q)}
+                          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-300/80 hover:text-emerald-200 border border-white/5 transition-colors text-[11px]"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+
+                    <form onSubmit={handleChatSubmit} className="pt-1 flex gap-2">
                       <input
                         type="text"
                         value={chatInput}
