@@ -728,25 +728,25 @@ export default function Chat() {
           showMobileList ? 'hidden md:flex' : 'flex'
         }`}>
           {/* Header Bar with Video & Audio Calling Buttons */}
-          <div className="p-3 sm:p-4 border-b border-white/10 flex items-center justify-between bg-[#121218]/95 backdrop-blur-md relative z-10 gap-2">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="px-2.5 py-2 sm:p-4 border-b border-white/10 flex items-center justify-between bg-[#121218]/95 backdrop-blur-md relative z-10 gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
               {/* Back to Contacts / Channels Button */}
               <button
                 onClick={handleBackToContacts}
-                className="px-2.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center gap-1.5 transition-all shadow-sm border border-white/15 shrink-0 group"
+                className="px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center gap-1 transition-all shadow-sm border border-white/15 shrink-0 group"
                 title="Voltar para a lista de contatos"
               >
                 <ArrowLeft className="w-4 h-4 text-purple-400 group-hover:-translate-x-0.5 transition-transform" />
-                <span className="text-xs font-bold">Voltar</span>
+                <span className="text-[11px] sm:text-xs font-bold hidden xs:inline">Voltar</span>
               </button>
 
               {activeDmUser ? (() => {
                 const isOnline = isUserReallyOnline(activeDmUser);
                 const lastSeenText = formatUserLastSeen(activeDmUser);
                 return (
-                  <>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div className="relative shrink-0">
-                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl p-[2px] shadow-md ${
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl p-[2px] shadow-md ${
                         isOnline 
                           ? 'bg-gradient-to-tr from-emerald-400 to-cyan-400' 
                           : 'bg-zinc-700'
@@ -755,74 +755,74 @@ export default function Chat() {
                           <img
                             src={activeDmUser.photoURL}
                             alt={activeDmUser.name}
-                            className="w-full h-full object-cover rounded-[14px]"
+                            className="w-full h-full object-cover rounded-[10px] sm:rounded-[14px]"
                             referrerPolicy="no-referrer"
                           />
                         ) : (
-                          <div className="w-full h-full bg-black rounded-[14px] flex items-center justify-center font-bold text-white text-sm">
+                          <div className="w-full h-full bg-black rounded-[10px] sm:rounded-[14px] flex items-center justify-center font-bold text-white text-xs sm:text-sm">
                             {activeDmUser.name.charAt(0).toUpperCase()}
                           </div>
                         )}
                       </div>
                       {isOnline ? (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-3 sm:w-3.5 h-3 sm:h-3.5 rounded-full bg-emerald-500 border-2 border-black ring-1 ring-emerald-400/50 flex items-center justify-center">
-                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3.5 h-2.5 sm:h-3.5 rounded-full bg-emerald-500 border-2 border-black ring-1 ring-emerald-400/50 flex items-center justify-center">
+                          <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-white animate-pulse" />
                         </span>
                       ) : (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full bg-zinc-600 border-2 border-black" />
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2 sm:w-3 h-2 sm:h-3 rounded-full bg-zinc-600 border-2 border-black" />
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
                         <span className="truncate">{activeDmUser.name}</span>
                         {activeDmUser.role && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 text-white/60 font-semibold hidden md:inline shrink-0">
+                          <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 text-white/60 font-semibold hidden md:inline shrink-0">
                             {activeDmUser.role}
                           </span>
                         )}
                       </h3>
                       {isOnline ? (
-                        <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 truncate">
+                        <p className="text-[10px] sm:text-[11px] text-emerald-400 font-semibold flex items-center gap-1 truncate">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                           <span className="truncate">Online agora {activeDmUser.statusMessage ? `• ${activeDmUser.statusMessage}` : ''}</span>
                         </p>
                       ) : (
-                        <p className="text-[11px] text-white/50 flex items-center gap-1 truncate">
+                        <p className="text-[10px] sm:text-[11px] text-white/50 flex items-center gap-1 truncate">
                           <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0" />
                           <span className="truncate">{lastSeenText}</span>
                         </p>
                       )}
                     </div>
-                  </>
+                  </div>
                 );
               })() : (
-                <>
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/10 flex items-center justify-center text-lg sm:text-xl shadow-md shrink-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/10 flex items-center justify-center text-base sm:text-xl shadow-md shrink-0">
                     {currentChannelMeta?.icon || '🕊️'}
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
                       <span className="truncate">#{currentChannelMeta?.name || 'Comunhão'}</span>
                       {currentChannelMeta?.badge && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30 hidden sm:inline">
+                        <span className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30 hidden sm:inline">
                           {currentChannelMeta.badge}
                         </span>
                       )}
                     </h3>
-                    <p className="text-[11px] text-white/50 truncate max-w-[160px] sm:max-w-xs md:max-w-md">
+                    <p className="text-[10px] sm:text-[11px] text-white/50 truncate max-w-[120px] sm:max-w-xs md:max-w-md">
                       {currentChannelMeta?.description}
                     </p>
                   </div>
-                </>
+                </div>
               )}
             </div>
 
             {/* Calling Options & Close Button */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               {/* Normal Audio Call Button */}
               <button
                 onClick={() => handleStartCall('audio')}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 shrink-0"
                 title="Iniciar Chamada de Voz"
               >
                 <Phone className="w-3.5 h-3.5" />
@@ -832,7 +832,7 @@ export default function Chat() {
               {/* Video Call Button (up to 20 people) */}
               <button
                 onClick={() => handleStartCall('video')}
-                className="p-2 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg shadow-purple-950/40 active:scale-95"
+                className="p-2 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg shadow-purple-950/40 active:scale-95 shrink-0"
                 title="Iniciar Chamada de Vídeo (Até 20 pessoas)"
               >
                 <Video className="w-3.5 h-3.5" />
@@ -842,7 +842,7 @@ export default function Chat() {
               {/* Bible Verse Shortcut */}
               <button
                 onClick={() => setIsBiblePickerOpen(true)}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-bold items-center gap-1.5 transition-colors hidden md:flex"
+                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-bold items-center gap-1.5 transition-colors hidden md:flex shrink-0"
                 title="Inserir Versículo Bíblico"
               >
                 <BookOpen className="w-3.5 h-3.5" />
@@ -852,7 +852,7 @@ export default function Chat() {
               {/* Exit / Close Chat back to Home */}
               <Link
                 to="/"
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-all flex items-center justify-center border border-white/10"
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-all flex items-center justify-center border border-white/10 shrink-0"
                 title="Sair do Chat e voltar para o Início"
               >
                 <X className="w-4 h-4" />
@@ -863,17 +863,17 @@ export default function Chat() {
           {/* ========================================================= */}
           {/* MESSAGES SCROLL CONTAINER                                 */}
           {/* ========================================================= */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-1 relative">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-1 relative">
             {/* Background ambient light */}
             <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
 
             {/* Channel Welcome Banner */}
-            <div className="text-center py-6 px-4 mb-4 rounded-3xl bg-white/[0.02] border border-white/5 max-w-lg mx-auto">
-              <span className="text-3xl mb-2 block">{currentChannelMeta?.icon || '🕊️'}</span>
-              <h4 className="text-sm font-bold text-white mb-1">
+            <div className="text-center py-5 sm:py-6 px-4 mb-3 sm:mb-4 rounded-2xl sm:rounded-3xl bg-white/[0.02] border border-white/5 max-w-lg mx-auto">
+              <span className="text-2xl sm:text-3xl mb-2 block">{currentChannelMeta?.icon || '🕊️'}</span>
+              <h4 className="text-xs sm:text-sm font-bold text-white mb-1">
                 {activeDmUser ? `Conversa com ${activeDmUser.name}` : `Canal #${currentChannelMeta?.name}`}
               </h4>
-              <p className="text-xs text-white/50">
+              <p className="text-[11px] sm:text-xs text-white/50">
                 {activeDmUser 
                   ? 'Este é o início do seu histórico de mensagens e comunhão.' 
                   : currentChannelMeta?.description || 'Bem-vindo ao chat da congregação! Edifiquem-se em amor e oração mútua.'}
@@ -896,7 +896,7 @@ export default function Chat() {
           {/* ========================================================= */}
           {/* MESSAGE INPUT CONTAINER                                   */}
           {/* ========================================================= */}
-          <div className="p-3 sm:p-4 border-t border-white/10 bg-[#121218]/95 relative z-20">
+          <div className="p-2 sm:p-3 border-t border-white/10 bg-[#121218]/98 backdrop-blur-md relative z-20">
             
             {/* Replying Banner */}
             <AnimatePresence>
@@ -949,7 +949,7 @@ export default function Chat() {
                 onCancel={() => setIsVoiceRecording(false)}
               />
             ) : (
-              <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+              <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 sm:gap-2">
                 {/* Hidden File Input */}
                 <input
                   type="file"
@@ -963,46 +963,46 @@ export default function Chat() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white flex items-center justify-center transition-colors shrink-0"
                   title="Enviar foto ou imagem"
                 >
-                  <ImageIcon className="w-5 h-5" />
+                  <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
 
                 {/* Bible Verse Picker Button */}
                 <button
                   type="button"
                   onClick={() => setIsBiblePickerOpen(true)}
-                  className="p-2.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 transition-colors"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 flex items-center justify-center transition-colors shrink-0"
                   title="Compartilhar versículo bíblico"
                 >
-                  <BookOpen className="w-5 h-5" />
+                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
 
                 {/* Voice Note Button */}
                 <button
                   type="button"
                   onClick={() => setIsVoiceRecording(true)}
-                  className="p-2.5 rounded-2xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 transition-colors"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 flex items-center justify-center transition-colors shrink-0"
                   title="Gravar áudio de clamor"
                 >
-                  <Mic className="w-5 h-5" />
+                  <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
 
                 {/* Text Input Field */}
-                <div className="flex-1 relative">
+                <div className="flex-1 min-w-0 relative">
                   <input
                     type="text"
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Digite sua mensagem de fé e comunhão..."
-                    className="w-full h-12 bg-black/50 border border-white/15 rounded-2xl pl-4 pr-10 text-sm text-white placeholder:text-white/30 outline-none focus:border-[var(--theme-color)] transition-colors"
+                    placeholder="Mensagem de fé e comunhão..."
+                    className="w-full h-9 sm:h-11 bg-black/50 border border-white/15 rounded-xl sm:rounded-2xl pl-3 sm:pl-4 pr-8 sm:pr-10 text-xs sm:text-sm text-white placeholder:text-white/30 outline-none focus:border-[var(--theme-color)] transition-colors"
                   />
                   {/* Quick Christian Emoji Button */}
                   <button
                     type="button"
                     onClick={() => setInputText(prev => prev + ' 🙏')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sm opacity-60 hover:opacity-100 transition-opacity"
+                    className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-xs sm:text-sm opacity-60 hover:opacity-100 transition-opacity"
                     title="Adicionar oração"
                   >
                     🙏
@@ -1013,9 +1013,9 @@ export default function Chat() {
                 <button
                   type="submit"
                   disabled={(!inputText.trim() && !selectedImage) || isSending}
-                  className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-40 text-white flex items-center justify-center shadow-lg shadow-purple-950/50 active:scale-95 transition-all shrink-0"
+                  className="h-9 w-9 sm:h-11 sm:w-11 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-40 text-white flex items-center justify-center shadow-lg shadow-purple-950/50 active:scale-95 transition-all shrink-0"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </form>
             )}

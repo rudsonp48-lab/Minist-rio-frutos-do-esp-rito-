@@ -9,7 +9,7 @@ export default function BottomNav() {
   const { themeColor } = useTheme();
 
   // Hide BottomNav in Chat to prevent interference with conversation view and input bar
-  if (location.pathname === '/chat') {
+  if (location.pathname.startsWith('/chat')) {
     return null;
   }
 

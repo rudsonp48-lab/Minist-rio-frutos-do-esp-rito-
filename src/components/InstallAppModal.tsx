@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, Smartphone, Check, X, Share, PlusSquare, ArrowDownToLine, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useLocation } from 'react-router-dom';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -12,6 +13,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function InstallAppModal() {
+  const location = useLocation();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -125,7 +127,7 @@ export default function InstallAppModal() {
   };
 
   // If running in standalone mode or app is already marked installed, do not show button or modal
-  if (isStandalone || isInstalled) return null;
+  if (isStandalone || isInstalled || location.pathname.startsWith('/chat')) return null;
 
   return (
     <>

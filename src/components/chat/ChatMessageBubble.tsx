@@ -10,6 +10,7 @@ import {
   BookOpen, 
   Sparkles, 
   Volume2, 
+  VolumeX, 
   ExternalLink,
   Flame,
   CheckCheck
@@ -82,11 +83,11 @@ export default function ChatMessageBubble({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`group relative flex gap-3 my-2.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
+      className={`group relative flex gap-2 sm:gap-3 my-2 w-full max-w-full ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
     >
       {/* Sender Avatar */}
       <div className="shrink-0 flex flex-col items-center">
-        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl p-[2px] shadow-md relative ${
+        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-2xl p-[2px] shadow-md relative ${
           isAIPastor 
             ? 'bg-gradient-to-tr from-amber-400 to-indigo-500' 
             : isMe 
@@ -115,14 +116,14 @@ export default function ChatMessageBubble({
       </div>
 
       {/* Message Body & Actions Container */}
-      <div className={`flex flex-col max-w-[85%] sm:max-w-[75%] md:max-w-[65%] ${isMe ? 'items-end' : 'items-start'}`}>
+      <div className={`flex flex-col min-w-0 max-w-[88%] sm:max-w-[80%] md:max-w-[70%] ${isMe ? 'items-end' : 'items-start'}`}>
         {/* Sender metadata bar */}
-        <div className={`flex items-center gap-2 mb-1 text-xs ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-          <span className="font-bold text-white/90 truncate max-w-[150px]">
+        <div className={`flex items-center gap-1.5 mb-1 text-xs max-w-full flex-wrap ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+          <span className="font-bold text-white/90 truncate max-w-[130px] sm:max-w-[180px]">
             {isMe ? 'Você' : message.senderName}
           </span>
           {message.senderRole && (
-            <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${
+            <span className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-md font-semibold shrink-0 ${
               message.senderRole.includes('Pastor') || message.senderRole.includes('Aconselhamento')
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                 : message.senderRole.includes('Líder') || message.senderRole.includes('Admin')
@@ -132,25 +133,25 @@ export default function ChatMessageBubble({
               {message.senderRole}
             </span>
           )}
-          <span className="text-[10px] text-white/40">
+          <span className="text-[10px] text-white/40 shrink-0">
             {formatTimestamp(message.createdAt, message.createdAtIso)}
           </span>
         </div>
 
         {/* Message Bubble Card */}
         <div
-          className={`relative rounded-[22px] p-3.5 sm:p-4 shadow-lg border transition-all text-sm ${
+          className={`relative rounded-[18px] sm:rounded-[22px] p-2.5 sm:p-3.5 shadow-md border transition-all text-sm max-w-full overflow-hidden ${
             isMe
-              ? 'bg-gradient-to-br from-purple-700 via-indigo-700 to-purple-800 text-white border-purple-500/30 rounded-tr-sm'
+              ? 'bg-gradient-to-br from-purple-700 via-indigo-700 to-purple-800 text-white border-purple-500/30 rounded-br-sm'
               : isAIPastor
-                ? 'bg-[#181824] text-white border-amber-500/30 rounded-tl-sm ring-1 ring-amber-500/20'
-                : 'bg-[#181820] text-white/90 border-white/10 rounded-tl-sm'
+                ? 'bg-[#181824] text-white border-amber-500/30 rounded-bl-sm ring-1 ring-amber-500/20'
+                : 'bg-[#181822] text-white/90 border-white/10 rounded-bl-sm'
           }`}
         >
           {/* Quoted Reply if present */}
           {message.replyTo && (
-            <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-black/40 border-l-4 border-amber-400 text-xs">
-              <span className="font-bold text-amber-300 block text-[11px]">
+            <div className="mb-2 px-2.5 py-1.5 rounded-lg bg-black/40 border-l-3 border-amber-400 text-xs max-w-full overflow-hidden">
+              <span className="font-bold text-amber-300 block text-[11px] truncate">
                 {message.replyTo.senderName}
               </span>
               <p className="text-white/70 truncate text-[11px]">
@@ -161,16 +162,16 @@ export default function ChatMessageBubble({
 
           {/* Regular Text content */}
           {message.text && (
-            <p className="whitespace-pre-wrap leading-relaxed break-words text-[13px] sm:text-sm">
+            <p className="whitespace-pre-wrap leading-relaxed break-words text-[13px] sm:text-sm font-normal">
               {message.text}
             </p>
           )}
 
           {/* Bible Verse Rich Card */}
           {message.bibleVerse && (
-            <div className="mt-3 p-3.5 rounded-2xl bg-black/50 border border-amber-500/30 shadow-inner">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-1.5 text-amber-300 text-xs font-bold">
+            <div className="mt-2 p-2.5 sm:p-3 rounded-xl bg-black/40 border border-amber-500/25 shadow-inner w-full max-w-full overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+                <div className="flex items-center gap-1.5 text-amber-300 text-[11px] sm:text-xs font-bold shrink-0">
                   <BookOpen className="w-3.5 h-3.5" />
                   <span>{message.bibleVerse.reference}</span>
                   {message.bibleVerse.version && (
@@ -180,12 +181,12 @@ export default function ChatMessageBubble({
                   )}
                 </div>
                 {message.bibleVerse.theme && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-semibold truncate max-w-[120px]">
                     {message.bibleVerse.theme}
                   </span>
                 )}
               </div>
-              <blockquote className="text-xs sm:text-sm text-white/95 italic border-l-2 border-amber-400/60 pl-2.5 py-0.5 leading-relaxed font-serif">
+              <blockquote className="text-[11px] sm:text-[13px] text-white/95 italic border-l-2 border-amber-400/60 pl-2 py-0.5 leading-relaxed font-serif break-words">
                 "{message.bibleVerse.text}"
               </blockquote>
             </div>
@@ -193,7 +194,7 @@ export default function ChatMessageBubble({
 
           {/* Attached Image */}
           {message.imageUrl && (
-            <div className="mt-2.5 rounded-xl overflow-hidden border border-white/10 max-h-72">
+            <div className="mt-2 rounded-xl overflow-hidden border border-white/10 max-h-72">
               <img
                 src={message.imageUrl}
                 alt="Imagem compartilhada"
@@ -205,7 +206,7 @@ export default function ChatMessageBubble({
 
           {/* Voice Audio Message */}
           {message.audioUrl && (
-            <div className="mt-2.5 w-full">
+            <div className="mt-2 w-full max-w-full">
               <VoicePrayerPlayer
                 audioUrl={message.audioUrl}
                 duration={message.audioDuration}
@@ -247,8 +248,8 @@ export default function ChatMessageBubble({
           </div>
         )}
 
-        {/* Quick Action Floating Menu (on hover) */}
-        <div className={`absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-[#121218] border border-white/10 rounded-xl px-1.5 py-1 shadow-xl z-20 ${
+        {/* Quick Action Floating Menu (for desktop hover / inline) */}
+        <div className={`hidden md:flex absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 bg-[#121218] border border-white/10 rounded-xl px-1.5 py-1 shadow-xl z-20 ${
           isMe ? 'left-0 -translate-x-full mr-2' : 'right-0 translate-x-full ml-2'
         }`}>
           {/* Reaction Picker Button */}
