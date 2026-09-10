@@ -72,13 +72,6 @@ export default function CreateStoryModal({
     }
   };
 
-  const handlePresetSelect = (url: string, type: 'image' | 'video', presetCaption: string) => {
-    setMediaUrl(url);
-    setMediaType(type);
-    setCaption(presetCaption);
-    setPreviewError(false);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mediaUrl.trim()) return;
@@ -100,27 +93,6 @@ export default function CreateStoryModal({
       setIsSubmitting(false);
     }
   };
-
-  const STORY_PRESETS = [
-    {
-      title: 'Momento de Louvor',
-      type: 'image' as const,
-      url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800',
-      caption: '🎶 Adorando a Deus em espírito e em verdade! Culto abençoado de domingo.'
-    },
-    {
-      title: 'Versículo do Dia',
-      type: 'image' as const,
-      url: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800',
-      caption: '📖 "O Senhor é o meu pastor e nada me faltará." — Salmos 23:1'
-    },
-    {
-      title: 'Comunhão & Célula',
-      type: 'image' as const,
-      url: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800',
-      caption: '☕ Noite incrível de comunhão e fortalecimento espiritual da nossa célula!'
-    }
-  ];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
@@ -239,26 +211,6 @@ export default function CreateStoryModal({
               onChange={handleFileUpload}
               className="hidden"
             />
-          </div>
-
-          {/* Preset Suggestions */}
-          <div>
-            <span className="text-xs font-semibold text-white/70 block mb-2">Sugestões rápidas de fotos:</span>
-            <div className="grid grid-cols-3 gap-2">
-              {STORY_PRESETS.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handlePresetSelect(preset.url, preset.type, preset.caption)}
-                  className="relative rounded-xl overflow-hidden aspect-video border border-white/10 hover:border-amber-400/50 group text-left transition-all"
-                >
-                  <img src={preset.url} alt={preset.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-1.5 flex items-end">
-                    <span className="text-[10px] font-bold text-white leading-tight truncate">{preset.title}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Or Paste URL */}

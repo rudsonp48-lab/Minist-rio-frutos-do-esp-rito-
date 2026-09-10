@@ -29,7 +29,7 @@ interface Campaign {
   goal: number;
   current: number;
   description: string;
-  image: string;
+  gradient: string;
   deadline: string;
 }
 
@@ -41,7 +41,7 @@ const CAMPAIGNS: Campaign[] = [
     goal: 15000,
     current: 11450,
     description: 'Apoio aos missionários com mantimentos, barcos para vilarejos e distribuição de Bíblias no interior.',
-    image: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=800',
+    gradient: 'from-amber-600 to-orange-800',
     deadline: 'Até o fim deste mês'
   },
   {
@@ -51,7 +51,7 @@ const CAMPAIGNS: Campaign[] = [
     goal: 25000,
     current: 19800,
     description: 'Construção de novas salas climatizadas, brinquedoteca segura e materiais pedagógicos cristãos.',
-    image: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=800',
+    gradient: 'from-blue-600 to-indigo-800',
     deadline: 'Meta em andamento'
   },
   {
@@ -61,7 +61,7 @@ const CAMPAIGNS: Campaign[] = [
     goal: 8000,
     current: 7200,
     description: 'Atendimento a famílias em vulnerabilidade social cadastradas pelo ministério de ação social.',
-    image: 'https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&q=80&w=800',
+    gradient: 'from-emerald-600 to-teal-800',
     deadline: 'Campanha Contínua'
   }
 ];
@@ -174,16 +174,13 @@ export default function Give() {
                   className="bg-[#121216] border border-white/10 rounded-[28px] overflow-hidden flex flex-col justify-between shadow-2xl group hover:border-white/20 transition-all"
                 >
                   <div>
-                    <div className="h-44 w-full relative overflow-hidden">
-                      <img 
-                        src={camp.image} 
-                        alt={camp.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#121216] via-transparent to-black/40" />
-                      <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-white uppercase tracking-wider border border-white/10">
+                    <div className={`h-36 w-full relative overflow-hidden bg-gradient-to-br ${camp.gradient} p-5 flex flex-col justify-between`}>
+                      <span className="self-start px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold text-white uppercase tracking-wider border border-white/10">
                         {camp.category}
                       </span>
+                      <div className="text-white/30 self-end">
+                        <Target className="w-10 h-10" />
+                      </div>
                     </div>
 
                     <div className="p-5">

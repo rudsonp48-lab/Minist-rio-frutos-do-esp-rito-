@@ -209,7 +209,7 @@ export async function testLockScreenNotification(delaySeconds = 5): Promise<{ su
       body: JSON.stringify({
         recipientUid: targetId,
         senderUid: 'system',
-        title: '🕊️ Ecclesia - Frutos do Espírito',
+        title: '🕊️ Ministério Frutos do Espírito',
         body: 'Notificação com tela bloqueada recebida com sucesso! Toque para abrir.',
         icon: '/icon.svg',
         badge: '/icon.svg',

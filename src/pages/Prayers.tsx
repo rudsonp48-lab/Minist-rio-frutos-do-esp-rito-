@@ -167,55 +167,7 @@ export default function Prayers() {
   // Real-time Stories Subscription
   useEffect(() => {
     const unsub = subscribeToStories((groups) => {
-      // Fallback sample story group if empty
-      if (groups.length === 0) {
-        setStoryGroups([
-          {
-            userId: 'seed-pastor-marcos',
-            userName: 'Pr. Marcos Silva',
-            userPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
-            userRole: 'Pastor Presidente',
-            hasUnseen: true,
-            latestTimestamp: Date.now(),
-            stories: [
-              {
-                id: 'sample-s1',
-                userId: 'seed-pastor-marcos',
-                userName: 'Pr. Marcos Silva',
-                userPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
-                userRole: 'Pastor Presidente',
-                mediaUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800',
-                mediaType: 'image',
-                caption: '🔥 Que presença gloriosa de Deus em nosso culto da família ontem!',
-                createdAt: new Date()
-              }
-            ]
-          },
-          {
-            userId: 'seed-louvor',
-            userName: 'Ministério de Louvor',
-            userPhoto: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=150',
-            userRole: 'Louvor & Adoração',
-            hasUnseen: true,
-            latestTimestamp: Date.now() - 3600000,
-            stories: [
-              {
-                id: 'sample-s2',
-                userId: 'seed-louvor',
-                userName: 'Ministério de Louvor',
-                userPhoto: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=150',
-                userRole: 'Louvor & Adoração',
-                mediaUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800',
-                mediaType: 'image',
-                caption: 'Ensaio geral para o congresso de jovens! Deus é fiel.',
-                createdAt: new Date()
-              }
-            ]
-          }
-        ]);
-      } else {
-        setStoryGroups(groups);
-      }
+      setStoryGroups(groups);
     });
 
     return () => unsub();
@@ -224,41 +176,7 @@ export default function Prayers() {
   // Real-time Reels Subscription
   useEffect(() => {
     const unsub = subscribeToReels((reelsData) => {
-      if (reelsData.length === 0) {
-        // Sample reels for preview
-        setReels([
-          {
-            id: 'sample-reel-1',
-            userId: 'seed-user-reels',
-            userName: 'Ministério de Louvor',
-            userPhoto: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=150',
-            userRole: 'Louvor & Adoração',
-            videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-guitarist-playing-acoustic-guitar-41130-large.mp4',
-            caption: '🎶 "Tu és Santo, poderoso e digno de todo louvor!" Momento marcante no culto de domingo.',
-            musicTitle: 'Santo Espírito És Bem-Vindo Aqui',
-            tags: ['#Culto', '#Louvor', '#Ecclesia'],
-            likes: ['seed1', 'seed2', 'seed3'],
-            commentsCount: 8,
-            createdAt: new Date()
-          },
-          {
-            id: 'sample-reel-2',
-            userId: 'seed-pastor',
-            userName: 'Pr. Marcos Silva',
-            userPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
-            userRole: 'Pastor Presidente',
-            videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-man-holding-a-bible-in-the-church-43187-large.mp4',
-            caption: '📖 "Confia no Senhor de todo o teu coração..." Uma palavra de paz e ânimo para a sua semana!',
-            musicTitle: 'Voz da Esperança & Fé',
-            tags: ['#Palavra', '#Devocional', '#Avivamento'],
-            likes: ['seed1', 'seed4'],
-            commentsCount: 12,
-            createdAt: new Date()
-          }
-        ]);
-      } else {
-        setReels(reelsData);
-      }
+      setReels(reelsData);
     });
 
     return () => unsub();

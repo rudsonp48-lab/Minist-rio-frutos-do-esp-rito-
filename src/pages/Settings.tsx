@@ -19,7 +19,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [config, setConfig] = useState<any>(null);
-  const { themeColor, setThemeColor } = useTheme();
+  const { themeColor, setThemeColor, churchName } = useTheme();
   
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -212,7 +212,7 @@ export default function SettingsPage() {
         window.location.reload();
         break;
       case 'about':
-        alert("Ecclesia App - Gestão e Comunhão.\nVersão 3.5.0");
+        alert(`${churchName || 'Ministério Frutos do Espírito'} - Gestão e Comunhão.\nVersão 3.5.0`);
         break;
       case 'support':
         alert("Obrigado pelo seu apoio!");
@@ -261,7 +261,7 @@ export default function SettingsPage() {
     {
       title: 'Suporte & Comunidade',
       items: [
-        { icon: Info, label: 'Sobre o Ecclesia', color: 'bg-[#8E8E93]', action: 'about' },
+        { icon: Info, label: `Sobre o ${churchName || 'Ministério Frutos do Espírito'}`, color: 'bg-[#8E8E93]', action: 'about' },
         { icon: Heart, label: 'Apoie o Projeto', color: 'bg-[#FF2D55]', action: 'support' },
       ]
     }
@@ -273,7 +273,7 @@ export default function SettingsPage() {
        <nav className="fixed top-0 left-0 right-0 z-40 ios-glass border-b border-black/[0.05] dark:border-white/[0.05] flex items-center justify-between px-6 h-16">
         <Link to="/" className="flex items-center gap-1 text-[#007AFF] font-medium transition-opacity active:opacity-50">
           <ChevronLeft className="w-6 h-6" />
-          <span>Ecclesia</span>
+          <span className="truncate max-w-[150px]">{churchName || 'Início'}</span>
         </Link>
         <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2">Ajustes</h1>
         <div className="w-10" />
@@ -377,14 +377,14 @@ export default function SettingsPage() {
             className="w-full flex items-center justify-center gap-2 p-4 text-[#FF3B30] font-bold active:bg-black/5 dark:active:bg-white/5 transition-colors"
           >
             <LogOut className="w-5 h-5" />
-            Sair do Ecclesia
+            Sair da Conta
           </button>
         </div>
 
         <footer className="text-center pt-8 space-y-2">
           <p className="text-[#8E8E93] text-[12px] font-medium leading-relaxed">
-            Ecclesia Digital v3.5.0<br />
-            © 2026 Arquitetura Quantum
+            {churchName || 'Ministério Frutos do Espírito'} v3.5.0<br />
+            © 2026 Comunidade & Fé
           </p>
         </footer>
       </div>

@@ -32,7 +32,7 @@ export default function Home() {
   const [currentLiveIndex, setCurrentLiveIndex] = useState(0);
   const [isAppInstalled, setIsAppInstalled] = useState(false);
   const [isHomeBannerDismissed, setIsHomeBannerDismissed] = useState(false);
-  const { themeColor, churchName } = useTheme();
+  const { themeColor, churchName, logoUrl } = useTheme();
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 500], [0, 150]);
 
@@ -84,10 +84,10 @@ export default function Home() {
 
   const defaultFallbackBanner = {
     id: 1,
-    title: config?.churchName || 'Culto & Adoração',
-    subtitle: 'Venha adorar e ter comunhão com a igreja',
+    title: config?.churchName || churchName || 'MINISTÉRIO FRUTOS DO ESPÍRITO',
+    subtitle: 'Culto, Adoração e Comunhão',
     description: 'Uma comunidade de fé, esperança e amor para todas as famílias.',
-    image: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=1600'
+    image: config?.logoUrl || logoUrl || ''
   };
 
   const activeBannersList = (banners && banners.length > 0) ? banners : [defaultFallbackBanner];
@@ -108,7 +108,7 @@ export default function Home() {
   }, []);
 
   const handleCopyPix = () => {
-    navigator.clipboard.writeText(config?.pixKey || 'ecclesia@pix.church');
+    navigator.clipboard.writeText(config?.pixKey || 'frutosdoespirito@pix.church');
     setCopiedPix(true);
     setTimeout(() => setCopiedPix(false), 2000);
   };
@@ -131,12 +131,35 @@ export default function Home() {
               transition={{ duration: 0.8 }}
               className="absolute inset-0 overflow-hidden"
             >
-              {/* Full Bleed Banner Image Filling Entire Hero Area */}
-              <img 
-                src={currentBanner.image || undefined} 
-                alt={currentBanner.title} 
-                className="w-full h-full object-cover object-center transition-transform duration-1000" 
-              />
+              {currentBanner.image && !currentBanner.image.includes('unsplash') ? (
+                <img 
+                  src={currentBanner.image} 
+                  alt={currentBanner.title} 
+                  className="w-full h-full object-cover object-center transition-transform duration-1000" 
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-b from-[#120e24] via-[#090714] to-black flex flex-col items-center justify-center relative overflow-hidden">
+                  <div className="absolute w-[600px] h-[600px] rounded-full bg-[var(--theme-color)]/20 blur-[140px] pointer-events-none -top-24" />
+                  <div className="absolute w-[500px] h-[500px] rounded-full bg-purple-600/15 blur-[130px] pointer-events-none -bottom-24" />
+                  
+                  <div className="relative z-10 flex flex-col items-center justify-center p-6 text-center max-w-lg mb-20">
+                    <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-3xl bg-black/40 border border-white/10 backdrop-blur-xl flex items-center justify-center p-4 shadow-[0_0_50px_rgba(255,215,0,0.2)] mb-6">
+                      {logoUrl ? (
+                        <img src={logoUrl} alt="Logo" className="w-full h-full object-contain filter drop-shadow-[0_0_20px_rgba(255,215,0,0.35)]" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="text-4xl text-amber-400 font-serif">✝</span>
+                      )}
+                    </div>
+                    <span className="text-xs sm:text-sm font-bold uppercase tracking-[0.3em] text-[var(--theme-color)] mb-2">
+                      Bem-vindo à Casa de Deus
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl font-black uppercase font-serif tracking-wide text-white drop-shadow-lg">
+                      {config?.churchName || churchName || 'MINISTÉRIO FRUTOS DO ESPÍRITO'}
+                    </h2>
+                  </div>
+                </div>
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -529,10 +552,10 @@ export default function Home() {
         {/* Modern Devotional Widget */}
         <section>
           <div className="ios-card relative w-full bg-gradient-to-br from-white to-[#F2F2F7] dark:from-[#1C1C1E] dark:to-[#111111] overflow-hidden group min-h-[400px] flex items-center">
-             {/* Background Image */}
-             {currentDevotional.image ? (
+             {/* Background Glow / Image */}
+             {(currentDevotional as any)?.image ? (
                 <div className="absolute inset-0 z-0 pointer-events-none">
-                  <img loading="lazy" src={currentDevotional.image} alt="Devocional Background" className="w-full h-full object-cover opacity-20 dark:opacity-40 group-hover:scale-105 transition-transform duration-1000" />
+                  <img loading="lazy" src={(currentDevotional as any).image} alt="Devocional Background" className="w-full h-full object-cover opacity-20 dark:opacity-40 group-hover:scale-105 transition-transform duration-1000" />
                   <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent dark:from-[#1C1C1E] dark:via-[#1C1C1E]/90 dark:to-transparent"></div>
                   <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent dark:from-[#1C1C1E] dark:via-transparent dark:to-transparent lg:hidden"></div>
                 </div>
@@ -584,141 +607,130 @@ export default function Home() {
         </section>
 
         {/* Podcast Section */}
-        <section>
-          <div className="flex items-end justify-between mb-8 px-2">
-             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center border border-black/5 dark:border-white/5">
-                 <Mic className="w-5 h-5 text-black dark:text-white" />
+        {PODCASTS.length > 0 && (
+          <section>
+            <div className="flex items-end justify-between mb-8 px-2">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center border border-black/5 dark:border-white/5">
+                   <Mic className="w-5 h-5 text-black dark:text-white" />
+                 </div>
+                 <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Podcasts</h2>
                </div>
-               <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Podcasts</h2>
-             </div>
-             <Link to="/podcast" className="text-sm font-bold text-black/50 dark:text-white/50 tracking-widest flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors uppercase">Mais <ChevronRight className="w-4 h-4" /></Link>
-          </div>
-          <div className="flex lg:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory">
-            {PODCASTS.map((podcast, idx) => (
-              <motion.div
-                key={podcast.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="ios-card p-4 lg:p-5 flex justify-between items-center group cursor-pointer w-[300px] lg:w-auto shrink-0 snap-start bg-white/60 dark:bg-[#1C1C1E]/60 hover:bg-white dark:hover:bg-[#1C1C1E] transition-colors border border-black/5 dark:border-white/5"
-              >
-                <div className="flex gap-4 items-center">
-                  <div className="relative w-[70px] h-[70px] lg:w-[80px] lg:h-[80px] rounded-[18px] lg:rounded-[20px] overflow-hidden shrink-0 shadow-sm border border-black/5 dark:border-white/5">
-                    <img loading="lazy" src={podcast.img} alt={podcast.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
-                    <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                      <Play className="w-6 h-6 text-white fill-current translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300" />
+               <Link to="/podcast" className="text-sm font-bold text-black/50 dark:text-white/50 tracking-widest flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors uppercase">Mais <ChevronRight className="w-4 h-4" /></Link>
+            </div>
+            <div className="flex lg:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory">
+              {PODCASTS.map((podcast, idx) => (
+                <motion.div
+                  key={podcast.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="ios-card p-4 lg:p-5 flex justify-between items-center group cursor-pointer w-[300px] lg:w-auto shrink-0 snap-start bg-white/60 dark:bg-[#1C1C1E]/60 hover:bg-white dark:hover:bg-[#1C1C1E] transition-colors border border-black/5 dark:border-white/5"
+                >
+                  <div className="flex gap-4 items-center">
+                    <div className="relative w-[70px] h-[70px] lg:w-[80px] lg:h-[80px] rounded-[18px] lg:rounded-[20px] overflow-hidden shrink-0 shadow-sm border border-black/5 dark:border-white/5">
+                      <img loading="lazy" src={podcast.img} alt={podcast.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
+                      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <Play className="w-6 h-6 text-white fill-current translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-center">
+                      <p className="text-[10px] text-[var(--theme-color)] font-bold tracking-widest uppercase mb-1.5">{podcast.duration}</p>
+                      <h4 className="text-black dark:text-white font-bold leading-tight line-clamp-2 mb-1 text-[14px] lg:text-[15px]">{podcast.title}</h4>
+                      <p className="text-black/50 dark:text-white/50 text-[11px] lg:text-xs font-medium">{podcast.host}</p>
                     </div>
                   </div>
-                  <div className="flex flex-col justify-center">
-                    <p className="text-[10px] text-[var(--theme-color)] font-bold tracking-widest uppercase mb-1.5">{podcast.duration}</p>
-                    <h4 className="text-black dark:text-white font-bold leading-tight line-clamp-2 mb-1 text-[14px] lg:text-[15px]">{podcast.title}</h4>
-                    <p className="text-black/50 dark:text-white/50 text-[11px] lg:text-xs font-medium">{podcast.host}</p>
-                  </div>
-                </div>
-                <button className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 hidden md:flex items-center justify-center group-hover:bg-[var(--theme-color)] group-hover:text-white transition-colors text-black/40 dark:text-white/40 shrink-0">
-                   <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        </section>
+                  <button className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 hidden md:flex items-center justify-center group-hover:bg-[var(--theme-color)] group-hover:text-white transition-colors text-black/40 dark:text-white/40 shrink-0">
+                     <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Testimonials / Impact Section */}
-        <section>
-          <div className="text-center mb-6 px-4">
-            <h2 className="text-3xl lg:text-4xl font-display font-bold tracking-tight mb-3 text-black dark:text-white">Vidas Transformadas</h2>
-            <p className="text-black/60 dark:text-white/60 max-w-xl mx-auto font-medium text-sm">O que Deus tem feito através deste ministério</p>
-          </div>
-          
-          <div className="relative max-w-2xl mx-auto ios-card p-8 lg:p-12 min-h-[300px]">
-             <AnimatePresence mode="wait">
-               <motion.div
-                 key={currentTestimonialIndex}
-                 initial={{ opacity: 0, x: 20 }}
-                 animate={{ opacity: 1, x: 0 }}
-                 exit={{ opacity: 0, x: -20 }}
-                 transition={{ duration: 0.5 }}
-                 className="flex flex-col items-center text-center"
-               >
-                 <div className="text-[var(--theme-color)]/20 mb-6">
-                   <MessageSquareQuote className="w-12 h-12" />
-                 </div>
-                 
-                 <div className="flex gap-1 mb-6">
-                   {Array.from({ length: TESTIMONIALS[currentTestimonialIndex].rating }).map((_, i) => (
-                     <Star key={i} className="w-4 h-4 fill-[var(--theme-color)] text-[var(--theme-color)]" />
-                   ))}
-                 </div>
-                 
-                 <p className="text-black/90 dark:text-white/90 font-medium italic mb-8 text-[17px] lg:text-[19px] leading-relaxed">
-                   "{TESTIMONIALS[currentTestimonialIndex].text}"
-                 </p>
-                 
-                 <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[var(--color-theme-purple)] to-[var(--theme-color)] p-[2px]">
-                     <div className="w-full h-full rounded-full bg-white dark:bg-black flex items-center justify-center font-bold text-black dark:text-white">
-                       {TESTIMONIALS[currentTestimonialIndex].author.charAt(0)}
+        {TESTIMONIALS.length > 0 && (
+          <section>
+            <div className="text-center mb-6 px-4">
+              <h2 className="text-3xl lg:text-4xl font-display font-bold tracking-tight mb-3 text-black dark:text-white">Vidas Transformadas</h2>
+              <p className="text-black/60 dark:text-white/60 max-w-xl mx-auto font-medium text-sm">O que Deus tem feito através deste ministério</p>
+            </div>
+            
+            <div className="relative max-w-2xl mx-auto ios-card p-8 lg:p-12 min-h-[300px]">
+               <AnimatePresence mode="wait">
+                 <motion.div
+                   key={currentTestimonialIndex}
+                   initial={{ opacity: 0, x: 20 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   exit={{ opacity: 0, x: -20 }}
+                   transition={{ duration: 0.5 }}
+                   className="flex flex-col items-center text-center"
+                 >
+                   <div className="text-[var(--theme-color)]/20 mb-6">
+                     <MessageSquareQuote className="w-12 h-12" />
+                   </div>
+                   
+                   <div className="flex gap-1 mb-6">
+                     {Array.from({ length: TESTIMONIALS[currentTestimonialIndex]?.rating || 5 }).map((_, i) => (
+                       <Star key={i} className="w-4 h-4 fill-[var(--theme-color)] text-[var(--theme-color)]" />
+                     ))}
+                   </div>
+                   
+                   <p className="text-black/90 dark:text-white/90 font-medium italic mb-8 text-[17px] lg:text-[19px] leading-relaxed">
+                     "{TESTIMONIALS[currentTestimonialIndex]?.text}"
+                   </p>
+                   
+                   <div className="flex items-center gap-4">
+                     <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[var(--color-theme-purple)] to-[var(--theme-color)] p-[2px]">
+                       <div className="w-full h-full rounded-full bg-white dark:bg-black flex items-center justify-center font-bold text-black dark:text-white">
+                         {TESTIMONIALS[currentTestimonialIndex]?.author?.charAt(0) || 'M'}
+                       </div>
+                     </div>
+                     <div className="text-left">
+                       <h4 className="font-bold text-black dark:text-white tracking-wide">{TESTIMONIALS[currentTestimonialIndex]?.author}</h4>
+                       <span className="text-[10px] uppercase font-bold text-[var(--theme-color)] tracking-widest">{TESTIMONIALS[currentTestimonialIndex]?.role}</span>
                      </div>
                    </div>
-                   <div className="text-left">
-                     <h4 className="font-bold text-black dark:text-white tracking-wide">{TESTIMONIALS[currentTestimonialIndex].author}</h4>
-                     <span className="text-[10px] uppercase font-bold text-[var(--theme-color)] tracking-widest">{TESTIMONIALS[currentTestimonialIndex].role}</span>
-                   </div>
-                 </div>
-               </motion.div>
-             </AnimatePresence>
+                 </motion.div>
+               </AnimatePresence>
 
-             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-                 {TESTIMONIALS.map((_, i) => (
-                   <button 
-                     key={i}
-                     onClick={() => setCurrentTestimonialIndex(i)}
-                     className={`w-2 h-2 rounded-full transition-colors ${i === currentTestimonialIndex ? 'bg-[var(--theme-color)]' : 'bg-black/10 dark:bg-white/10'}`}
-                   />
-                 ))}
-             </div>
-          </div>
-        </section>
-
-        {/* Gallery Preview Section */}
-        <section>
-          <div className="flex items-end justify-between mb-8 px-2">
-             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center border border-black/5 dark:border-white/5">
-                 <Camera className="w-5 h-5 text-black dark:text-white" />
+               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                   {TESTIMONIALS.map((_, i) => (
+                     <button 
+                       key={i}
+                       onClick={() => setCurrentTestimonialIndex(i)}
+                       className={`w-2 h-2 rounded-full transition-colors ${i === currentTestimonialIndex ? 'bg-[var(--theme-color)]' : 'bg-black/10 dark:bg-white/10'}`}
+                     />
+                   ))}
                </div>
-               <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Nossos Momentos</h2>
-             </div>
-             <Link to="/gallery" className="text-sm font-bold text-black/50 dark:text-white/50 tracking-widest flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors uppercase">Ver Todas <ChevronRight className="w-4 h-4" /></Link>
-          </div>
-          
-          <div className="grid grid-cols-12 gap-3 lg:gap-4 px-2">
-             <div className="col-span-12 md:col-span-8 lg:col-span-6 row-span-2 ios-card rounded-[24px] lg:rounded-[32px] overflow-hidden aspect-video lg:aspect-auto lg:h-[400px] xl:h-[480px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src={(recentPhotos[0]?.url || recentPhotos[0]?.image) || "https://images.unsplash.com/photo-1544427920-c49ccfb85579"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt={recentPhotos[0]?.category || "Culto"} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                   <Heart className="w-10 h-10 text-white fill-white drop-shadow-md scale-75 group-hover:scale-100 transition-transform duration-500 delay-100" />
+            </div>
+          </section>
+        )}
+
+        {/* Gallery Preview Section (Only shown when church members or admin upload photos) */}
+        {recentPhotos && recentPhotos.length > 0 && (
+          <section>
+            <div className="flex items-end justify-between mb-8 px-2">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center border border-black/5 dark:border-white/5">
+                   <Camera className="w-5 h-5 text-black dark:text-white" />
+                 </div>
+                 <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Nossos Momentos</h2>
+               </div>
+               <Link to="/gallery" className="text-sm font-bold text-black/50 dark:text-white/50 tracking-widest flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors uppercase">Ver Todas <ChevronRight className="w-4 h-4" /></Link>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 px-2">
+              {recentPhotos.slice(0, 4).map((photo, i) => (
+                <div key={photo.id || i} className="ios-card rounded-[20px] lg:rounded-[28px] overflow-hidden aspect-square group relative border border-black/5 dark:border-white/5 shadow-sm">
+                  <img loading="lazy" src={photo.url || photo.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={photo.category || "Culto"} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
-             </div>
-             
-             <div className="col-span-6 md:col-span-4 lg:col-span-3 ios-card rounded-[20px] lg:rounded-[28px] overflow-hidden aspect-square lg:h-[192px] xl:h-[232px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src={(recentPhotos[1]?.url || recentPhotos[1]?.image) || "https://images.unsplash.com/photo-1510076857177-7470076d4098"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={recentPhotos[1]?.category || "Igreja"} />
-             </div>
-             
-             <div className="col-span-6 md:col-span-4 lg:col-span-3 ios-card rounded-[20px] lg:rounded-[28px] overflow-hidden aspect-square lg:h-[192px] xl:h-[232px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src={(recentPhotos[2]?.url || recentPhotos[2]?.image) || "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={recentPhotos[2]?.category || "Comunhão"} />
-             </div>
-             
-             <div className="col-span-6 md:col-span-4 lg:col-span-3 ios-card rounded-[20px] lg:rounded-[28px] overflow-hidden aspect-square lg:h-[192px] xl:h-[232px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src={(recentPhotos[3]?.url || recentPhotos[3]?.image) || "https://images.unsplash.com/photo-1438232992991-995b7058bbb3"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={recentPhotos[3]?.category || "Kids"} />
-             </div>
-             
-             <div className="col-span-6 md:col-span-8 lg:col-span-3 ios-card rounded-[20px] lg:rounded-[28px] overflow-hidden aspect-square lg:h-[192px] xl:h-[232px] group relative border border-black/5 dark:border-white/5 shadow-sm">
-                <img loading="lazy" src={(recentPhotos[4]?.url || recentPhotos[4]?.image) || "https://images.unsplash.com/photo-1529070538774-1843cb3265df"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={recentPhotos[4]?.category || "Louvor"} />
-             </div>
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Premium Donation / Give */}
         <section id="donate" className="pt-4">

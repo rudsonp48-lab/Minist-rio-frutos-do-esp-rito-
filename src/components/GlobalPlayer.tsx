@@ -181,7 +181,7 @@ export default function GlobalPlayer() {
     if (selectedVideo && 'mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: selectedVideo.title,
-        artist: selectedVideo.author || 'Ecclesia App',
+        artist: selectedVideo.author || 'Ministério Frutos do Espírito',
         album: 'Mídia e Mensagens',
         artwork: [
           { src: selectedVideo.thumbnail, sizes: '512x512', type: 'image/jpeg' }
@@ -321,7 +321,7 @@ export default function GlobalPlayer() {
               </button>
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-white/60 uppercase tracking-[0.25em] font-sans font-bold drop-shadow-md">{showLyrics ? 'Modo Imersivo' : 'Tocando Agora'}</span>
-                <span className="text-xs text-white/90 font-medium font-sans mt-0.5 drop-shadow-md">Ecclesia Mídia</span>
+                <span className="text-xs text-white/90 font-medium font-sans mt-0.5 drop-shadow-md">Frutos do Espírito Mídia</span>
               </div>
               <button 
                 onClick={() => alert("Opções do player em desenvolvimento!")}
@@ -394,7 +394,7 @@ export default function GlobalPlayer() {
                     transition={{ delay: 0.1 }}
                     className="text-lg text-white/70 truncate mt-1.5 font-sans font-medium drop-shadow-md"
                   >
-                    {selectedVideo.author || 'Ecclesia Stream'}
+                    {selectedVideo.author || 'Frutos do Espírito'}
                   </motion.p>
                 </div>
                 <button 

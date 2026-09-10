@@ -275,7 +275,7 @@ export async function createReel(params: {
     videoThumbnail: params.videoThumbnail || '',
     caption: params.caption,
     musicTitle: params.musicTitle || 'Louvor & Adoração Oficial',
-    tags: params.tags || ['#Ecclesia', '#Louvor', '#ReelsGospel'],
+    tags: params.tags || ['#FrutosDoEspirito', '#Louvor', '#ReelsGospel'],
     likes: [],
     commentsCount: 0,
     sharesCount: 0,

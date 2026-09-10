@@ -11,6 +11,7 @@ import { db } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import { useTheme } from '../../lib/ThemeContext';
 import NotificationCenter from '../NotificationCenter';
+import { makeTransparentLogo } from '../../lib/transparentLogo';
 
 interface SidebarProps {
   user: User | null;
@@ -20,7 +21,34 @@ interface SidebarProps {
 export default function Sidebar({ user, isAdmin }: SidebarProps) {
   const location = useLocation();
   const { themeColor, churchName, logoUrl } = useTheme();
+  const [cleanLogo, setCleanLogo] = useState<string>(() => {
+    return localStorage.getItem('app_clean_logo_url') || '/church_logo_transparent.png';
+  });
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const target = logoUrl || '/church_logo_transparent.png';
+    if (target === '/church_logo_transparent.png' || target.includes('church_logo_transparent.png')) {
+      setCleanLogo('/church_logo_transparent.png');
+      return;
+    }
+    let active = true;
+    makeTransparentLogo(target)
+      .then(res => {
+        if (active && res) {
+          setCleanLogo(res);
+          try {
+            localStorage.setItem('app_clean_logo_url', res);
+          } catch (e) {}
+        }
+      })
+      .catch(() => {
+        if (active) setCleanLogo(target);
+      });
+    return () => {
+      active = false;
+    };
+  }, [logoUrl]);
 
   const menuItems = [
     { to: '/', label: 'Home', icon: Home },
@@ -52,23 +80,17 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
       {/* Header */}
       <div className="p-8 pb-4 relative z-10 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 overflow-hidden">
-          {logoUrl ? (
-            <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-              <img src={logoUrl} alt="Logo" className="max-w-full max-h-full object-contain drop-shadow-md dark:mix-blend-screen" />
-            </div>
-          ) : (
-            <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-              <Church className="w-5 h-5 text-black dark:text-white" />
-            </div>
-          )}
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+            <img src={cleanLogo || logoUrl || '/church_logo_transparent.png'} alt="Logo" className="max-w-full max-h-full object-contain drop-shadow-md" />
+          </div>
           <div className="flex flex-col overflow-hidden">
             <span 
               className="text-lg font-serif tracking-widest text-black dark:text-white uppercase truncate"
               style={{ fontFamily: '"Playfair Display", "Cinzel", serif' }}
             >
-              {churchName || 'ECCLESIA'}
+              {churchName || 'FRUTOS DO ESPÍRITO'}
             </span>
-            <span className="text-[10px] font-medium text-black/40 dark:text-white/40 tracking-[0.2em] uppercase">Ministério</span>
+            <span className="text-[10px] font-medium text-black/40 dark:text-white/40 tracking-[0.2em] uppercase">Ministério Frutos do Espírito</span>
           </div>
         </div>
 

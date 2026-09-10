@@ -7,18 +7,18 @@ import { useTheme } from '../lib/ThemeContext';
 import { usePlayer } from '../lib/PlayerContext';
 
 const MUSIC_CATEGORIES = [
-  { name: 'Worship Rock', query: 'worship rock gospel', colors: 'from-orange-500/80 to-red-600/80', img: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=600&q=80', span: 'col-span-2 row-span-2 min-h-[160px]' },
-  { name: 'Pop Coral', query: 'pop coral gospel cover', colors: 'from-pink-500/80 to-rose-600/80', img: 'https://images.unsplash.com/photo-1516280440502-61f221464dbb?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
-  { name: 'Electronic', query: 'musica eletronica gospel', colors: 'from-purple-500/80 to-violet-600/80', img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
-  { name: 'Hip-Hop Gospel', query: 'hip hop rap gospel', colors: 'from-green-500/80 to-emerald-600/80', img: 'https://images.unsplash.com/photo-1493225457124-a1a2a5f5f9af?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
-  { name: 'Jazz Cristão', query: 'jazz piano cristão', colors: 'from-blue-500/80 to-indigo-600/80', img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
-  { name: 'Sertanejo', query: 'sertanejo gospel adoracao', colors: 'from-yellow-500/80 to-orange-500/80', img: 'https://images.unsplash.com/photo-1555543445-5d9dc05dc55e?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
-  { name: 'Música Clássica', query: 'instrumental classica hinos', colors: 'from-indigo-500/80 to-purple-600/80', img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?auto=format&fit=crop&w=400&q=80', span: 'col-span-1 row-span-1 min-h-[110px]' },
-  { name: 'R&B / Soul', query: 'r&b soul black gospel', colors: 'from-teal-500/80 to-cyan-600/80', img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=600&q=80', span: 'col-span-2 row-span-1 min-h-[120px]' },
+  { name: 'Worship Rock', query: 'worship rock gospel', colors: 'from-orange-600 to-red-700', span: 'col-span-2 row-span-2 min-h-[160px]' },
+  { name: 'Pop Coral', query: 'pop coral gospel cover', colors: 'from-pink-600 to-rose-700', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Electronic', query: 'musica eletronica gospel', colors: 'from-purple-600 to-violet-800', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Hip-Hop Gospel', query: 'hip hop rap gospel', colors: 'from-emerald-600 to-teal-800', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Jazz Cristão', query: 'jazz piano cristão', colors: 'from-blue-600 to-indigo-800', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Sertanejo', query: 'sertanejo gospel adoracao', colors: 'from-amber-600 to-orange-700', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'Música Clássica', query: 'instrumental classica hinos', colors: 'from-indigo-600 to-purple-800', span: 'col-span-1 row-span-1 min-h-[110px]' },
+  { name: 'R&B / Soul', query: 'r&b soul black gospel', colors: 'from-teal-600 to-cyan-800', span: 'col-span-2 row-span-1 min-h-[120px]' },
 ];
 
 export default function Media() {
-  const { themeColor } = useTheme();
+  const { themeColor, churchName } = useTheme();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'all' | 'live' | 'music' | 'podcast'>('all');
   const [ytVideos, setYtVideos] = useState<YouTubeVideo[]>([]);
@@ -210,7 +210,7 @@ export default function Media() {
       id: v.id,
       title: v.title,
       type: itemType === 'live' ? 'LIVE' : itemType.toUpperCase(),
-      author: v.author || 'Ecclesia Stream',
+      author: v.author || churchName,
       thumbnail: v.thumbnail,
       ytId: v.id,
       originalVideo: {
@@ -384,15 +384,12 @@ export default function Media() {
                           lastFetchedQueryRef.current = cat.name;
                           fetchContent(cat.query); 
                         }}
-                        className={`group rounded-[24px] shadow-lg relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform ${cat.span}`}
+                        className={`group rounded-[24px] shadow-lg relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform bg-gradient-to-br ${cat.colors} p-5 flex flex-col justify-end ${cat.span}`}
                       >
-                        <img src={cat.img} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" alt={cat.name} />
-                        <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent mix-blend-multiply opacity-80 group-hover:opacity-100 transition-opacity`}></div>
-                        <div className={`absolute inset-0 bg-gradient-to-br ${cat.colors} mix-blend-color opacity-90`}></div>
-                        
-                        <div className="absolute inset-0 p-5 flex flex-col justify-end">
-                          <h3 className="text-white font-bold text-xl lg:text-2xl font-sans tracking-tight drop-shadow-md">{cat.name}</h3>
+                        <div className="absolute top-4 right-4 text-white/20 group-hover:text-white/40 transition-colors">
+                          <Play className="w-6 h-6 fill-current" />
                         </div>
+                        <h3 className="text-white font-bold text-lg lg:text-xl font-sans tracking-tight drop-shadow-md">{cat.name}</h3>
                       </div>
                     ))}
                   </div>

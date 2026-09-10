@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import NotificationCenter from '../components/NotificationCenter';
 import EditProfileModal from '../components/EditProfileModal';
+import { useTheme } from '../lib/ThemeContext';
 
 interface ProfileProps {
   user: User;
@@ -46,6 +47,7 @@ interface Achievement {
 
 export default function Profile({ user }: ProfileProps) {
   const navigate = useNavigate();
+  const { churchName, logoUrl } = useTheme();
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [xp, setXp] = useState(0);
@@ -248,12 +250,12 @@ export default function Profile({ user }: ProfileProps) {
               {/* Church Crest Header */}
               <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-amber-600 p-0.5 shadow-md flex items-center justify-center text-black font-extrabold text-xl">
-                    ✝
+                  <div className="w-10 h-10 rounded-2xl bg-black/40 border border-amber-500/30 p-1 shadow-md flex items-center justify-center overflow-hidden">
+                    <img src={logoUrl || '/church_logo_transparent.png'} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                   </div>
                   <div>
                     <h4 className="text-xs sm:text-sm font-extrabold text-amber-300 uppercase tracking-wider font-serif">
-                      Igreja Batista & Ministério Fé
+                      {churchName || 'MINISTÉRIO FRUTOS DO ESPÍRITO'}
                     </h4>
                     <p className="text-[10px] text-white/50 tracking-widest uppercase">Credencial Eclesiástica Oficial</p>
                   </div>

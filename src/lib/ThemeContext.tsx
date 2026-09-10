@@ -19,8 +19,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     return localStorage.getItem('app_theme_color') || '#8A2BE2';
   });
   
-  const [logoUrl, setLogoUrl] = useState<string | undefined>();
-  const [churchName, setChurchName] = useState<string | undefined>('Ministério Frutos do Espírito');
+  const [logoUrl, setLogoUrl] = useState<string>(() => {
+    return localStorage.getItem('app_clean_logo_url') || localStorage.getItem('app_logo_url') || '/church_logo_transparent.png';
+  });
+  const [churchName, setChurchName] = useState<string>(() => {
+    return localStorage.getItem('app_church_name') || 'Ministério Frutos do Espírito';
+  });
 
   useEffect(() => {
     localStorage.setItem('app_theme_color', themeColor);
@@ -32,8 +36,22 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       const unsub = onSnapshot(doc(db, 'app_config', 'main'), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data.logoUrl) setLogoUrl(data.logoUrl);
-          if (data.churchName) setChurchName(data.churchName);
+          if (data.logoUrl) {
+            setLogoUrl(data.logoUrl);
+            try {
+              localStorage.setItem('app_logo_url', data.logoUrl);
+            } catch (e) {
+              // ignore quota
+            }
+          }
+          if (data.churchName) {
+            setChurchName(data.churchName);
+            try {
+              localStorage.setItem('app_church_name', data.churchName);
+            } catch (e) {
+              // ignore quota
+            }
+          }
           if (data.themeColor) {
              setThemeColor(data.themeColor);
              document.documentElement.style.setProperty('--theme-color', data.themeColor);

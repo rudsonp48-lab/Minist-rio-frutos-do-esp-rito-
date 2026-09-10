@@ -79,7 +79,7 @@ export default function CreateReelModal({
         videoUrl: videoUrl.trim(),
         caption: caption.trim() || 'Momento abençoado na presença do Senhor! 🙏',
         musicTitle: musicTitle.trim() || 'Louvor da Congregação',
-        tags: tags.length > 0 ? tags : ['#Ecclesia', '#Louvor']
+        tags: tags.length > 0 ? tags : ['#FrutosDoEspirito', '#Louvor']
       });
 
       if (onReelCreated) onReelCreated();

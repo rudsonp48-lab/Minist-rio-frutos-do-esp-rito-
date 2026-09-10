@@ -27,6 +27,7 @@ import {
   subscribeToReelComments, 
   addReelComment 
 } from '../../services/socialService';
+import { getSafeAuthPhotoUrl } from '../../lib/imageUtils';
 
 interface ReelsViewerProps {
   reels: SocialReel[];
@@ -349,7 +350,7 @@ export default function ReelsViewer({
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-full p-[1.5px] bg-gradient-to-tr from-amber-400 to-rose-500 flex-shrink-0">
               <img
-                src={currentReel.userPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                src={currentReel.userPhoto || getSafeAuthPhotoUrl(currentReel.userName || 'Membro')}
                 alt={currentReel.userName}
                 className="w-full h-full object-cover rounded-full bg-neutral-800"
               />

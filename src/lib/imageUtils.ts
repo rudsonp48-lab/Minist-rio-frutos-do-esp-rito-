@@ -5,54 +5,39 @@ export interface ChristianAvatarPreset {
   url: string;
 }
 
+const makeSvgAvatar = (bg: string, symbol: string) => 
+  `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="${encodeURIComponent(bg)}"/><text x="50" y="58" font-size="38" text-anchor="middle" dominant-baseline="middle" fill="white">${encodeURIComponent(symbol)}</text></svg>`;
+
 export const CHRISTIAN_AVATAR_PRESETS: ChristianAvatarPreset[] = [
   {
-    id: 'pastor-1',
-    label: 'Pastor / Líder',
+    id: 'lider-1',
+    label: 'Líder / Pastor',
     role: 'Pastor',
-    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=250'
+    url: makeSvgAvatar('#4f46e5', '✝')
   },
   {
-    id: 'pastora-1',
-    label: 'Pastora / Ministra',
-    role: 'Pastora',
-    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250'
+    id: 'louvor-1',
+    label: 'Louvor / Levita',
+    role: 'Louvor',
+    url: makeSvgAvatar('#9333ea', '🎵')
   },
   {
-    id: 'levita-1',
-    label: 'Levita / Louvor',
-    role: 'Ministério de Louvor',
-    url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=250'
-  },
-  {
-    id: 'intercessora-1',
-    label: 'Intercessora / Oração',
+    id: 'oracao-1',
+    label: 'Intercessão / Oração',
     role: 'Intercessão',
-    url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=250'
+    url: makeSvgAvatar('#059669', '🕊️')
   },
   {
-    id: 'lider-celula-1',
-    label: 'Líder de Célula',
-    role: 'Líder de Célula',
-    url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=250'
-  },
-  {
-    id: 'jovem-1',
-    label: 'Jovem Cristão',
+    id: 'mocidade-1',
+    label: 'Mocidade / Jovens',
     role: 'Mocidade',
-    url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=250'
+    url: makeSvgAvatar('#d97706', '🔥')
   },
   {
-    id: 'jovem-2',
-    label: 'Jovem Cristã',
-    role: 'Mocidade',
-    url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=250'
-  },
-  {
-    id: 'diacono-1',
+    id: 'diaconia-1',
     label: 'Diácono / Servo',
     role: 'Diaconia',
-    url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=250'
+    url: makeSvgAvatar('#0284c7', '🤝')
   }
 ];
 

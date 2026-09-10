@@ -31,8 +31,11 @@ import {
   requestBrowserNotificationPermission
 } from '../services/notificationService';
 import { sendChatMessage } from '../services/chatService';
+import { useTheme } from '../lib/ThemeContext';
+import { getSafeAuthPhotoUrl } from '../lib/imageUtils';
 
 export default function TopNotificationBanner() {
+  const { churchName, logoUrl } = useTheme();
   const [activeNotification, setActiveNotification] = useState<AppNotification | null>(null);
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -136,9 +139,9 @@ export default function TopNotificationBanner() {
     } catch {}
 
     // 3. Browser Desktop / Web Push Notification
-    triggerBrowserNotification(notif.title || 'Nova mensagem no Ecclesia', {
+    triggerBrowserNotification(notif.title || `Nova notificação do ${churchName}`, {
       body: notif.message,
-      icon: notif.senderPhoto || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=128',
+      icon: notif.senderPhoto || logoUrl || getSafeAuthPhotoUrl(notif.senderName || 'Igreja'),
       tag: notif.id
     });
 

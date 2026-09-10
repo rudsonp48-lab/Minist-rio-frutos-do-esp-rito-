@@ -39,7 +39,7 @@ export default function Events() {
         id: doc.id,
         ...doc.data()
       })) as Event[];
-      setEvents(eventData.length > 0 ? eventData : DEFAULT_EVENTS);
+      setEvents(eventData);
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'events');
@@ -71,7 +71,7 @@ export default function Events() {
       <nav className="fixed top-0 left-0 right-0 z-40 ios-glass border-b border-black/[0.05] dark:border-white/[0.05] flex items-center justify-between px-6 h-16">
         <Link to="/" className="flex items-center gap-1 text-[var(--theme-color)] font-medium transition-opacity active:opacity-50">
           <ChevronLeft className="w-6 h-6" />
-          <span>Ecclesia</span>
+          <span>Início</span>
         </Link>
         <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2">Calendário</h1>
         <div className="w-10"></div>
@@ -81,14 +81,14 @@ export default function Events() {
         <header>
           <div className="flex items-center gap-2 mb-2">
             <CalendarDays className="w-5 h-5 text-[#8E8E93]" />
-            <span className="text-[11px] font-bold uppercase tracking-widest text-[#8E8E93]">Agenda Matrix</span>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-[#8E8E93]">Agenda Oficial</span>
           </div>
-          <h2 className="text-4xl font-bold tracking-tighter text-white">Eventos Ecclesia</h2>
+          <h2 className="text-4xl font-bold tracking-tighter text-white">Eventos & Cultos</h2>
         </header>
 
         {/* Categories Bar */}
         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6">
-          {['Tudo', 'Cultos', 'Jovens', 'Matrix', 'Liderança'].map(cat => (
+          {['Tudo', 'Cultos', 'Jovens', 'Oração', 'Liderança'].map(cat => (
             <button
               key={cat}
               className={`px-5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${
@@ -108,17 +108,23 @@ export default function Events() {
             Array(3).fill(0).map((_, i) => (
               <div key={i} className="h-40 rounded-[2.5rem] bg-black/5 dark:bg-white/5 animate-pulse" />
             ))
-          ) : (
+          ) : events.length > 0 ? (
             <div className="space-y-6">
-              {events.map((event, idx) => (
+              {events.map((event) => (
                 <motion.div 
                   key={event.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="ios-card group relative overflow-hidden"
                 >
-                  <div className="h-48 relative overflow-hidden">
-                    <img src={event.image || undefined} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Event" />
+                  <div className="h-48 relative overflow-hidden bg-zinc-900">
+                    {event.image ? (
+                      <img src={event.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={event.title} />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-tr from-purple-950/60 to-amber-950/40 flex items-center justify-center">
+                        <CalendarDays className="w-12 h-12 text-white/30" />
+                      </div>
+                    )}
                     <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 to-transparent">
                       <span className="ios-pill bg-white/20 border-white/40 text-white mb-2 inline-block">{event.category}</span>
                       <h3 className="text-2xl font-bold text-white tracking-tight leading-tight">{event.title}</h3>
@@ -127,8 +133,8 @@ export default function Events() {
                   <div className="p-6 flex items-center justify-between bg-white dark:bg-[#1C1C1E]">
                     <div className="flex items-center gap-6">
                       <div className="flex flex-col items-center justify-center bg-black/5 dark:bg-white/5 w-12 h-12 rounded-xl">
-                        <span className="text-[10px] font-bold text-[#8E8E93] uppercase leading-none">{event.date.split(' ')[1]}</span>
-                        <span className="text-lg font-bold text-[#007AFF] leading-none mt-1">{event.date.split(' ')[0]}</span>
+                        <span className="text-[10px] font-bold text-[#8E8E93] uppercase leading-none">{event.date.split(' ')[1] || 'DATA'}</span>
+                        <span className="text-lg font-bold text-[#007AFF] leading-none mt-1">{event.date.split(' ')[0] || '--'}</span>
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-[#8E8E93]">
@@ -160,15 +166,15 @@ export default function Events() {
                 </motion.div>
               ))}
             </div>
+          ) : (
+            <div className="p-8 text-center bg-white/5 rounded-3xl border border-white/10 space-y-3">
+              <CalendarDays className="w-12 h-12 text-white/30 mx-auto" />
+              <h4 className="text-base font-bold text-white">Nenhum evento agendado</h4>
+              <p className="text-xs text-white/60">Fique atento às programações e cultos do Ministério Frutos do Espírito!</p>
+            </div>
           )}
         </div>
       </div>
     </div>
   );
 }
-
-const DEFAULT_EVENTS = [
-  { id: '1', title: 'Vigília Profética Ecclesia', date: '24 AGO', time: '19:30', location: 'Templo Central', category: 'CULTO', image: 'https://images.unsplash.com/photo-1510076857177-7470076d4098', createdAt: null },
-  { id: '2', title: 'Conexão Jovens Quantum', date: '28 AGO', time: '18:00', location: 'Sala Atlas', category: 'JOVENS', image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7', createdAt: null },
-  { id: '3', title: 'Santa Ceia de Agosto', date: '01 SET', time: '18:00', location: 'Templo Central', category: 'CULTO', image: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3', createdAt: null },
-];

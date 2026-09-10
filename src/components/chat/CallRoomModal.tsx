@@ -29,6 +29,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../lib/firebase';
 import { ActiveUser } from '../../services/presenceService';
 import { CallParticipant, playCallSound } from '../../services/callService';
+import { getSafeAuthPhotoUrl } from '../../lib/imageUtils';
 
 interface CallRoomModalProps {
   isOpen: boolean;
@@ -372,7 +373,7 @@ export default function CallRoomModal({
     const newParticipant: CallParticipant = {
       uid: `user-sim-${Date.now()}-${Math.random()}`,
       name: nextName,
-      photoURL: `https://images.unsplash.com/photo-${1500000000000 + (participants.length * 12345678) % 50000000}?auto=format&fit=crop&q=80&w=200`,
+      photoURL: getSafeAuthPhotoUrl(nextName),
       role: nextName.startsWith('Pr') ? 'Liderança Pastoral' : 'Membro da Igreja',
       isVideoEnabled: callType === 'video',
       isAudioEnabled: true,

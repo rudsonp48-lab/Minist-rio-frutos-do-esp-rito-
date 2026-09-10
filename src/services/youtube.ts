@@ -202,7 +202,7 @@ export const MOCK_VIDEOS: YouTubeVideo[] = [
     thumbnail: 'https://i.ytimg.com/vi/kQOOS35sBhc/hqdefault.jpg',
     publishedAt: new Date().toISOString(),
     type: 'music',
-    author: 'Ecclesia Stream'
+    author: 'Ministério Frutos do Espírito'
   },
 
   // --- Kleber Lucas ---
@@ -428,7 +428,7 @@ export async function searchGospelContent(query: string): Promise<YouTubeVideo[]
       thumbnail: `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`,
       publishedAt: new Date().toISOString(),
       type: 'music',
-      author: idx === 2 ? p.author : 'Ecclesia Adoração'
+      author: idx === 2 ? p.author : 'Ministério Frutos do Espírito'
     };
   });
 }

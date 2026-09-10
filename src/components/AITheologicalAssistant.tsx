@@ -44,7 +44,7 @@ export default function AITheologicalAssistant() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: 'A paz do Senhor! Sou o seu Mentor Teológico e Conselheiro Bíblico da Ecclesia. Como posso abençoar seus estudos ou sua caminhada espiritual hoje?'
+      content: 'A paz do Senhor! Sou o seu Mentor Teológico e Conselheiro Bíblico do Ministério Frutos do Espírito. Como posso abençoar seus estudos ou sua caminhada espiritual hoje?'
     }
   ]);
   const [chatInput, setChatInput] = useState('');
@@ -167,7 +167,7 @@ export default function AITheologicalAssistant() {
         title: title || 'Estudo Teológico IA',
         content: text,
         verseRef: ref,
-        wordStudy: 'Gerado via Pastor IA Ecclesia',
+        wordStudy: 'Gerado via Pastor IA Frutos do Espírito',
         xp: 25,
         createdAt: serverTimestamp(),
       });
@@ -612,7 +612,7 @@ export default function AITheologicalAssistant() {
                             <Markdown>{msg.content}</Markdown>
                             {msg.role === 'assistant' && (
                               <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-white/40">
-                                <span className="text-[10px]">Pastor IA Ecclesia</span>
+                                <span className="text-[10px]">Pastor IA Frutos do Espírito</span>
                                 <button
                                   type="button"
                                   onClick={() => handleSpeak(msg.content, 'Resposta Pastoral')}

@@ -90,7 +90,7 @@ export default function Gallery() {
   useEffect(() => {
     const unsubAuth = auth.onAuthStateChanged((user) => {
       if (!user) {
-        setPhotos(DEFAULT_PHOTOS);
+        setPhotos([]);
         setLoading(false);
         return;
       }
@@ -100,7 +100,7 @@ export default function Gallery() {
           id: doc.id,
           ...doc.data()
         })) as Photo[];
-        setPhotos(photoData.length > 0 ? photoData : DEFAULT_PHOTOS);
+        setPhotos(photoData);
         setLoading(false);
       }, (error) => {
         handleFirestoreError(error, OperationType.GET, 'photos');
@@ -174,7 +174,7 @@ export default function Gallery() {
       <nav className="fixed top-0 left-0 right-0 z-40 ios-glass border-b border-black/[0.05] dark:border-white/[0.05] flex items-center justify-between px-6 h-16">
         <Link to="/" className="flex items-center gap-1 text-[var(--theme-color)] font-medium transition-opacity active:opacity-50">
           <ChevronLeft className="w-6 h-6" />
-          <span>Ecclesia</span>
+          <span>Início</span>
         </Link>
         <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2">Galeria</h1>
         <div className="w-10"></div>
@@ -186,7 +186,7 @@ export default function Gallery() {
             <LayoutGrid className="w-5 h-5 text-[#8E8E93]" />
             <span className="text-[11px] font-bold uppercase tracking-widest text-[#8E8E93]">Acervo Digital</span>
           </div>
-          <h2 className="text-4xl font-bold tracking-tighter">Momentos Sacros</h2>
+          <h2 className="text-4xl font-bold tracking-tighter">Fotos & Momentos</h2>
         </header>
 
         {/* Categories Bar */}
@@ -212,22 +212,21 @@ export default function Gallery() {
             Array(4).fill(0).map((_, i) => (
               <div key={i} className="aspect-square rounded-[2rem] bg-black/5 dark:bg-white/5 animate-pulse" />
             ))
-          ) : (
+          ) : filteredPhotos.length > 0 ? (
             <AnimatePresence mode="popLayout">
               {filteredPhotos.map((photo) => (
                 <GalleryItem key={photo.id} photo={photo} handleLike={handleLike} />
               ))}
             </AnimatePresence>
+          ) : (
+            <div className="col-span-2 p-8 text-center bg-white/5 rounded-3xl border border-white/10 space-y-3">
+              <LayoutGrid className="w-12 h-12 text-white/30 mx-auto" />
+              <h4 className="text-base font-bold text-white">Nenhuma foto no momento</h4>
+              <p className="text-xs text-white/60">As fotos registradas pela igreja serão exibidas aqui.</p>
+            </div>
           )}
         </div>
       </div>
     </div>
   );
 }
-
-const DEFAULT_PHOTOS = [
-  { id: '1', url: 'https://images.unsplash.com/photo-1544427920-c49ccfb85579', category: 'Cultos', likes: 12, user: 'Ecclesia', userId: 'system', createdAt: null },
-  { id: '2', url: 'https://images.unsplash.com/photo-1510076857177-7470076d4098', category: 'Eventos', likes: 24, user: 'Ecclesia', userId: 'system', createdAt: null },
-  { id: '3', url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7', category: 'Jovens', likes: 48, user: 'Ecclesia', userId: 'system', createdAt: null },
-  { id: '4', url: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3', category: 'Cultos', likes: 33, user: 'Ecclesia', userId: 'system', createdAt: null },
-];

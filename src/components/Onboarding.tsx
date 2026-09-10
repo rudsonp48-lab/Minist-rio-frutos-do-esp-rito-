@@ -29,7 +29,7 @@ export function Onboarding() {
 
   const STEPS = [
     {
-      title: "Bem-vindo ao\nEcclesia",
+      title: "Bem-vindo ao\nMinistério Frutos do Espírito",
       description: "Sua jornada de fé agora está na palma da sua mão com muito mais tecnologia e proximidade.",
       icon: Zap,
       color: "text-purple-500",

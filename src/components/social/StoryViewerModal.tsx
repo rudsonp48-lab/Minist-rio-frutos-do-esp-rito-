@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../lib/firebase';
 import { UserStoryGroup, UserStory, markStoryViewed, toggleStoryLike } from '../../services/socialService';
 import { sendChatMessage } from '../../services/chatService';
+import { getSafeAuthPhotoUrl } from '../../lib/imageUtils';
 
 interface StoryViewerModalProps {
   isOpen: boolean;
@@ -254,7 +255,7 @@ export default function StoryViewerModal({
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-amber-400 to-rose-500">
                 <img
-                  src={currentGroup.userPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                  src={currentGroup.userPhoto || getSafeAuthPhotoUrl(currentGroup.userName || 'Membro')}
                   alt={currentGroup.userName}
                   className="w-full h-full object-cover rounded-full bg-neutral-800"
                 />

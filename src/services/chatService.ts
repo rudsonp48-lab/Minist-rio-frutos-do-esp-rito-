@@ -414,7 +414,7 @@ async function handleAIPastorResponse(channelId: string, userPrompt: string, use
       channelId,
       senderId: 'system_ai_pastor',
       senderName: 'Pastor Virtual IA 🕊️',
-      senderPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
+      senderPhoto: '',
       senderRole: 'Aconselhamento Bíblico',
       text: aiText,
       reactions: { '🕊️': ['system'] },
@@ -428,7 +428,7 @@ async function handleAIPastorResponse(channelId: string, userPrompt: string, use
         recipientUid: userUid,
         senderUid: 'system_ai_pastor',
         senderName: 'Pastor Virtual IA 🕊️',
-        senderPhoto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
+        senderPhoto: '',
         channelId,
         message: aiText.slice(0, 100) + '...',
         isDirect: true
