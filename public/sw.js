@@ -1,5 +1,5 @@
 // Service Worker for App Frutos do Espírito - Push Notifications & Background Calls
-const CACHE_NAME = 'frutos-app-v1';
+const CACHE_NAME = 'frutos-app-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -11,24 +11,23 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Listen for Push events from Web Push server (if configured)
+// Listen for Push events from Web Push server (Wake up device on lock screen)
 self.addEventListener('push', (event) => {
   let data = {
-    title: 'Frutos do Espírito',
-    body: 'Você tem uma nova mensagem ou chamada.',
+    title: 'Ecclesia - Frutos do Espírito',
+    body: 'Você recebeu uma nova mensagem no aplicativo.',
     icon: '/icon.svg',
     badge: '/icon.svg',
     url: '/chat',
-    type: 'general'
+    type: 'general',
+    tag: 'push_' + Date.now()
   };
 
-  try {
-    if (event.data) {
-      const payload = event.data.json();
-      data = { ...data, ...payload };
-    }
-  } catch (e) {
-    if (event.data) {
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    } catch (e) {
       data.body = event.data.text();
     }
   }
@@ -39,19 +38,22 @@ self.addEventListener('push', (event) => {
     body: data.body,
     icon: data.icon || '/icon.svg',
     badge: data.badge || '/icon.svg',
-    tag: data.tag || (isCall ? 'incoming_call' : 'chat_message'),
+    tag: data.tag || (isCall ? `call_${data.callId || Date.now()}` : `msg_${Date.now()}`),
     renotify: true,
-    requireInteraction: isCall, // keep on screen if it's a phone/video call until answered
-    vibrate: isCall ? [500, 200, 500, 200, 500, 200, 1000] : [200, 100, 200],
+    requireInteraction: true, // Crucial for mobile lock screen visibility
+    silent: false,
+    timestamp: data.timestamp || Date.now(),
+    vibrate: isCall ? [500, 250, 500, 250, 500, 250, 1000] : [300, 150, 300, 150, 450],
     data: {
       url: data.url || '/chat',
-      callId: data.callId
+      callId: data.callId,
+      type: data.type
     },
     actions: isCall ? [
       { action: 'answer', title: '📞 Atender' },
       { action: 'decline', title: '❌ Recusar' }
     ] : [
-      { action: 'open', title: '💬 Abrir Conversa' }
+      { action: 'open', title: '💬 Abrir Mensagem' }
     ]
   };
 
@@ -60,12 +62,33 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// Listen for client postMessage to show local notification through service worker
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'TRIGGER_NOTIFICATION') {
+    const { title, options } = event.data;
+    event.waitUntil(
+      self.registration.showNotification(title, {
+        icon: '/icon.svg',
+        badge: '/icon.svg',
+        renotify: true,
+        requireInteraction: true,
+        vibrate: [300, 150, 300],
+        ...options
+      })
+    );
+  }
+});
+
 // Handle notification tap / action clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
+  if (event.action === 'decline') {
+    return;
+  }
+
   const notifData = event.notification.data || {};
-  const targetUrl = notifData.url || '/chat';
+  let targetUrl = notifData.url || '/chat';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

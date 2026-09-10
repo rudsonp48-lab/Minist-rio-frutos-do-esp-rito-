@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../lib/ThemeContext';
 
 export default function Login() {
-  const { churchName, themeColor, logoUrl } = useTheme();
+  const { churchName, logoUrl } = useTheme();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
@@ -46,14 +46,14 @@ export default function Login() {
         await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Erro ao autenticar.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-white font-sans overflow-hidden relative">
+    <div className="h-[100dvh] max-h-[100dvh] w-full bg-[#050505] flex flex-col items-center justify-between px-5 py-3 sm:py-6 text-white font-sans overflow-hidden relative select-none">
       {/* Dynamic Colorful Backgrounds */}
       <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-purple-600/30 blur-[120px] rounded-full mix-blend-screen animate-[pulse_8s_ease-in-out_infinite] z-0 pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-blue-600/20 blur-[120px] rounded-full mix-blend-screen animate-[pulse_10s_ease-in-out_infinite_2s] z-0 pointer-events-none" />
@@ -66,145 +66,140 @@ export default function Login() {
 
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black z-0 pointer-events-none" />
 
+      {/* Main Card Container - strictly constrained to fit viewport without scroll */}
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[380px] relative z-10 space-y-12"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-[360px] h-full max-h-[600px] flex flex-col justify-between items-center relative z-10 my-auto py-1 sm:py-2"
       >
-        <div className="text-center space-y-10 flex flex-col items-center">
-           <motion.div 
-             initial={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
-             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-             transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-             className="flex flex-col items-center justify-center pt-8 gap-5"
-           >
-             {logoUrl ? (
-               <div className="w-full h-auto max-w-[280px] flex items-center justify-center relative mb-4">
-                 <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/20 via-blue-500/20 to-pink-500/20 blur-[50px] -z-10" />
-                 <img src={logoUrl} alt="Logo" className="w-full h-auto object-contain drop-shadow-2xl mix-blend-screen" />
-               </div>
-             ) : (
-               <>
-                 {/* Animated Church Logo */}
-                 <motion.div 
-                    animate={{
-                      boxShadow: [
-                        "0 0 20px rgba(168, 85, 247, 0.3)",
-                        "0 0 50px rgba(59, 130, 246, 0.5)",
-                        "0 0 20px rgba(168, 85, 247, 0.3)"
-                      ]
-                    }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    className="w-24 h-24 rounded-[2rem] bg-gradient-to-tr from-purple-500 via-blue-500 to-pink-500 p-[2px] shadow-2xl relative"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-tr from-purple-500 via-blue-500 to-pink-500 blur-xl opacity-50 rounded-[2rem]" />
-                    <div className="w-full h-full rounded-[2rem] bg-black/80 flex items-center justify-center backdrop-blur-xl relative z-10 p-2">
-                      <motion.div
-                        animate={{ scale: [1, 1.05, 1] }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                        className="w-full h-full flex items-center justify-center"
-                      >
-                        <Church className="w-10 h-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
-                      </motion.div>
-                    </div>
-                 </motion.div>
-                 
-                 <h1 
-                   className="text-4xl md:text-5xl font-serif tracking-[0.3em] leading-[1.1] uppercase ml-3 mt-2"
-                   style={{ 
-                     fontFamily: '"Playfair Display", "Cinzel", serif',
-                     fontWeight: 300,
-                     background: 'linear-gradient(135deg, #FFFFFF 0%, #E0E0E0 50%, #ECECEC 100%)',
-                     WebkitBackgroundClip: 'text',
-                     WebkitTextFillColor: 'transparent',
-                     filter: 'drop-shadow(0 4px 12px rgba(255,255,255,0.15))',
-                     fontVariantLigatures: 'common-ligatures'
-                   }}
-                 >
-                   ÉCLÉSIA
-                 </h1>
-                 <div className="flex items-center gap-4 mt-2 mb-4 w-full px-8">
-                   <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-purple-500/50 to-transparent"></div>
-                   <span className="text-[10px] font-bold tracking-[0.4em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-300">Ministério</span>
-                   <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
-                 </div>
-               </>
-             )}
-           </motion.div>
-           
-           <div className="space-y-2">
-             <h2 className="text-2xl font-bold tracking-tight text-white mb-2">Bem-vindo(a)</h2>
-             <p className="text-[15px] font-medium text-white/60">Acesse sua conta para curtir a experiência.</p>
-           </div>
+        {/* Top: Logo and Welcome Header */}
+        <div className="flex flex-col items-center justify-center text-center shrink-0 w-full">
+          <motion.div 
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col items-center justify-center"
+          >
+            {logoUrl ? (
+              <div className="w-full max-w-[190px] h-20 sm:h-24 flex items-center justify-center relative mb-1">
+                <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/25 via-blue-500/20 to-pink-500/25 blur-2xl -z-10" />
+                <img 
+                  src={logoUrl} 
+                  alt={churchName || "Logo"} 
+                  className="w-full h-full object-contain drop-shadow-xl mix-blend-screen filter brightness-105" 
+                />
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-500 via-blue-500 to-pink-500 p-[2px] shadow-xl relative mb-1 shrink-0">
+                <div className="w-full h-full rounded-2xl bg-black/80 flex items-center justify-center backdrop-blur-xl">
+                  <Church className="w-8 h-8 text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]" />
+                </div>
+              </div>
+            )}
+          </motion.div>
+          
+          <div className="mt-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
+              Bem-vindo(a)
+            </h1>
+            <p className="text-xs sm:text-[13px] font-medium text-white/60 mt-0.5">
+              Acesse sua conta para curtir a experiência.
+            </p>
+          </div>
         </div>
 
-        <form onSubmit={handleEmailAuth} className="space-y-5">
-          <div className="bg-white/[0.03] backdrop-blur-3xl rounded-[1.5rem] p-3 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-3 relative overflow-hidden group">
-            {/* Ambient inner glow on hover */}
-            <div className="absolute -inset-10 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-pink-500/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+        {/* Center: Input Form & Auth Buttons */}
+        <form onSubmit={handleEmailAuth} className="w-full space-y-3 sm:space-y-3.5 my-auto">
+          <div className="bg-white/[0.04] backdrop-blur-2xl rounded-2xl p-2.5 sm:p-3 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-2.5 relative overflow-hidden group">
+            {/* Ambient inner glow */}
+            <div className="absolute -inset-10 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-pink-500/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             
             <div className="relative">
               <input 
-                type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                type="email" 
+                required 
+                value={email} 
+                onChange={e => setEmail(e.target.value)}
                 placeholder="E-mail"
-                className="w-full h-[60px] pl-14 pr-6 bg-black/40 rounded-xl outline-none text-[16px] font-medium placeholder:text-white/30 text-white transition-all focus:bg-white/10 border border-white/5 focus:border-purple-500/50 focus:shadow-[0_0_20px_rgba(168,85,247,0.2)]"
+                className="w-full h-11 sm:h-12 pl-11 pr-4 bg-black/50 rounded-xl outline-none text-sm font-medium placeholder:text-white/35 text-white transition-all focus:bg-white/10 border border-white/10 focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/40"
               />
-              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-purple-400 transition-colors" />
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-purple-400 transition-colors" />
             </div>
 
             <div className="relative">
               <input 
-                type="password" required value={password} onChange={e => setPassword(e.target.value)}
+                type="password" 
+                required 
+                value={password} 
+                onChange={e => setPassword(e.target.value)}
                 placeholder="Senha"
-                className="w-full h-[60px] pl-14 pr-6 bg-black/40 rounded-xl outline-none text-[16px] font-medium placeholder:text-white/30 text-white transition-all focus:bg-white/10 border border-white/5 focus:border-blue-500/50 focus:shadow-[0_0_20px_rgba(59,130,246,0.2)]"
+                className="w-full h-11 sm:h-12 pl-11 pr-4 bg-black/50 rounded-xl outline-none text-sm font-medium placeholder:text-white/35 text-white transition-all focus:bg-white/10 border border-white/10 focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/40"
               />
-              <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-blue-400 transition-colors" />
             </div>
           </div>
 
-          <div className="pt-4 flex flex-col gap-4">
+          <div className="space-y-2.5 pt-0.5">
+            {/* Primary Email Auth Button */}
             <button 
               type="submit"
               disabled={loading}
-              className="w-full h-[60px] bg-gradient-to-r from-purple-600 via-blue-500 to-pink-500 text-white rounded-xl font-bold text-[16px] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] relative overflow-hidden"
+              className="w-full h-11 sm:h-12 bg-gradient-to-r from-purple-600 via-indigo-500 to-pink-500 text-white rounded-xl font-bold text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-white/20 mix-blend-overlay opacity-0 hover:opacity-100 transition-opacity" />
-              {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span>{isRegister ? 'Criar Conta' : 'Entrar'}</span>}
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span>{isRegister ? 'Criar Conta' : 'Entrar'}</span>
+              )}
             </button>
 
+            {/* Google Authentication Button */}
             <button 
               type="button"
               onClick={handleGoogleLogin}
-              className="w-full h-[60px] bg-white/5 backdrop-blur-xl border border-white/10 text-white rounded-xl font-bold text-[16px] active:scale-[0.98] transition-all flex items-center justify-center gap-3 hover:bg-white/10 hover:border-white/20"
+              disabled={loading}
+              className="w-full h-11 sm:h-12 bg-white/10 hover:bg-white/15 backdrop-blur-xl border border-white/15 text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 shadow-sm"
             >
-              <img src="https://www.google.com/favicon.ico" className="w-5 h-5 opacity-90" alt="Google" />
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
               <span>Continuar com Google</span>
             </button>
           </div>
         </form>
 
-        <div className="text-center pt-2 pb-6">
+        {/* Error message alert */}
+        <AnimatePresence>
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="w-full text-[#FF3B30] text-center text-xs font-medium px-3 py-2 leading-tight bg-[#FF3B30]/15 rounded-xl border border-[#FF3B30]/30 backdrop-blur-md shrink-0 mb-1"
+            >
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Bottom: Toggle between Login and Register */}
+        <div className="text-center pt-1 pb-1 shrink-0">
           <button 
-            onClick={() => setIsRegister(!isRegister)}
-            className="text-white/60 hover:text-white font-medium text-[15px] transition-colors"
+            type="button"
+            onClick={() => {
+              setIsRegister(!isRegister);
+              setError(null);
+            }}
+            className="text-white/60 hover:text-white font-medium text-xs sm:text-sm transition-colors py-1 px-3"
           >
             {isRegister ? 'Já tem uma conta? Entre aqui' : 'Ainda não tem conta? Crie uma'}
           </button>
         </div>
-
-        <AnimatePresence>
-          {error && (
-            <motion.p 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-[#FF3B30] text-center text-sm font-medium px-8 leading-snug bg-[#FF3B30]/10 py-3 rounded-xl border border-[#FF3B30]/20 backdrop-blur-md"
-            >
-              {error}
-            </motion.p>
-          )}
-        </AnimatePresence>
       </motion.div>
     </div>
   );

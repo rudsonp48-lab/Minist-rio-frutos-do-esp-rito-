@@ -1,6 +1,46 @@
-// Devotional Audio Engine: Narração da Bíblia com Voz Suave e Fundo Musical de Paz (Estilo Cid Moreira / Devocional)
+// Devotional & Theological Audio Engine: Voz Humanizada, Expressiva e Fundo Harmônico Celestial
+// Baseado no Perfil Vocal: Voz Masculina Madura e Profunda (50-65 anos, calorosa, experiente, autoridade acolhedora)
 
-export type VoiceArchetype = 'solene' | 'suave' | 'feminina';
+export type VoiceArchetype = 'maduro' | 'solene' | 'suave' | 'feminina';
+
+export interface VoiceProfileConfig {
+  name: string;
+  description: string;
+  rate: number;
+  pitch: number;
+  geminiVoice: 'Charon' | 'Fenrir' | 'Kore' | 'Puck';
+}
+
+export const VOICE_PROFILES: Record<VoiceArchetype, VoiceProfileConfig> = {
+  maduro: {
+    name: 'Voz Madura & Humana (50-65a)',
+    description: 'Grave, calorosa, experiente e expressiva com pausas naturais',
+    rate: 0.90,
+    pitch: 0.78,
+    geminiVoice: 'Charon'
+  },
+  solene: {
+    name: 'Solene & Profunda',
+    description: 'Tom reverente e imponente estilo narração bíblica sagrada',
+    rate: 0.85,
+    pitch: 0.75,
+    geminiVoice: 'Fenrir'
+  },
+  suave: {
+    name: 'Suave & Acolhedora',
+    description: 'Paz, conforto espiritual e meditação devocional',
+    rate: 0.90,
+    pitch: 0.92,
+    geminiVoice: 'Puck'
+  },
+  feminina: {
+    name: 'Serena Feminina',
+    description: 'Voz doce, clara e acolhedora para reflexão',
+    rate: 0.92,
+    pitch: 1.05,
+    geminiVoice: 'Kore'
+  }
+};
 
 class DevotionalAudioEngine {
   private audioCtx: AudioContext | null = null;
@@ -11,20 +51,25 @@ class DevotionalAudioEngine {
 
   private isSpeechPlaying = false;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
+  private currentAudioElement: HTMLAudioElement | null = null;
   private onVerseChangeCallback: ((verseNum: number) => void) | null = null;
   private onStateChangeCallback: ((isPlaying: boolean) => void) | null = null;
 
   // Settings
-  public voiceArchetype: VoiceArchetype = 'solene';
+  public voiceArchetype: VoiceArchetype = 'maduro';
   public voiceVolume = 1.0;
   public musicVolume = 0.25;
-  public speechRate = 0.88; // Calm and solemn pace
-  public speechPitch = 0.85; // Deeper, more solemn tone
+  public speechRate = 0.90; // Humanized conversational pacing ~0.92x
+  public speechPitch = 0.78; // Low-pitched, mature 50-65yo male timbre
 
   constructor() {
     // Load saved preferences
     const savedVoice = localStorage.getItem('devotional_voice_archetype') as VoiceArchetype;
-    if (savedVoice) this.voiceArchetype = savedVoice;
+    if (savedVoice && ['maduro', 'solene', 'suave', 'feminina'].includes(savedVoice)) {
+      this.voiceArchetype = savedVoice;
+    } else {
+      this.voiceArchetype = 'maduro';
+    }
 
     const savedMusicVol = localStorage.getItem('devotional_music_volume');
     if (savedMusicVol) this.musicVolume = parseFloat(savedMusicVol);
@@ -42,7 +87,7 @@ class DevotionalAudioEngine {
     }
   }
 
-  // Generate warm, peaceful, heavenly ambient synth pad (D Major / G Major worship chords)
+  // Warm, peaceful, heavenly ambient synth pad (D Major / G Major worship progression)
   public startAmbientPad() {
     try {
       this.initAudioContext();
@@ -56,13 +101,13 @@ class DevotionalAudioEngine {
       // Master Gain for background ambient music
       const masterGain = ctx.createGain();
       masterGain.gain.setValueAtTime(0, ctx.currentTime);
-      masterGain.gain.linearRampToValueAtTime(this.musicVolume * 0.4, ctx.currentTime + 3);
+      masterGain.gain.linearRampToValueAtTime(this.musicVolume * 0.35, ctx.currentTime + 2.5);
       this.backgroundGainNode = masterGain;
 
       // Low pass filter for soft, warm tone (no harsh highs)
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(320, ctx.currentTime);
+      filter.frequency.setValueAtTime(340, ctx.currentTime);
 
       masterGain.connect(filter);
       filter.connect(ctx.destination);
@@ -97,13 +142,13 @@ class DevotionalAudioEngine {
           const oscGain = ctx.createGain();
 
           osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
-          osc.frequency.setValueAtTime(freq + (Math.random() * 0.4 - 0.2), ctx.currentTime);
+          osc.frequency.setValueAtTime(freq + (Math.random() * 0.3 - 0.15), ctx.currentTime);
 
           // Gentle fade in & fade out
           const now = ctx.currentTime;
           oscGain.gain.setValueAtTime(0, now);
-          oscGain.gain.linearRampToValueAtTime(0.08 / currentChord.length, now + 2);
-          oscGain.gain.linearRampToValueAtTime(0.04 / currentChord.length, now + 7);
+          oscGain.gain.linearRampToValueAtTime(0.07 / currentChord.length, now + 2);
+          oscGain.gain.linearRampToValueAtTime(0.035 / currentChord.length, now + 7);
           oscGain.gain.linearRampToValueAtTime(0, now + 9.8);
 
           osc.connect(oscGain);
@@ -130,7 +175,7 @@ class DevotionalAudioEngine {
     }
     if (this.backgroundGainNode && this.audioCtx) {
       try {
-        this.backgroundGainNode.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 1.5);
+        this.backgroundGainNode.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 1.2);
       } catch {}
     }
     this.bgOscillators.forEach(osc => {
@@ -147,12 +192,46 @@ class DevotionalAudioEngine {
     localStorage.setItem('devotional_music_volume', vol.toString());
     if (this.backgroundGainNode && this.audioCtx) {
       try {
-        this.backgroundGainNode.gain.linearRampToValueAtTime(vol * 0.4, this.audioCtx.currentTime + 0.3);
+        this.backgroundGainNode.gain.linearRampToValueAtTime(vol * 0.35, this.audioCtx.currentTime + 0.3);
       } catch {}
     }
   }
 
-  // Get optimal Brazilian Portuguese voice matching the desired archetype
+  // Pre-process text to insert natural human breathing pauses, cadence and prosody
+  public humanizeTextForSpeech(text: string): string {
+    let clean = text
+      .replace(/#+\s/g, '')
+      .replace(/[*_`]/g, '')
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+      .replace(/[-*•]\s+/g, '')
+      .trim();
+
+    // Expand common abbreviations for natural, dignified Portuguese speech
+    clean = clean
+      .replace(/\bSl\b\.?/gi, 'Salmos')
+      .replace(/\bMt\b\.?/gi, 'Mateus')
+      .replace(/\bMc\b\.?/gi, 'Marcos')
+      .replace(/\bLc\b\.?/gi, 'Lucas')
+      .replace(/\bJo\b\.?/gi, 'João')
+      .replace(/\bRm\b\.?/gi, 'Romanos')
+      .replace(/\bGn\b\.?/gi, 'Gênesis')
+      .replace(/\bEx\b\.?/gi, 'Êxodo')
+      .replace(/\bCap\b\.?\s*(\d+)/gi, 'Capítulo $1')
+      .replace(/\bv\b\.?\s*(\d+)/gi, 'Versículo $1');
+
+    // Humanized Pausing: Insert subtle reflective pauses at commas, periods and colons
+    clean = clean
+      .replace(/;\s*/g, ', ... ')
+      .replace(/:\s*/g, ': ... ')
+      .replace(/\.\s+/g, '. ... ')
+      .replace(/\?\s+/g, '? ... ')
+      .replace(/!\s+/g, '! ... ')
+      .replace(/\n\n+/g, '. ... ... ');
+
+    return clean;
+  }
+
+  // Search and select best Brazilian Portuguese voice with mature, low-pitched timbre
   private getBestVoice(): SpeechSynthesisVoice | null {
     if (!('speechSynthesis' in window)) return null;
     const voices = window.speechSynthesis.getVoices();
@@ -167,27 +246,55 @@ class DevotionalAudioEngine {
         v.name.toLowerCase().includes('leticia') ||
         v.name.toLowerCase().includes('female') ||
         v.name.toLowerCase().includes('francisca') ||
-        v.name.toLowerCase().includes('heloisa')
+        v.name.toLowerCase().includes('heloisa') ||
+        v.name.toLowerCase().includes('vitória')
       );
       if (female) return female;
     } else {
-      // Solene / Suave male or natural deep voice (Google Português, Daniel, Jorge, etc.)
-      const natural = ptVoices.find(v => 
-        v.name.toLowerCase().includes('google') || 
-        v.name.toLowerCase().includes('daniel') || 
+      // Prioritize natural mature/deep male Brazilian voices
+      // e.g. "Google português do Brasil", "Microsoft Daniel", "Jorge", "Antônio", "pt-BR-Wavenet", "Natural"
+      const matureMale = ptVoices.find(v => 
+        v.name.toLowerCase().includes('daniel') ||
+        v.name.toLowerCase().includes('antonio') ||
         v.name.toLowerCase().includes('jorge') ||
+        v.name.toLowerCase().includes('felipe') ||
         v.name.toLowerCase().includes('natural') ||
-        v.name.toLowerCase().includes('premium') ||
-        v.name.toLowerCase().includes('male')
+        v.name.toLowerCase().includes('male') ||
+        (v.name.toLowerCase().includes('google') && !v.name.toLowerCase().includes('female'))
       );
-      if (natural) return natural;
+      if (matureMale) return matureMale;
     }
 
     return ptVoices[0];
   }
 
-  // Narrate list of verses with verse-by-verse synchronization and devotional pacing
-  public narrateVerses(
+  // Request high-fidelity AI Neural Speech (50-65yo mature deep male voice) from server
+  private async fetchNeuralSpeech(text: string, voiceArchetype: VoiceArchetype): Promise<string | null> {
+    try {
+      const geminiVoice = VOICE_PROFILES[voiceArchetype]?.geminiVoice || 'Charon';
+      const res = await fetch('/api/ai/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          voice: geminiVoice
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audioUrl && !data.fallback) {
+          return data.audioUrl;
+        }
+      }
+    } catch (err) {
+      console.warn('[DevotionalAudio] Server TTS unavailable, switching to local speech synthesis:', err);
+    }
+    return null;
+  }
+
+  // Narrate verse list with synchronized highlighting and devotional cadence
+  public async narrateVerses(
     verses: { verse: number; text: string; book_name?: string; chapter?: number }[],
     options?: {
       onVerseChange?: (verseNum: number) => void;
@@ -195,9 +302,7 @@ class DevotionalAudioEngine {
       includeBackgroundMusic?: boolean;
     }
   ) {
-    if (!('speechSynthesis' in window)) return;
     this.stop();
-
     if (verses.length === 0) return;
 
     if (options?.includeBackgroundMusic !== false && this.musicVolume > 0) {
@@ -222,29 +327,27 @@ class DevotionalAudioEngine {
         this.onVerseChangeCallback(item.verse);
       }
 
-      // Add peaceful devotional intro for verse 1 if applicable
-      let textToRead = '';
+      // Add respectful introduction for verse 1
+      let rawText = '';
       if (currentIndex === 0 && item.book_name && item.chapter) {
-        textToRead = `Leitura da Santa Palavra de Deus. Livro de ${item.book_name}, capítulo ${item.chapter}. ... `;
+        rawText = `Livro de ${item.book_name}, capítulo ${item.chapter}. ... `;
       }
-      
-      textToRead += `Versículo ${item.verse}. ... ${item.text}`;
+      rawText += `Versículo ${item.verse}. ... ${item.text}`;
 
-      const utterance = new SpeechSynthesisUtterance(textToRead);
+      const humanizedText = this.humanizeTextForSpeech(rawText);
+
+      if (!('speechSynthesis' in window)) {
+        currentIndex++;
+        setTimeout(speakNextVerse, 1000);
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(humanizedText);
       utterance.lang = 'pt-BR';
 
-      // Set archetype speech tone
-      if (this.voiceArchetype === 'solene') {
-        utterance.rate = 0.85; // Solemn and profound
-        utterance.pitch = 0.82; // Deep and reverent (Cid Moreira style)
-      } else if (this.voiceArchetype === 'suave') {
-        utterance.rate = 0.90; // Gentle and warm
-        utterance.pitch = 0.95;
-      } else {
-        utterance.rate = 0.92; // Serene female tone
-        utterance.pitch = 1.05;
-      }
-
+      const profile = VOICE_PROFILES[this.voiceArchetype] || VOICE_PROFILES.maduro;
+      utterance.rate = profile.rate;
+      utterance.pitch = profile.pitch;
       utterance.volume = this.voiceVolume;
 
       const voice = this.getBestVoice();
@@ -254,16 +357,16 @@ class DevotionalAudioEngine {
 
       utterance.onend = () => {
         currentIndex++;
-        // Natural contemplative pause of 800ms between verses for meditation
+        // Contemplative pause between verses for reflection (750ms)
         setTimeout(() => {
           if (this.isSpeechPlaying) {
             speakNextVerse();
           }
-        }, 800);
+        }, 750);
       };
 
       utterance.onerror = (e) => {
-        console.warn('Speech synthesis error:', e);
+        console.warn('Speech synthesis notice:', e);
         currentIndex++;
         speakNextVerse();
       };
@@ -275,13 +378,12 @@ class DevotionalAudioEngine {
     speakNextVerse();
   }
 
-  // Narrate a single devotion or prayer text with soft cadence
-  public narrateText(
+  // Narrate any text (sermon, devotional, prayer, exegesis, chat) with rich expressive voice
+  public async narrateText(
     title: string,
     body: string,
     options?: { onFinish?: () => void; includeBackgroundMusic?: boolean }
   ) {
-    if (!('speechSynthesis' in window)) return;
     this.stop();
 
     if (options?.includeBackgroundMusic !== false && this.musicVolume > 0) {
@@ -291,20 +393,54 @@ class DevotionalAudioEngine {
     this.isSpeechPlaying = true;
     this.notifyState(true);
 
-    const fullText = `${title}. ... ... ${body}`;
-    const utterance = new SpeechSynthesisUtterance(fullText);
+    const fullContent = title ? `${title}. ... ... ${body}` : body;
+    const humanizedText = this.humanizeTextForSpeech(fullContent);
+
+    // 1. Try High-Quality Neural AI Voice first
+    const neuralAudioUrl = await this.fetchNeuralSpeech(humanizedText.slice(0, 1500), this.voiceArchetype);
+    
+    if (neuralAudioUrl && this.isSpeechPlaying) {
+      try {
+        const audio = new Audio(neuralAudioUrl);
+        audio.volume = this.voiceVolume;
+        this.currentAudioElement = audio;
+
+        audio.onended = () => {
+          this.stop();
+          if (options?.onFinish) options.onFinish();
+        };
+
+        audio.onerror = () => {
+          this.fallbackToSpeechSynthesis(humanizedText, options);
+        };
+
+        await audio.play();
+        return;
+      } catch (err) {
+        console.warn('[DevotionalAudio] HTML5 Audio play error, falling back to Web Speech:', err);
+      }
+    }
+
+    // 2. Fallback to calibrated humanized Speech Synthesis
+    this.fallbackToSpeechSynthesis(humanizedText, options);
+  }
+
+  private fallbackToSpeechSynthesis(
+    humanizedText: string,
+    options?: { onFinish?: () => void }
+  ) {
+    if (!('speechSynthesis' in window)) {
+      this.stop();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(humanizedText);
     utterance.lang = 'pt-BR';
 
-    if (this.voiceArchetype === 'solene') {
-      utterance.rate = 0.86;
-      utterance.pitch = 0.84;
-    } else if (this.voiceArchetype === 'suave') {
-      utterance.rate = 0.90;
-      utterance.pitch = 0.95;
-    } else {
-      utterance.rate = 0.92;
-      utterance.pitch = 1.05;
-    }
+    const profile = VOICE_PROFILES[this.voiceArchetype] || VOICE_PROFILES.maduro;
+    utterance.rate = profile.rate;
+    utterance.pitch = profile.pitch;
+    utterance.volume = this.voiceVolume;
 
     const voice = this.getBestVoice();
     if (voice) utterance.voice = voice;
@@ -323,12 +459,18 @@ class DevotionalAudioEngine {
   }
 
   public pause() {
+    if (this.currentAudioElement) {
+      this.currentAudioElement.pause();
+    }
     if ('speechSynthesis' in window) {
       window.speechSynthesis.pause();
     }
   }
 
   public resume() {
+    if (this.currentAudioElement) {
+      this.currentAudioElement.play();
+    }
     if ('speechSynthesis' in window) {
       window.speechSynthesis.resume();
     }
@@ -336,6 +478,13 @@ class DevotionalAudioEngine {
 
   public stop() {
     this.isSpeechPlaying = false;
+    if (this.currentAudioElement) {
+      try {
+        this.currentAudioElement.pause();
+        this.currentAudioElement.currentTime = 0;
+      } catch {}
+      this.currentAudioElement = null;
+    }
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }

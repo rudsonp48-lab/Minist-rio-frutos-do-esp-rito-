@@ -1,7 +1,9 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
+import webpush from "web-push";
 import { buildTheologyPrompts, generateContextualTheologyFallback, TheologyRequest, ChatMessage } from "./src/services/theologyEngine";
 
 dotenv.config();
@@ -934,6 +936,291 @@ app.post("/api/ai/chat", async (req, res) => {
   const lastUserMsg = messages?.slice().reverse().find((m: any) => m.role === "user")?.content || "Dúvida bíblica";
   const fallback = generateContextualTheologyFallback({ mode: "chat", prompt: lastUserMsg });
   res.json({ response: fallback });
+});
+
+// Helper: Convert 16-bit PCM buffer to standard WAV buffer
+function pcmToWav(pcmData: Buffer, sampleRate: number = 24000, numChannels: number = 1, bitsPerSample: number = 16): Buffer {
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const dataSize = pcmData.length;
+  const buffer = Buffer.alloc(44 + dataSize);
+
+  buffer.write("RIFF", 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write("WAVE", 8);
+  buffer.write("fmt ", 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20); // PCM format
+  buffer.writeUInt16LE(numChannels, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(byteRate, 28);
+  buffer.writeUInt16LE(blockAlign, 32);
+  buffer.writeUInt16LE(bitsPerSample, 34);
+  buffer.write("data", 36);
+  buffer.writeUInt32LE(dataSize, 40);
+  pcmData.copy(buffer, 44);
+
+  return buffer;
+}
+
+// Text-to-Speech endpoint with mature, deep, warm, authoritative voice profile
+app.post("/api/ai/tts", async (req, res) => {
+  const { text, voice = "Charon" } = req.body || {};
+  if (!text || typeof text !== "string" || !text.trim()) {
+    return res.status(400).json({ error: "Text is required for speech synthesis" });
+  }
+
+  // Clean markdown for speech
+  const cleanText = text
+    .replace(/#+\s/g, "")
+    .replace(/[*_`]/g, "")
+    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+    .replace(/[-*]\s+/g, "")
+    .trim();
+
+  try {
+    const ai = await getGeminiModel();
+    if (ai) {
+      const selectedVoice = voice === "Fenrir" ? "Fenrir" : "Charon";
+      const voiceDirective = `[VOICE PROFILE: Mature Brazilian Portuguese male narrator, perceived age 50-65 years old. Timbre: Deep, rich, warm, resonant, authoritative yet calm and comforting. Pacing: 0.92x conversational with natural pauses at punctuation and thoughtful cadence. Never robotic, never rushed.]\n\n${cleanText}`;
+
+      const ttsResponse = await ai.models.generateContent({
+        model: "gemini-3.1-flash-tts-preview",
+        contents: [{ parts: [{ text: voiceDirective }] }],
+        config: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: selectedVoice }
+            }
+          }
+        }
+      });
+
+      const audioPart = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+      if (audioPart && audioPart.data) {
+        const rawPcm = Buffer.from(audioPart.data, "base64");
+        const wavBuffer = pcmToWav(rawPcm, 24000, 1, 16);
+        const base64Wav = wavBuffer.toString("base64");
+        const audioUrl = `data:audio/wav;base64,${base64Wav}`;
+
+        return res.json({
+          audioUrl,
+          mimeType: "audio/wav",
+          source: "gemini-neural-tts",
+          voiceName: selectedVoice
+        });
+      }
+    }
+  } catch (err: any) {
+    console.warn("[Gemini TTS] Fallback to client humanized synthesis engine:", err?.message || err);
+  }
+
+  // Return fallback signal so client seamlessly uses client-side advanced acoustic engine
+  res.json({
+    fallback: true,
+    message: "Client humanized speech engine activated"
+  });
+});
+
+// ==========================================
+// Web Push Notifications & Lock-Screen Alerts
+// ==========================================
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BGo-UOEgSt8CPhAfUVvqd_Q8j6b7fJqwegEe1_2VXC480U7K-4aLN4YMF1I3Ahf04XHkBXOgE3Q2phLa6AcfInI";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "adpX5W0MGxB5YTms_XpEL9-IqxA54Fq0BRRSXzTSCXI";
+const VAPID_SUBJECT = "mailto:contato@frutosdoespírito.app";
+
+try {
+  webpush.setVapidDetails(
+    VAPID_SUBJECT,
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+  console.log("[WebPush] VAPID details set successfully");
+} catch (err) {
+  console.warn("[WebPush] VAPID init notice:", err);
+}
+
+interface PushSubRecord {
+  endpoint: string;
+  userId: string;
+  subscription: any;
+  updatedAt: number;
+}
+
+const SUBSCRIPTIONS_FILE = path.join(process.cwd(), "data", "push_subscriptions.json");
+const subscriptionsMap = new Map<string, PushSubRecord>();
+
+function loadPushSubscriptions() {
+  try {
+    if (fs.existsSync(SUBSCRIPTIONS_FILE)) {
+      const content = fs.readFileSync(SUBSCRIPTIONS_FILE, "utf-8");
+      const list = JSON.parse(content);
+      if (Array.isArray(list)) {
+        list.forEach((sub: PushSubRecord) => {
+          if (sub?.endpoint && sub?.subscription) {
+            subscriptionsMap.set(sub.endpoint, sub);
+          }
+        });
+        console.log(`[WebPush] Loaded ${subscriptionsMap.size} subscriptions from disk.`);
+      }
+    }
+  } catch (err) {
+    console.warn("[WebPush] Error reading subscriptions file:", err);
+  }
+}
+
+function savePushSubscriptions() {
+  try {
+    const dir = path.dirname(SUBSCRIPTIONS_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const list = Array.from(subscriptionsMap.values());
+    fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(list, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[WebPush] Error saving subscriptions to disk:", err);
+  }
+}
+
+loadPushSubscriptions();
+
+// Return public VAPID key so client can subscribe
+app.get("/api/notifications/vapid-public-key", (req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+// Register or update push subscription for a user
+app.post("/api/notifications/subscribe", (req, res) => {
+  const { userId, subscription } = req.body || {};
+  if (!subscription || !subscription.endpoint) {
+    return res.status(400).json({ error: "Invalid subscription payload" });
+  }
+
+  subscriptionsMap.set(subscription.endpoint, {
+    endpoint: subscription.endpoint,
+    userId: userId || "guest",
+    subscription,
+    updatedAt: Date.now()
+  });
+
+  savePushSubscriptions();
+  res.json({ 
+    success: true, 
+    message: "Subscribed to push notifications", 
+    activeSubscriptions: subscriptionsMap.size 
+  });
+});
+
+// Remove a push subscription
+app.post("/api/notifications/unsubscribe", (req, res) => {
+  const { endpoint } = req.body || {};
+  if (endpoint && subscriptionsMap.has(endpoint)) {
+    subscriptionsMap.delete(endpoint);
+    savePushSubscriptions();
+  }
+  res.json({ success: true });
+});
+
+// Send Push Notification (Supports lock-screen delay test & real-time messaging)
+app.post("/api/notifications/send-push", async (req, res) => {
+  const {
+    recipientUid,
+    senderUid,
+    title = "Ecclesia - Frutos do Espírito",
+    body = "Nova mensagem no aplicativo",
+    icon = "/icon.svg",
+    badge = "/icon.svg",
+    url = "/chat",
+    type = "general",
+    callId,
+    delaySeconds = 0
+  } = req.body || {};
+
+  const executePush = async () => {
+    const payload = JSON.stringify({
+      title,
+      body,
+      icon,
+      badge,
+      url,
+      type,
+      callId,
+      tag: callId ? `call_${callId}` : `msg_${Date.now()}`,
+      timestamp: Date.now()
+    });
+
+    const isCall = type === "call_incoming" || type === "call_video" || type === "call_audio";
+    const options: any = {
+      TTL: 86400, // 24 hours
+      urgency: isCall ? "high" : "high"
+    };
+
+    let targetSubs: PushSubRecord[] = [];
+    if (!recipientUid || recipientUid === "all") {
+      targetSubs = Array.from(subscriptionsMap.values()).filter(
+        s => !senderUid || s.userId !== senderUid
+      );
+    } else {
+      targetSubs = Array.from(subscriptionsMap.values()).filter(
+        s => s.userId === recipientUid
+      );
+    }
+
+    // Fallback: if targeted user has no specific subscription in this device session, send to all registered devices
+    if (targetSubs.length === 0) {
+      targetSubs = Array.from(subscriptionsMap.values());
+    }
+
+    let sent = 0;
+    let failed = 0;
+    const expiredEndpoints: string[] = [];
+
+    await Promise.all(
+      targetSubs.map(async (sub) => {
+        try {
+          await webpush.sendNotification(sub.subscription, payload, options);
+          sent++;
+        } catch (err: any) {
+          failed++;
+          console.warn("[WebPush] Send notification status:", err?.statusCode, err?.message);
+          if (err?.statusCode === 404 || err?.statusCode === 410) {
+            expiredEndpoints.push(sub.endpoint);
+          }
+        }
+      })
+    );
+
+    if (expiredEndpoints.length > 0) {
+      expiredEndpoints.forEach(ep => subscriptionsMap.delete(ep));
+      savePushSubscriptions();
+    }
+
+    return { sent, failed, totalTargets: targetSubs.length };
+  };
+
+  if (delaySeconds && Number(delaySeconds) > 0) {
+    const delay = Number(delaySeconds);
+    setTimeout(() => {
+      executePush().catch(e => console.warn("[WebPush] Delayed push error:", e));
+    }, delay * 1000);
+
+    return res.json({
+      success: true,
+      delayed: true,
+      delaySeconds: delay,
+      message: `Notificação programada para disparar em ${delay} segundos. Bloqueie a tela do celular agora!`
+    });
+  }
+
+  try {
+    const result = await executePush();
+    return res.json({ success: true, ...result });
+  } catch (err: any) {
+    console.error("[WebPush] Execute error:", err);
+    return res.status(500).json({ error: err?.message || "Failed to dispatch push" });
+  }
 });
 
 export default app;

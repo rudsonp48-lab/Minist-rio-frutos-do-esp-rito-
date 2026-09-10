@@ -566,7 +566,22 @@ export default function Bible() {
             </div>
 
             {/* Voice Archetype Selector */}
-            <div className="grid grid-cols-3 gap-2 text-[11px] font-bold mb-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-bold mb-3">
+              <button
+                onClick={() => {
+                  setVoiceArchetype('maduro');
+                  devotionalAudio.setArchetype('maduro');
+                }}
+                className={`p-2 rounded-xl border flex flex-col items-center gap-0.5 text-center transition-all ${
+                  voiceArchetype === 'maduro'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
+                    : 'bg-black/30 border-white/10 text-white/60'
+                }`}
+              >
+                <span>🧔 Madura & Humana</span>
+                <span className="text-[9px] text-white/40 font-normal">50-65a Grave & Quente</span>
+              </button>
+
               <button
                 onClick={() => {
                   setVoiceArchetype('solene');
@@ -578,8 +593,8 @@ export default function Bible() {
                     : 'bg-black/30 border-white/10 text-white/60'
                 }`}
               >
-                <span>🎙️ Solene & Profunda</span>
-                <span className="text-[9px] text-white/40 font-normal">Cid Moreira / Solene</span>
+                <span>🎙️ Solene Bíblica</span>
+                <span className="text-[9px] text-white/40 font-normal">Reverente & Profunda</span>
               </button>
 
               <button
@@ -609,7 +624,7 @@ export default function Bible() {
                 }`}
               >
                 <span>🌸 Serena Feminina</span>
-                <span className="text-[9px] text-white/40 font-normal">Voz Doce & Clara</span>
+                <span className="text-[9px] text-white/40 font-normal">Doce & Clara</span>
               </button>
             </div>
 

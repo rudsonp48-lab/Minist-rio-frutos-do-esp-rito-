@@ -74,14 +74,180 @@ export function playNotificationChime() {
 }
 
 /**
- * Requests browser permission for native Web Push Notifications
+ * Helper to convert base64 VAPID public key to Uint8Array
  */
-export async function requestBrowserNotificationPermission(): Promise<boolean> {
+function urlB64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+/**
+ * Subscribes this browser/device to Web Push notifications via Service Worker
+ * Ensures notifications can wake up the phone and show on lock screen
+ */
+export async function subscribeToPushService(userId?: string): Promise<boolean> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.debug('[Push] Web Push is not supported in this browser environment');
+    return false;
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg.pushManager) {
+      console.debug('[Push] PushManager not available on registration');
+      return false;
+    }
+
+    // Fetch VAPID public key from backend
+    const res = await fetch('/api/notifications/vapid-public-key');
+    if (!res.ok) {
+      console.warn('[Push] Failed to fetch VAPID key');
+      return false;
+    }
+    const { publicKey } = await res.json();
+    if (!publicKey) return false;
+
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const appKey = urlB64ToUint8Array(publicKey);
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: appKey
+      });
+    }
+
+    if (sub) {
+      const activeUserId = userId || auth.currentUser?.uid || 'guest';
+      await fetch('/api/notifications/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: activeUserId,
+          subscription: sub.toJSON()
+        })
+      });
+      localStorage.setItem('church_push_enabled', 'true');
+      console.log('[Push] Push subscription synced with server for user:', activeUserId);
+      return true;
+    }
+  } catch (err) {
+    console.warn('[Push] Error subscribing to push notifications:', err);
+  }
+  return false;
+}
+
+/**
+ * Sends a push notification through our server's Web Push endpoint
+ * This guarantees delivery to backgrounded apps and locked phone screens!
+ */
+export async function sendPushNotificationToServer(params: {
+  recipientUid: string;
+  senderUid?: string;
+  title: string;
+  body: string;
+  icon?: string;
+  url?: string;
+  type?: string;
+  callId?: string;
+  delaySeconds?: number;
+}) {
+  try {
+    await fetch('/api/notifications/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientUid: params.recipientUid,
+        senderUid: params.senderUid || auth.currentUser?.uid,
+        title: params.title,
+        body: params.body,
+        icon: params.icon || '/icon.svg',
+        badge: '/icon.svg',
+        url: params.url || '/chat',
+        type: params.type || 'general',
+        callId: params.callId,
+        delaySeconds: params.delaySeconds || 0
+      })
+    });
+  } catch (e) {
+    console.warn('[Push] Error sending push via backend:', e);
+  }
+}
+
+/**
+ * Test lock-screen notification with a customizable delay (default 5s).
+ * User taps, locks phone screen, and in 5s the push notification wakes up the phone!
+ */
+export async function testLockScreenNotification(delaySeconds = 5): Promise<{ success: boolean; message: string }> {
+  if (typeof window === 'undefined') return { success: false, message: 'Navegador não suporta' };
+
+  if (Notification.permission !== 'granted') {
+    const granted = await requestBrowserNotificationPermission();
+    if (!granted) {
+      return { success: false, message: 'Permissão de notificação negada no navegador' };
+    }
+  } else {
+    await subscribeToPushService();
+  }
+
+  const currentUser = auth.currentUser;
+  const targetId = currentUser?.uid || 'all';
+
+  try {
+    const res = await fetch('/api/notifications/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientUid: targetId,
+        senderUid: 'system',
+        title: '🕊️ Ecclesia - Frutos do Espírito',
+        body: 'Notificação com tela bloqueada recebida com sucesso! Toque para abrir.',
+        icon: '/icon.svg',
+        badge: '/icon.svg',
+        url: '/chat',
+        type: 'test_notification',
+        delaySeconds
+      })
+    });
+
+    if (res.ok) {
+      return {
+        success: true,
+        message: `Teste disparado! Bloqueie a tela do seu celular agora. A notificação chegará em ${delaySeconds} segundos!`
+      };
+    }
+  } catch (e: any) {
+    return { success: false, message: e?.message || 'Erro ao conectar ao servidor de push' };
+  }
+
+  return { success: true, message: `Bloqueie a tela agora! Disparando em ${delaySeconds}s.` };
+}
+
+/**
+ * Requests browser permission for native Web Push Notifications and registers subscription
+ */
+export async function requestBrowserNotificationPermission(userId?: string): Promise<boolean> {
   if (typeof window === 'undefined' || !('Notification' in window)) return false;
-  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'granted') {
+    await subscribeToPushService(userId);
+    return true;
+  }
   try {
     const permission = await Notification.requestPermission();
-    return permission === 'granted';
+    if (permission === 'granted') {
+      await subscribeToPushService(userId);
+      return true;
+    }
+    return false;
   } catch (err) {
     console.debug('Notification permission request error:', err);
     return false;
@@ -225,6 +391,17 @@ export async function notifyChatMessage(params: {
       actionUrl
     });
 
+    // Send Web Push notification to wake device and show on lock screen
+    sendPushNotificationToServer({
+      recipientUid: params.recipientUid,
+      senderUid: params.senderUid,
+      title,
+      body: params.message.slice(0, 140),
+      icon: params.senderPhoto || '/icon.svg',
+      url: actionUrl,
+      type: isDirect ? 'chat_dm' : 'chat_message'
+    });
+
     // Also trigger local event for instant UI awareness
     window.dispatchEvent(new CustomEvent('app-chat-message-notification', {
       detail: {
@@ -274,6 +451,17 @@ export async function notifyPrayerIntercession(params: {
       actionUrl: '/prayers'
     });
 
+    // Dispatch Web Push to alert author even with screen locked
+    sendPushNotificationToServer({
+      recipientUid: params.authorUid,
+      senderUid: currentUser.uid,
+      title: '🙏 Intercessão por Você!',
+      body: `${senderName} acabou de interceder pelo seu pedido: "${params.prayerTitle.slice(0, 50)}"`,
+      icon: senderPhoto || '/icon.svg',
+      url: '/prayers',
+      type: 'prayer_intercession'
+    });
+
     // Trigger local sound or custom event for responsive feedback
     window.dispatchEvent(new CustomEvent('app-notification-sent', {
       detail: { recipientUid: params.authorUid, senderName }
@@ -307,6 +495,17 @@ export async function notifyPrayerTestimony(params: {
       read: false,
       createdAt: serverTimestamp(),
       actionUrl: '/prayers'
+    });
+
+    // Broadcast Web Push to church members
+    sendPushNotificationToServer({
+      recipientUid: 'all',
+      senderUid: currentUser.uid,
+      title: '🎉 Oração Respondida!',
+      body: `${params.authorName} compartilhou uma bênção: "${params.testimony.slice(0, 70)}..."`,
+      icon: '/icon.svg',
+      url: '/prayers',
+      type: 'prayer_testimony'
     });
   } catch (error) {
     console.error('Error sending testimony notification:', error);
@@ -350,12 +549,24 @@ export async function notifyCallIncoming(params: {
       actionUrl: '/chat'
     });
 
-    // Also trigger system background browser push notification
+    // Trigger local system background notification
     triggerCallNotification({
       callerName: params.callerName,
       callType: params.callType,
       callId: params.callId,
       callerPhoto: params.callerPhoto
+    });
+
+    // Dispatch Web Push so remote device rings on lock screen
+    sendPushNotificationToServer({
+      recipientUid: params.recipientUid,
+      senderUid: params.callerUid,
+      title,
+      body: `Chamada ${isVideo ? 'de vídeo' : 'de voz'} ao vivo de ${params.callerName}. Toque para atender.`,
+      icon: params.callerPhoto || '/icon.svg',
+      url: '/chat',
+      type: 'call_incoming',
+      callId: params.callId
     });
   } catch (error) {
     console.error('[NotificationService] Error sending call incoming notification:', error);
@@ -392,6 +603,17 @@ export async function notifyCallMissed(params: {
       createdAt: serverTimestamp(),
       createdAtIso: new Date().toISOString(),
       actionUrl: `/chat?dm=${params.callerUid}`
+    });
+
+    // Push alert for missed call
+    sendPushNotificationToServer({
+      recipientUid: params.recipientUid,
+      senderUid: params.callerUid,
+      title,
+      body: `Você perdeu uma chamada de ${params.callerName}.`,
+      icon: params.callerPhoto || '/icon.svg',
+      url: `/chat?dm=${params.callerUid}`,
+      type: 'call_missed'
     });
   } catch (error) {
     console.error('[NotificationService] Error sending call missed notification:', error);

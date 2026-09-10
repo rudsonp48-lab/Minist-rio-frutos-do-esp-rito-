@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRight, Moon, Globe, Terminal, Cpu, Share2, Youtube, ShieldAlert, LayoutDashboard, ChevronLeft, LogOut, User, Lock, Heart, Paintbrush, Camera, Loader2, Users, Edit3, Sparkles, Download, Smartphone } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, Shield, Eye, Database, Info, ChevronRight, Moon, Globe, Terminal, Cpu, Share2, Youtube, ShieldAlert, LayoutDashboard, ChevronLeft, LogOut, User, Lock, Heart, Paintbrush, Camera, Loader2, Users, Edit3, Sparkles, Download, Smartphone, CheckCircle2, Timer, AlertCircle, X, BellRing } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { Link, useNavigate } from 'react-router-dom';
@@ -10,7 +10,7 @@ import { saveUserProfile, subscribeToUserProfile, UserProfileData } from '../ser
 import { useTheme } from '../lib/ThemeContext';
 import { Logo } from '../components/Logo';
 import EditProfileModal from '../components/EditProfileModal';
-import { playNotificationChime, requestBrowserNotificationPermission, triggerBrowserNotification } from '../services/notificationService';
+import { playNotificationChime, requestBrowserNotificationPermission, triggerBrowserNotification, testLockScreenNotification, subscribeToPushService } from '../services/notificationService';
 
 const ADMIN_EMAIL = 'rudson.p48@gmail.com';
 
@@ -96,6 +96,13 @@ export default function SettingsPage() {
   const currentMinistry = profileData?.ministryRole || 'Membro da Congregação';
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [isTestingLockScreen, setIsTestingLockScreen] = useState(false);
+  const [testCountdown, setTestCountdown] = useState(5);
+  const [testStatusMsg, setTestStatusMsg] = useState<string | null>(null);
+  const [browserPermission, setBrowserPermission] = useState<NotificationPermission>(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
+  );
   const [darkMode, setDarkMode] = useState('auto');
   const [showLeadership, setShowLeadership] = useState(false);
   const [isEditingLeadership, setIsEditingLeadership] = useState(false);
@@ -104,6 +111,39 @@ export default function SettingsPage() {
   const [showBankData, setShowBankData] = useState(false);
   const [isEditingBankData, setIsEditingBankData] = useState(false);
   const [editBankDataState, setEditBankDataState] = useState({ pixKey: '', bankDetails: '', cardUrl: '' });
+
+  const handleStartLockScreenTest = async () => {
+    setIsTestingLockScreen(true);
+    setTestCountdown(5);
+    setTestStatusMsg(null);
+
+    const res = await testLockScreenNotification(5);
+
+    let count = 5;
+    const interval = setInterval(() => {
+      count -= 1;
+      setTestCountdown(count);
+      if (count <= 0) {
+        clearInterval(interval);
+        setIsTestingLockScreen(false);
+        setTestStatusMsg(res.message || 'Notificação disparada! Verifique a tela de bloqueio do celular.');
+      }
+    }, 1000);
+  };
+
+  const handleToggleNotifications = async () => {
+    const granted = await requestBrowserNotificationPermission(user?.uid);
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setBrowserPermission(Notification.permission);
+    }
+    setNotificationsEnabled(granted);
+    if (granted) {
+      playNotificationChime();
+      triggerBrowserNotification('Notificações Ativadas 🕊️', {
+        body: 'Alertas de mensagens e chamadas ativados no dispositivo!'
+      });
+    }
+  };
 
   const handleEditLeadershipClick = () => {
     setIsEditingLeadership(!isEditingLeadership);
@@ -149,16 +189,7 @@ export default function SettingsPage() {
         setIsEditProfileOpen(true);
         break;
       case 'notifications': {
-        const nextState = !notificationsEnabled;
-        setNotificationsEnabled(nextState);
-        if (nextState) {
-          requestBrowserNotificationPermission().then((granted) => {
-            playNotificationChime();
-            triggerBrowserNotification('Notificações Ativadas 🕊️', {
-              body: 'Você receberá alertas no topo do dispositivo e sons celestiais ao receber mensagens!'
-            });
-          });
-        }
+        setShowNotificationModal(true);
         break;
       }
       case 'darkmode':
@@ -562,6 +593,130 @@ export default function SettingsPage() {
                     )}
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Notification & Lock Screen Push Modal */}
+        {showNotificationModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+            onClick={() => setShowNotificationModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white dark:bg-[#16161e] border border-black/10 dark:border-white/10 rounded-3xl p-5 sm:p-6 w-full max-w-lg shadow-2xl relative overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Ambient glow */}
+              <div className="absolute -top-16 -right-16 w-36 h-36 bg-[var(--theme-color)]/20 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowNotificationModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-black/60 dark:text-white/60 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Header */}
+              <div className="flex items-center gap-3.5 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--theme-color)]/15 border border-[var(--theme-color)]/30 flex items-center justify-center text-[var(--theme-color)]">
+                  <BellRing className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-black dark:text-white">
+                    Notificações & Tela Bloqueada
+                  </h3>
+                  <p className="text-xs text-black/60 dark:text-white/60">
+                    Alertas no celular com app fechado e tela desligada
+                  </p>
+                </div>
+              </div>
+
+              {/* Current Status Card */}
+              <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 mb-4 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-black/70 dark:text-white/70 font-medium">Permissão do Sistema:</span>
+                  <span className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
+                    browserPermission === 'granted'
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                  }`}>
+                    {browserPermission === 'granted' ? 'Autorizado' : 'Aguardando Permissão'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-black/70 dark:text-white/70 font-medium">Web Push (Tela Bloqueada):</span>
+                  <span className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
+                    browserPermission === 'granted'
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-rose-500/20 text-rose-600 dark:text-rose-400'
+                  }`}>
+                    {browserPermission === 'granted' ? 'Ativo & Inscrito' : 'Inativo'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Primary Action Button */}
+              <button
+                onClick={handleToggleNotifications}
+                className="w-full py-3 px-4 rounded-xl bg-[var(--theme-color)] hover:brightness-110 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-[var(--theme-color)]/25 mb-4 active:scale-95 transition-all"
+              >
+                <Bell className="w-4 h-4" />
+                <span>{browserPermission === 'granted' ? 'Reconectar / Atualizar Notificações' : 'Ativar Notificações no Dispositivo'}</span>
+              </button>
+
+              {/* Lock-Screen Test Section */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 via-indigo-500/10 to-blue-500/10 border border-purple-500/20 mb-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Timer className="w-4 h-4 text-purple-400" />
+                  <h4 className="text-xs font-bold text-black dark:text-white uppercase tracking-wider">
+                    Teste com Tela Bloqueada (5s)
+                  </h4>
+                </div>
+                <p className="text-xs text-black/70 dark:text-white/70 mb-3 leading-relaxed">
+                  Ao iniciar o teste, você terá 5 segundos para apertar o botão power e desligar a tela do seu celular. O servidor enviará um alerta de alta prioridade.
+                </p>
+
+                {isTestingLockScreen ? (
+                  <div className="py-3 px-4 rounded-xl bg-purple-600 text-white text-center shadow-lg">
+                    <div className="text-2xl font-black mb-1">{testCountdown}s</div>
+                    <p className="text-xs font-bold">🔒 BLOQUEIE A TELA DO SEU CELULAR AGORA!</p>
+                    <p className="text-[11px] opacity-80 mt-0.5">Desligue o visor no botão lateral do celular</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleStartLockScreenTest}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                    <span>Iniciar Teste na Tela Bloqueada (5s)</span>
+                  </button>
+                )}
+
+                {testStatusMsg && (
+                  <div className="mt-2.5 p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{testStatusMsg}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Device Tips */}
+              <div className="text-[11px] text-black/50 dark:text-white/50 space-y-1.5 leading-normal">
+                <p>
+                  • <strong>Android:</strong> Se a notificação não despertar a tela, desative a economia de bateria para o navegador nas configurações do sistema.
+                </p>
+                <p>
+                  • <strong>iPhone (iOS):</strong> Para notificações com tela bloqueada, instale o app pela opção "Adicionar à Tela de Início" no Safari.
+                </p>
               </div>
             </motion.div>
           </motion.div>

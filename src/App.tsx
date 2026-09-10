@@ -38,6 +38,7 @@ import { DailyDevotionalNotification } from './components/DailyDevotionalNotific
 import { Onboarding } from './components/Onboarding';
 import AITheologicalAssistant from './components/AITheologicalAssistant';
 import TopNotificationBanner from './components/TopNotificationBanner';
+import LockScreenNotificationBar from './components/LockScreenNotificationBar';
 import IncomingCallModal from './components/chat/IncomingCallModal';
 import DirectCallModal from './components/chat/DirectCallModal';
 import InstallAppModal from './components/InstallAppModal';
@@ -264,6 +265,7 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
       <Sidebar isAdmin={isAdmin} user={user} />
       <TopBar />
       <TopNotificationBanner />
+      <LockScreenNotificationBar />
       
       <main className={`flex-1 w-full lg:ml-[280px] px-0 lg:px-4 py-0 lg:py-6 lg:mb-0 lg:max-w-[calc(100%-280px)] overflow-x-hidden pt-0 lg:pt-6 ${location.pathname.startsWith('/chat') ? 'pb-0' : 'pb-24'} lg:pb-6`}>
         <DailyDevotionalNotification user={user as User} />

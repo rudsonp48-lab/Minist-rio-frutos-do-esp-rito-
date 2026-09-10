@@ -11,6 +11,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import Markdown from 'react-markdown';
 import { useTheme } from '../lib/ThemeContext';
+import { devotionalAudio } from '../lib/devotionalAudioEngine';
 
 export interface AIAssistantTriggerEvent {
   mode?: 'exegesis' | 'sermon' | 'prayer' | 'chat';
@@ -82,11 +83,17 @@ export default function AITheologicalAssistant() {
 
   // Stop speech when modal closes
   useEffect(() => {
-    if (!isOpen && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+    if (!isOpen) {
+      devotionalAudio.stop();
       setIsSpeaking(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    devotionalAudio.onStateChange((playing) => {
+      setIsSpeaking(playing);
+    });
+  }, []);
 
   const handleExegesisSubmit = async (e?: React.FormEvent, customRef?: string) => {
     if (e) e.preventDefault();
@@ -171,29 +178,18 @@ export default function AITheologicalAssistant() {
     }
   };
 
-  const handleSpeak = (text: string) => {
-    if (!window.speechSynthesis) return;
-
+  const handleSpeak = (text: string, title: string = 'Reflexão Teológica') => {
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      devotionalAudio.stop();
       setIsSpeaking(false);
       return;
     }
 
-    // Strip markdown formatting for cleaner speech
-    const cleanText = text
-      .replace(/#+\s/g, '')
-      .replace(/[*_`]/g, '')
-      .replace(/\[.*?\]\(.*?\)/g, '');
-
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'pt-BR';
-    utterance.rate = 1.0;
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
     setIsSpeaking(true);
+    devotionalAudio.narrateText(title, text, {
+      onFinish: () => setIsSpeaking(false),
+      includeBackgroundMusic: true
+    });
   };
 
   return (
@@ -471,6 +467,16 @@ export default function AITheologicalAssistant() {
                           </span>
                           <div className="flex items-center gap-2">
                             <button
+                              type="button"
+                              onClick={() => handleSpeak(sermonResult, `Esboço: ${sermonTopic}`)}
+                              className={`p-2 rounded-xl border transition-colors ${
+                                isSpeaking ? 'bg-amber-500/30 border-amber-400 text-amber-300' : 'bg-white/5 border-white/10 text-white/70 hover:text-white'
+                              }`}
+                              title={isSpeaking ? 'Pausar narração' : 'Ouvir com voz humana'}
+                            >
+                              {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                            </button>
+                            <button
                               onClick={() => handleCopy(sermonResult)}
                               className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-colors"
                             >
@@ -597,13 +603,27 @@ export default function AITheologicalAssistant() {
                           className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`max-w-[85%] rounded-2xl p-4 text-sm leading-relaxed ${
+                            className={`max-w-[85%] rounded-2xl p-4 text-sm leading-relaxed relative group ${
                               msg.role === 'user'
                                 ? 'bg-[var(--theme-color)] text-white'
                                 : 'bg-black/50 border border-white/10 text-white/90'
                             }`}
                           >
                             <Markdown>{msg.content}</Markdown>
+                            {msg.role === 'assistant' && (
+                              <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-white/40">
+                                <span className="text-[10px]">Pastor IA Ecclesia</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSpeak(msg.content, 'Resposta Pastoral')}
+                                  className="flex items-center gap-1 hover:text-emerald-300 transition-colors py-0.5 px-1.5 rounded bg-white/5 hover:bg-white/10"
+                                  title="Ouvir resposta narrada"
+                                >
+                                  <Volume2 className="w-3 h-3" />
+                                  <span>Ouvir</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
