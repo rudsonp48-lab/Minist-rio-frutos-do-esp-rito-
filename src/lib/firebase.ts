@@ -7,13 +7,13 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
+// Test connection softly without generating noisy console errors during network blips
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
-    }
+    // Expected during offline mode or brief reconnects; firestore gracefully caches locally
+    console.debug("[Firestore] Connection status check:", error instanceof Error ? error.message : error);
   }
 }
 

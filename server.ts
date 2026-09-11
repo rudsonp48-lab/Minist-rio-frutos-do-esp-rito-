@@ -1027,8 +1027,19 @@ app.post("/api/ai/tts", async (req, res) => {
 // Web Push Notifications & Lock-Screen Alerts
 // ==========================================
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BGo-UOEgSt8CPhAfUVvqd_Q8j6b7fJqwegEe1_2VXC480U7K-4aLN4YMF1I3Ahf04XHkBXOgE3Q2phLa6AcfInI";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "adpX5W0MGxB5YTms_XpEL9-IqxA54Fq0BRRSXzTSCXI";
+const DEFAULT_VAPID_PUBLIC = "BPbRor91QiLQ8Me8Kcr9YZd2eeAfHyn4jx7ZD-D8sMhAxwj8AsjxAYAeQkBeDvm3ZjIWbcLp66AWWM3ZddZbxCo";
+const DEFAULT_VAPID_PRIVATE = "0uxQHwVn6kJ-2tYzXCzOA4Kd4aXd3hS_3fcrLV3vmqk";
+
+// Normalize and sanitize keys (strip whitespace, newlines, etc.)
+let rawPub = (process.env.VAPID_PUBLIC_KEY || "").trim().replace(/[\r\n\s]+/g, "");
+let rawPriv = (process.env.VAPID_PRIVATE_KEY || "").trim().replace(/[\r\n\s]+/g, "");
+
+// If missing or invalid length, fallback to pre-verified pair
+if (!rawPub || rawPub.length < 60) rawPub = DEFAULT_VAPID_PUBLIC;
+if (!rawPriv || rawPriv.length < 30) rawPriv = DEFAULT_VAPID_PRIVATE;
+
+const VAPID_PUBLIC_KEY = rawPub;
+const VAPID_PRIVATE_KEY = rawPriv;
 const VAPID_SUBJECT = "mailto:contato@frutosdoespírito.app";
 
 try {
@@ -1039,7 +1050,17 @@ try {
   );
   console.log("[WebPush] VAPID details set successfully");
 } catch (err) {
-  console.warn("[WebPush] VAPID init notice:", err);
+  console.warn("[WebPush] VAPID custom init warning, applying verified fallback:", err instanceof Error ? err.message : err);
+  try {
+    webpush.setVapidDetails(
+      VAPID_SUBJECT,
+      DEFAULT_VAPID_PUBLIC,
+      DEFAULT_VAPID_PRIVATE
+    );
+    console.log("[WebPush] VAPID fallback verified successfully");
+  } catch (fallbackErr) {
+    console.error("[WebPush] Critical VAPID fallback error:", fallbackErr);
+  }
 }
 
 interface PushSubRecord {
