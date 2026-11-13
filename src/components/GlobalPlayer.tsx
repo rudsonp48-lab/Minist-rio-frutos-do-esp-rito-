@@ -112,36 +112,6 @@ export default function GlobalPlayer() {
   };
   const failedVideoIds = useRef<Set<string>>(new Set());
   const radioAudioRef = useRef<HTMLAudioElement | null>(null);
-  const videoSlotRef = useRef<HTMLDivElement | null>(null);
-  const [videoRect, setVideoRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-
-  useEffect(() => {
-    if (!selectedVideo || selectedVideo.id === 'radio-1' || isMinimized || showLyrics) {
-      return;
-    }
-    const updateRect = () => {
-      if (!videoSlotRef.current) return;
-      const r = videoSlotRef.current.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        setVideoRect({ top: r.top, left: r.left, width: r.width, height: r.height });
-      }
-    };
-    updateRect();
-    const t1 = setTimeout(updateRect, 120);
-    const t2 = setTimeout(updateRect, 350);
-    window.addEventListener('resize', updateRect);
-    let ro: ResizeObserver | null = null;
-    if (videoSlotRef.current && typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(updateRect);
-      ro.observe(videoSlotRef.current);
-    }
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      window.removeEventListener('resize', updateRect);
-      ro?.disconnect();
-    };
-  }, [selectedVideo?.id, isMinimized, showLyrics]);
 
   // Memoize YouTube player opts without window.location.href so route navigation
   // never changes opts and never causes react-youtube to destroy/recreate the player.
@@ -390,19 +360,9 @@ export default function GlobalPlayer() {
   return (
     <>
       <div
-        style={
-          selectedVideo && selectedVideo.id !== 'radio-1' && !isMinimized && !showLyrics && videoRect
-            ? {
-                top: `${videoRect.top}px`,
-                left: `${videoRect.left}px`,
-                width: `${videoRect.width}px`,
-                height: `${videoRect.height}px`,
-              }
-            : undefined
-        }
         className={
           selectedVideo && selectedVideo.id !== 'radio-1' && !isMinimized && !showLyrics
-            ? "fixed top-[calc(max(20px,env(safe-area-inset-top))+64px)] left-1/2 -translate-x-1/2 w-full max-w-md h-[36vh] min-h-[210px] max-h-[340px] z-[105] bg-black overflow-hidden shadow-2xl transition-[opacity] duration-200"
+            ? "fixed top-[calc(max(20px,env(safe-area-inset-top))+64px)] left-1/2 -translate-x-1/2 w-full sm:max-w-md h-[36vh] min-h-[210px] max-h-[340px] z-[105] bg-black overflow-hidden shadow-2xl"
             : "fixed top-0 left-0 w-[400px] max-w-[50vw] aspect-video opacity-[0.01] pointer-events-none z-[-1]"
         }
       >
@@ -511,10 +471,7 @@ export default function GlobalPlayer() {
                      className="w-full"
                    >
                      {selectedVideo.id !== 'radio-1' ? (
-                       <div
-                         ref={videoSlotRef}
-                         className="w-full h-[36vh] min-h-[210px] max-h-[340px] bg-black/40 relative"
-                       >
+                       <div className="w-full h-[36vh] min-h-[210px] max-h-[340px] bg-black/40 relative">
                            {/* The YouTube video is rendered directly over this slot via fixed positioning */}
                        </div>
                      ) : (
