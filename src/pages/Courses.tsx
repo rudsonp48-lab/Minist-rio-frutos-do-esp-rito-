@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   GraduationCap,
   Award,
@@ -689,6 +690,13 @@ export default function Courses() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            to="/validar-certificado"
+            className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/15 text-white/85 text-xs font-bold inline-flex items-center gap-1.5 transition"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-300" />
+            Validar
+          </Link>
           {isAdmin && (
             <button
               onClick={() => setShowCreateModal(true)}

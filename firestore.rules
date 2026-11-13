@@ -199,5 +199,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isSignedIn();
     }
+
+    // 10. EVENT RSVPS
+    match /event_rsvps/{rsvpId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }

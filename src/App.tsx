@@ -26,6 +26,9 @@ const Give = lazy(() => import('./pages/Give'));
 const LiveStream = lazy(() => import('./pages/LiveStream'));
 const Cells = lazy(() => import('./pages/Cells'));
 const Courses = lazy(() => import('./pages/Courses'));
+const Devotional = lazy(() => import('./pages/Devotional'));
+const About = lazy(() => import('./pages/About'));
+const ValidateCertificate = lazy(() => import('./pages/ValidateCertificate'));
 
 // Components
 import Sidebar from './components/layout/Sidebar';
@@ -37,6 +40,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTheme } from './lib/ThemeContext';
 import { PlayerProvider } from './lib/PlayerContext';
 import GlobalPlayer from './components/GlobalPlayer';
+import GlobalSearchModal from './components/GlobalSearchModal';
 import { DailyDevotionalNotification } from './components/DailyDevotionalNotification';
 import { Onboarding } from './components/Onboarding';
 import AITheologicalAssistant from './components/AITheologicalAssistant';
@@ -235,6 +239,9 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
             <Route path="/live" element={<PageWrapper><LiveStream /></PageWrapper>} />
             <Route path="/cells" element={<PageWrapper><Cells /></PageWrapper>} />
             <Route path="/courses" element={<PageWrapper><Courses /></PageWrapper>} />
+            <Route path="/devotional" element={<PageWrapper><Devotional /></PageWrapper>} />
+            <Route path="/about" element={<PageWrapper><About /></PageWrapper>} />
+            <Route path="/validar-certificado" element={<PageWrapper><ValidateCertificate /></PageWrapper>} />
             <Route path="/media" element={<PageWrapper><Media /></PageWrapper>} />
             <Route path="/events" element={<PageWrapper><Events /></PageWrapper>} />
             <Route path="/gallery" element={<PageWrapper><Gallery /></PageWrapper>} />
@@ -281,6 +288,7 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
       )}
 
       <GlobalPlayer />
+      <GlobalSearchModal />
       <AITheologicalAssistant />
       <InstallAppModal />
       <BottomNav />

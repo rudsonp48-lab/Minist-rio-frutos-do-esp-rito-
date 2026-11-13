@@ -324,20 +324,14 @@ export default function Profile({ user }: ProfileProps) {
               </div>
 
               <div className="flex flex-col sm:flex-row items-center gap-6 justify-center py-2">
-                {/* Simulated high contrast QR Code for check-in */}
+                {/* Real Scannable QR Code for Church Check-in */}
                 <div className="p-3 bg-white rounded-2xl shadow-xl shrink-0 flex flex-col items-center">
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 bg-black p-1.5 rounded-xl flex flex-col justify-between">
-                    <div className="flex justify-between">
-                      <div className="w-6 h-6 border-2 border-white bg-black flex items-center justify-center"><div className="w-3 h-3 bg-white" /></div>
-                      <div className="w-6 h-6 border-2 border-white bg-black flex items-center justify-center"><div className="w-3 h-3 bg-white" /></div>
-                    </div>
-                    <div className="text-white text-[7px] text-center font-mono">CONECTA•FE</div>
-                    <div className="flex justify-between items-end">
-                      <div className="w-6 h-6 border-2 border-white bg-black flex items-center justify-center"><div className="w-3 h-3 bg-white" /></div>
-                      <div className="w-3 h-3 bg-white" />
-                    </div>
-                  </div>
-                  <span className="text-[9px] text-black font-bold font-mono mt-1">{memberRegistrationId}</span>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`MFE-MEMBRO:${memberRegistrationId}:${user.uid}`)}`}
+                    alt={`QR Code ${memberRegistrationId}`}
+                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-lg object-contain bg-white"
+                  />
+                  <span className="text-[9px] text-black font-bold font-mono mt-1.5">{memberRegistrationId}</span>
                 </div>
 
                 <div className="space-y-2 text-center sm:text-left text-xs text-white/70">
