@@ -395,49 +395,53 @@ export default function Home() {
           </section>
         )}
 
-        {/* Categories / Quick Access */}
+        {/* InPeace-Style Modular Quick Access Grid */}
         <section>
-          <motion.div 
-            className="flex gap-4 lg:gap-6 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 scroll-smooth snap-x snap-mandatory"
-          >
+          <div className="flex items-center justify-between mb-3.5">
+            <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Acesso Rápido</h2>
+            <span className="text-xs font-semibold text-[var(--theme-color)]">Todos os módulos</span>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5 sm:gap-3.5">
             {[
-              { 
-                to: '#', 
-                onClick: (e: any) => { 
-                  e.preventDefault(); 
-                  window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { mode: 'chat' } })); 
-                }, 
-                icon: Sparkles, 
-                label: 'Pastor IA', 
-                color: 'from-amber-400 to-purple-600' 
+              { to: '/bible', icon: BookOpen, label: 'Bíblia', color: 'from-purple-600/30 to-indigo-600/30 border-purple-400/25 text-purple-300' },
+              { to: '/media?live=1', icon: Radio, label: 'Ao Vivo', color: 'from-rose-600/30 to-orange-600/30 border-rose-400/25 text-rose-300' },
+              { to: '/prayers', icon: HandHeart, label: 'Oração', color: 'from-emerald-600/30 to-teal-600/30 border-emerald-400/25 text-emerald-300' },
+              { to: '/give', icon: Heart, label: 'Ofertar', color: 'from-amber-500/30 to-yellow-600/30 border-amber-400/25 text-amber-300' },
+              { to: '/cells', icon: User, label: 'Células', color: 'from-blue-600/30 to-cyan-600/30 border-blue-400/25 text-blue-300' },
+              { to: '/events', icon: Calendar, label: 'Agenda', color: 'from-fuchsia-600/30 to-purple-600/30 border-fuchsia-400/25 text-fuchsia-300' },
+              { to: '/podcast', icon: Headphones, label: 'Podcast', color: 'from-indigo-600/30 to-violet-600/30 border-indigo-400/25 text-indigo-300' },
+              { to: '/profile', icon: Star, label: 'Carteira', color: 'from-amber-500/30 to-purple-600/30 border-amber-400/25 text-amber-300' },
+              {
+                to: '#',
+                onClick: (e: any) => {
+                  e.preventDefault();
+                  window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { mode: 'chat' } }));
+                },
+                icon: Sparkles,
+                label: 'Pastor IA',
+                color: 'from-amber-400/30 to-purple-600/30 border-purple-400/30 text-amber-300'
               },
-              { to: '/bible', icon: BookOpen, label: 'Bíblia', color: 'from-blue-600 to-blue-400' },
-              { to: '/prayers', icon: HandHeart, label: 'Oração', color: 'from-rose-600 to-pink-500' },
-              { to: '/gallery', icon: Camera, label: 'Galeria', color: 'from-emerald-600 to-emerald-400' },
-              { to: '/events', icon: Calendar, label: 'Agenda', color: 'from-orange-600 to-orange-400' },
-              { to: '/media?live=1', icon: Radio, label: 'Ao Vivo', color: 'from-pink-600 to-rose-400' },
-              { to: '/webradio', icon: Headphones, label: 'Web Rádio', color: 'from-purple-600 to-purple-400' },
-              { to: '/give', icon: Heart, label: 'Doar', color: 'from-[var(--color-theme-purple)] to-[var(--theme-color)]' },
-              { to: '/notes', icon: Edit3, label: 'Notas', color: 'from-yellow-600 to-yellow-400' },
-              { to: '/volunteer', icon: User, label: 'Voluntário', color: 'from-indigo-600 to-indigo-400' },
+              { to: '/notes', icon: Edit3, label: 'Notas', color: 'from-yellow-600/30 to-amber-500/30 border-yellow-400/25 text-yellow-300' },
             ].map((cat, idx) => (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.1 }}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.03 }}
                 key={idx}
               >
-                <Link to={cat.to} onClick={cat.onClick} className="flex flex-col items-center gap-3 w-20 lg:w-24 group">
-                  <div className={`w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-tr ${cat.color} p-[2px] transition-transform group-hover:scale-105 group-active:scale-95 shadow-md`}>
-                    <div className="w-full h-full rounded-full bg-black flex items-center justify-center border-2 border-transparent">
-                       <cat.icon className="w-7 h-7 text-white opacity-90 group-hover:opacity-100" />
-                    </div>
+                <Link
+                  to={cat.to}
+                  onClick={cat.onClick}
+                  className="flex flex-col items-center justify-center gap-2 p-3 rounded-2xl bg-[#14141B]/90 border border-white/10 hover:border-[var(--theme-color)]/50 active:scale-95 transition-all group shadow-sm"
+                >
+                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${cat.color} border flex items-center justify-center group-hover:scale-105 transition-transform`}>
+                    <cat.icon className="w-5 h-5" />
                   </div>
-                  <span className="text-[12px] font-medium text-black/70 dark:text-white/70 group-hover:text-black dark:group-hover:text-white transition-colors tracking-wide">{cat.label}</span>
+                  <span className="text-[11px] sm:text-xs font-semibold text-white/90 text-center leading-tight">{cat.label}</span>
                 </Link>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         </section>
 
         {/* AI Pastor & Theological Assistant Highlight Card */}

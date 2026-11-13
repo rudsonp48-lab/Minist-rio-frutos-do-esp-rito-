@@ -13,14 +13,16 @@ export default function LockScreenNotificationBar() {
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setPermission(Notification.permission);
       
       const dismissed = sessionStorage.getItem('ecclesia_push_prompt_dismissed');
-      // Show prompt if permission is default, or if opened explicitly
-      if (Notification.permission === 'default' && !dismissed) {
-        const timer = setTimeout(() => setIsVisible(true), 3500);
-        return () => clearTimeout(timer);
+      const isHomePage = window.location.pathname === '/';
+      // Only auto-prompt on Home when permission is default so reading/chat screens stay clean
+      if (isHomePage && Notification.permission === 'default' && !dismissed) {
+        timer = setTimeout(() => setIsVisible(true), 3500);
       }
     }
 
@@ -29,7 +31,10 @@ export default function LockScreenNotificationBar() {
     };
 
     window.addEventListener('open-lockscreen-tester', handleOpenTester);
-    return () => window.removeEventListener('open-lockscreen-tester', handleOpenTester);
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('open-lockscreen-tester', handleOpenTester);
+    };
   }, []);
 
   const handleActivate = async () => {

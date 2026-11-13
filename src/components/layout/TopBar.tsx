@@ -1,15 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, X, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../../lib/ThemeContext';
 import { Link, useLocation } from 'react-router-dom';
 import NotificationCenter from '../NotificationCenter';
+import { auth } from '../../lib/firebase';
+import { subscribeToUserConversations } from '../../services/chatService';
 
 export default function TopBar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const { themeColor } = useTheme();
   const location = useLocation();
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const unsub = subscribeToUserConversations(uid, (convs) => {
+      const total = convs.reduce((acc, c) => acc + (c.unreadCounts?.[uid] || 0), 0);
+      setUnreadChatCount(total);
+    });
+    return () => unsub();
+  }, []);
 
   if (location.pathname.startsWith('/chat')) {
     return null;
@@ -26,7 +39,13 @@ export default function TopBar() {
           title="Chat da Comunidade"
         >
           <MessageSquare className="w-5 h-5 text-purple-400" />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          {unreadChatCount > 0 ? (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
+              {unreadChatCount > 99 ? '99+' : unreadChatCount}
+            </span>
+          ) : (
+            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400/70" />
+          )}
         </Link>
 
         <AnimatePresence>

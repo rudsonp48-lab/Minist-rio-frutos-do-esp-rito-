@@ -1,12 +1,26 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Play, Calendar, User, Flame } from 'lucide-react';
+import { Home, BookOpen, Play, MessageSquare, User } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { useTheme } from '../../lib/ThemeContext';
+import { auth } from '../../lib/firebase';
+import { subscribeToUserConversations } from '../../services/chatService';
 
 export default function BottomNav() {
   const location = useLocation();
   const { themeColor } = useTheme();
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const unsub = subscribeToUserConversations(uid, (convs) => {
+      const total = convs.reduce((acc, c) => acc + (c.unreadCounts?.[uid] || 0), 0);
+      setUnreadChatCount(total);
+    });
+    return () => unsub();
+  }, []);
 
   // Hide BottomNav in Chat to prevent interference with conversation view and input bar
   if (location.pathname.startsWith('/chat')) {
@@ -15,16 +29,16 @@ export default function BottomNav() {
 
   const navItems = [
     { path: '/', icon: Home, label: 'Início' },
-    { path: '/prayers', icon: Flame, label: 'Rede Social' },
+    { path: '/bible', icon: BookOpen, label: 'Bíblia' },
     { path: '/media', icon: Play, label: 'Mídia' },
-    { path: '/events', icon: Calendar, label: 'Agenda' },
-    { path: '/profile', icon: User, label: 'Perfil' },
+    { path: '/chat', icon: MessageSquare, label: 'Chat', badge: unreadChatCount },
+    { path: '/profile', icon: User, label: 'Membro' },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom lg:hidden px-4 pb-4 pointer-events-none flex justify-center">
-      <div className="pointer-events-auto bg-white/70 dark:bg-[#1C1C1E]/80 backdrop-blur-[40px] border border-black/5 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] rounded-[2rem] w-full max-w-[400px]">
-        <div className="relative flex items-center justify-around h-[68px] px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom lg:hidden px-3 pb-3 pt-1 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none flex justify-center">
+      <div className="pointer-events-auto bg-[#16161D]/95 backdrop-blur-2xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.65)] rounded-3xl w-full max-w-[430px] px-2 py-1.5">
+        <div className="relative grid grid-cols-5 gap-1 items-center">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
@@ -34,22 +48,27 @@ export default function BottomNav() {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "relative flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-300 active:scale-90",
-                  isActive ? "font-bold" : "text-[#8E8E93] dark:text-[#98989D] font-medium hover:text-black dark:hover:text-white"
+                  "relative flex flex-col items-center justify-center gap-1 py-1.5 rounded-2xl transition-all duration-200 active:scale-95",
+                  isActive ? "font-bold" : "text-white/55 hover:text-white font-medium"
                 )}
-                style={isActive ? { color: themeColor } : {}}
+                style={isActive ? { color: themeColor, backgroundColor: `${themeColor}1F` } : {}}
               >
                 <div className="relative">
-                  <Icon className={cn("w-[26px] h-[26px] transition-transform duration-300", isActive ? "scale-110 fill-current" : "")} strokeWidth={isActive ? 2 : 1.5} />
-                  {isActive && (
-                    <motion.div
-                      layoutId="bottom-nav-indicator"
-                      className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: themeColor }}
-                    />
-                  )}
+                  <Icon className={cn("w-5 h-5 transition-transform duration-200", isActive ? "scale-105" : "")} strokeWidth={isActive ? 2.2 : 1.7} />
+                  {item.badge && item.badge > 0 ? (
+                    <span className="absolute -top-1.5 -right-2.5 min-w-[17px] h-[17px] px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  ) : null}
                 </div>
-                {/* <span className="text-[10px] leading-none tracking-tight mt-1 opacity-0 group-hover:opacity-100">{item.label}</span> */}
+                <span className="text-[11px] leading-none tracking-tight">{item.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="bottom-nav-indicator"
+                    className="absolute -bottom-0.5 w-4 h-0.5 rounded-full"
+                    style={{ backgroundColor: themeColor }}
+                  />
+                )}
               </Link>
             );
           })}

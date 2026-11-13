@@ -1,28 +1,30 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ThemeProvider } from './lib/ThemeContext';
 import { startPresenceHeartbeat } from './services/presenceService';
 
-// Pages
-import Home from './pages/Home';
-import Bible from './pages/Bible';
-import Media from './pages/Media';
-import Events from './pages/Events';
-import Gallery from './pages/Gallery';
-import Profile from './pages/Profile';
-import Admin from './pages/Admin';
-import Login from './pages/Login';
-import Notes from './pages/Notes';
-import Prayers from './pages/Prayers';
-import Chat from './pages/Chat';
-import Podcast from './pages/Podcast';
-import Volunteer from './pages/Volunteer';
-import SettingsPage from './pages/Settings';
-import WebRadio from './pages/WebRadio';
-import Give from './pages/Give';
+// Lazy-loaded Pages (reduces initial 4G bundle size significantly)
+const Home = lazy(() => import('./pages/Home'));
+const Bible = lazy(() => import('./pages/Bible'));
+const Media = lazy(() => import('./pages/Media'));
+const Events = lazy(() => import('./pages/Events'));
+const Gallery = lazy(() => import('./pages/Gallery'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Login = lazy(() => import('./pages/Login'));
+const Notes = lazy(() => import('./pages/Notes'));
+const Prayers = lazy(() => import('./pages/Prayers'));
+const Chat = lazy(() => import('./pages/Chat'));
+const Podcast = lazy(() => import('./pages/Podcast'));
+const Volunteer = lazy(() => import('./pages/Volunteer'));
+const SettingsPage = lazy(() => import('./pages/Settings'));
+const WebRadio = lazy(() => import('./pages/WebRadio'));
+const Give = lazy(() => import('./pages/Give'));
+const LiveStream = lazy(() => import('./pages/LiveStream'));
+const Cells = lazy(() => import('./pages/Cells'));
 
 // Components
 import Sidebar from './components/layout/Sidebar';
@@ -133,9 +135,11 @@ export default function App() {
     return (
       <ThemeProvider>
         <Router>
-          <Routes>
-            <Route path="/*" element={<Login />} />
-          </Routes>
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <Routes>
+              <Route path="/*" element={<Login />} />
+            </Routes>
+          </Suspense>
         </Router>
       </ThemeProvider>
     );
@@ -152,9 +156,13 @@ export default function App() {
   );
 }
 
-import LiveStream from './pages/LiveStream';
-
-import Cells from './pages/Cells';
+function RouteLoadingFallback() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
+    </div>
+  );
+}
 
 function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) {
   const location = useLocation();
@@ -218,8 +226,9 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
       <main className={`flex-1 w-full lg:ml-[280px] px-0 lg:px-4 py-0 lg:py-6 lg:mb-0 lg:max-w-[calc(100%-280px)] overflow-x-hidden pt-0 lg:pt-6 ${location.pathname.startsWith('/chat') ? 'pb-0' : 'pb-24'} lg:pb-6`}>
         <DailyDevotionalNotification user={user as User} />
         <Onboarding />
-        <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
             <Route path="/bible" element={<PageWrapper><Bible /></PageWrapper>} />
             <Route path="/live" element={<PageWrapper><LiveStream /></PageWrapper>} />
@@ -238,8 +247,9 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
             <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
             <Route path="/admin" element={isAdmin ? <PageWrapper><Admin /></PageWrapper> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </AnimatePresence>
+            </Routes>
+          </AnimatePresence>
+        </Suspense>
       </main>
 
       {/* Global Real-time Incoming Call Overlay (Instagram Style) */}
