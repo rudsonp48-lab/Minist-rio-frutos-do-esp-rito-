@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePlayer } from '../lib/PlayerContext';
 import { ChevronDown, MoreHorizontal, Shuffle, Pause, Play, SkipBack, SkipForward, Repeat, Volume1, Volume2, Cast, List, ListVideo, X, Heart, Mic2 } from 'lucide-react';
@@ -25,6 +25,27 @@ export default function GlobalPlayer() {
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const failedVideoIds = useRef<Set<string>>(new Set());
+  const radioAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Memoize YouTube player opts without window.location.href so route navigation
+  // never changes opts and never causes react-youtube to destroy/recreate the player.
+  const youtubeOpts = useMemo(
+    () => ({
+      width: '100%',
+      height: '100%',
+      playerVars: {
+        autoplay: 1,
+        controls: 0,
+        modestbranding: 1,
+        playsinline: 1,
+        rel: 0,
+        showinfo: 0,
+        enablejsapi: 1,
+        origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+      },
+    }),
+    []
+  );
 
   const handlePlayerError = async (e: any) => {
     console.warn("YouTube Player error:", e.data);
@@ -188,10 +209,40 @@ export default function GlobalPlayer() {
         ]
       });
 
+      navigator.mediaSession.setActionHandler('play', () => setPlaying(true));
+      navigator.mediaSession.setActionHandler('pause', () => setPlaying(false));
       navigator.mediaSession.setActionHandler('nexttrack', playNext);
       navigator.mediaSession.setActionHandler('previoustrack', playPrevious);
     }
-  }, [selectedVideo, playNext, playPrevious]);
+  }, [selectedVideo, playNext, playPrevious, setPlaying]);
+
+  // Wire WebRadio <audio> element once per radio selection without re-running on every render
+  useEffect(() => {
+    if (selectedVideo?.id !== 'radio-1' || !radioAudioRef.current) return;
+    const audioEl = radioAudioRef.current;
+
+    playerRef.current = {
+      playVideo: () => audioEl.play().catch(() => setPlaying(false)),
+      pauseVideo: () => audioEl.pause(),
+      seekTo: (time: number) => { audioEl.currentTime = time; },
+      getCurrentTime: () => audioEl.currentTime,
+      getDuration: () => audioEl.duration || 0,
+    };
+
+    const handlePlay = () => setPlaying(true);
+    const handlePause = () => setPlaying(false);
+    audioEl.addEventListener('play', handlePlay);
+    audioEl.addEventListener('pause', handlePause);
+
+    if (playing) {
+      audioEl.play().catch(() => setPlaying(false));
+    }
+
+    return () => {
+      audioEl.removeEventListener('play', handlePlay);
+      audioEl.removeEventListener('pause', handlePause);
+    };
+  }, [selectedVideo?.id, (selectedVideo as any)?.src]);
 
   const formatTime = (seconds: number) => {
     const date = new Date(seconds * 1000);
@@ -232,21 +283,7 @@ export default function GlobalPlayer() {
         {selectedVideo && selectedVideo.id !== 'radio-1' && (
           <YouTube
             videoId={selectedVideo.id}
-            opts={{
-              width: '100%',
-              height: '100%',
-              playerVars: {
-                autoplay: 1,
-                controls: 0,
-                modestbranding: 1,
-                playsinline: 1,
-                rel: 0,
-                showinfo: 0,
-                enablejsapi: 1,
-                origin: typeof window !== 'undefined' ? window.location.origin : undefined,
-                widget_referrer: typeof window !== 'undefined' ? window.location.href : undefined,
-              },
-            }}
+            opts={youtubeOpts}
             onReady={(e) => {
               playerRef.current = e.target;
               try {
@@ -265,7 +302,7 @@ export default function GlobalPlayer() {
             onStateChange={(e) => {
               if (e.data === YouTube.PlayerState.PLAYING) {
                 if (!playing) setPlaying(true);
-              } else if (e.data === YouTube.PlayerState.PAUSED || e.data === YouTube.PlayerState.UNSTARTED || e.data === YouTube.PlayerState.CUED) {
+              } else if (e.data === YouTube.PlayerState.PAUSED) {
                 if (playing) setPlaying(false);
               } else if (e.data === YouTube.PlayerState.ENDED) {
                 playNext();
@@ -277,21 +314,7 @@ export default function GlobalPlayer() {
         )}
         {selectedVideo && selectedVideo.id === 'radio-1' && (
           <audio
-            ref={(audioEl) => {
-               if (audioEl) {
-                 playerRef.current = {
-                   playVideo: () => audioEl.play().catch(() => setPlaying(false)),
-                   pauseVideo: () => audioEl.pause(),
-                   seekTo: (time: number) => { audioEl.currentTime = time; },
-                   getCurrentTime: () => audioEl.currentTime,
-                   getDuration: () => audioEl.duration || 0,
-                 };
-                 if (playing) audioEl.play().catch(() => setPlaying(false));
-                 
-                 audioEl.onplay = () => setPlaying(true);
-                 audioEl.onpause = () => setPlaying(false);
-               }
-            }}
+            ref={radioAudioRef}
             src={(selectedVideo as any).src || 'https://stream.zeno.fm/8x934z3m8mzuv'}
             autoPlay={true}
           />
