@@ -719,12 +719,11 @@ export function subscribeToUserNotifications(
 ) {
   if (!userId) return () => {};
 
-  // Query notifications for this user or broadcast 'all'
-  // Note: We avoid composite index dependency by sorting in-memory
+  // Query all notifications for this user or broadcast 'all' without arbitrary limit(60)
+  // so newer notifications are never truncated before in-memory sorting
   const q = query(
     collection(db, 'notifications'),
-    where('recipientUid', 'in', [userId, 'all']),
-    limit(60)
+    where('recipientUid', 'in', [userId, 'all'])
   );
 
   return onSnapshot(q, (snapshot) => {

@@ -61,9 +61,14 @@ export default function TopNotificationBanner() {
     }
   }, [permissionRequested]);
 
-  // Subscribe to incoming notifications
+  const locationRef = useRef(location);
+  locationRef.current = location;
+  const isSoundMutedRef = useRef(isSoundMuted);
+  isSoundMutedRef.current = isSoundMuted;
+
+  // Subscribe to incoming notifications (stable subscription across route changes)
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.uid) return;
 
     const unsubscribe = subscribeToUserNotifications(currentUser.uid, (notifs) => {
       if (isInitialLoadRef.current) {
@@ -81,21 +86,21 @@ export default function TopNotificationBanner() {
       );
 
       if (incoming) {
-        // If user is currently in the active chat AND the app is visible, don't show intrusive banner
-        const searchParams = new URLSearchParams(location.search);
+        const currLoc = locationRef.current;
+        const searchParams = new URLSearchParams(currLoc.search);
         const currentDm = searchParams.get('dm');
         const currentChannel = searchParams.get('channel');
 
         const isAppVisible = typeof document !== 'undefined' && document.visibilityState === 'visible';
         const isCurrentlyInThisChatAndVisible = 
           isAppVisible &&
-          location.pathname === '/chat' && 
+          currLoc.pathname === '/chat' && 
           ((currentDm && incoming.senderUid === currentDm) || 
            (currentChannel && incoming.channelId === currentChannel));
 
         if (!isCurrentlyInThisChatAndVisible) {
           triggerNotificationDisplay(incoming);
-        } else if (!isSoundMuted) {
+        } else if (!isSoundMutedRef.current) {
           // Soft sound feedback when inside active chat
           playNotificationChime();
         }
@@ -108,7 +113,7 @@ export default function TopNotificationBanner() {
       unsubscribe();
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     };
-  }, [currentUser?.uid, location.pathname, location.search, isSoundMuted]);
+  }, [currentUser?.uid]);
 
   // Listen for local custom chat events (e.g. simulated messages or background dispatch)
   useEffect(() => {

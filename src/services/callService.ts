@@ -282,47 +282,49 @@ export async function createDirectCall(params: {
 export function subscribeToIncomingCalls(receiverUid: string, callback: (call: CallSession | null) => void) {
   if (!receiverUid) return () => {};
 
+  // Single-field query avoids composite index requirements and guarantees real-time delivery
   const callsQuery = query(
     collection(db, 'calls'),
-    where('receiverUid', '==', receiverUid),
-    where('status', '==', 'ringing')
+    where('receiverUid', '==', receiverUid)
   );
 
-  return onSnapshot(callsQuery, (snapshot) => {
-    if (!snapshot.empty) {
-      const docData = snapshot.docs[0].data() as CallSession;
-      callback(docData);
-    } else {
-      // Fallback query using nested receiver.uid
-      const fallbackQuery = query(
-        collection(db, 'calls'),
-        where('receiver.uid', '==', receiverUid),
-        where('status', '==', 'ringing')
-      );
-      getDocs(fallbackQuery).then((fbSnap) => {
-        if (!fbSnap.empty) {
-          callback(fbSnap.docs[0].data() as CallSession);
-        } else {
-          callback(null);
-        }
-      }).catch(() => {
-        callback(null);
+  const pickActiveRingingCall = (docs: any[]): CallSession | null => {
+    const now = Date.now();
+    const ringingCalls = docs
+      .map((d) => d.data() as CallSession & { createdAtIso?: string })
+      .filter((c) => {
+        if (c.status !== 'ringing') return false;
+        const createdMs = c.createdAt?.toMillis
+          ? c.createdAt.toMillis()
+          : c.createdAt?.seconds
+            ? c.createdAt.seconds * 1000
+            : c.createdAtIso
+              ? new Date(c.createdAtIso).getTime()
+              : now;
+        // Ignore stale ringing calls older than 3 minutes
+        return now - createdMs < 3 * 60 * 1000;
       });
-    }
-  }, (err) => {
-    console.debug('[CallService] Error subscribing to incoming calls, attempting fallback:', err);
-    const fallbackQuery = query(
-      collection(db, 'calls'),
-      where('receiver.uid', '==', receiverUid),
-      where('status', '==', 'ringing')
-    );
-    return onSnapshot(fallbackQuery, (fbSnap) => {
-      if (!fbSnap.empty) {
-        callback(fbSnap.docs[0].data() as CallSession);
-      } else {
-        callback(null);
-      }
+
+    ringingCalls.sort((a, b) => {
+      const getMs = (c: any) =>
+        c.createdAt?.toMillis
+          ? c.createdAt.toMillis()
+          : c.createdAt?.seconds
+            ? c.createdAt.seconds * 1000
+            : c.createdAtIso
+              ? new Date(c.createdAtIso).getTime()
+              : 0;
+      return getMs(b) - getMs(a);
     });
+
+    return ringingCalls[0] || null;
+  };
+
+  return onSnapshot(callsQuery, (snapshot) => {
+    callback(pickActiveRingingCall(snapshot.docs));
+  }, (err) => {
+    console.debug('[CallService] Error subscribing to incoming calls:', err);
+    callback(null);
   });
 }
 
