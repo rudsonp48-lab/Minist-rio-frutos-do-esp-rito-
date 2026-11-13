@@ -17,6 +17,7 @@ import { db, auth } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { devotionalAudio, VoiceArchetype } from '../lib/devotionalAudioEngine';
+import { getChapterVerses, searchVerseByReference } from '../services/bibleService';
 
 interface Verse {
   book_name: string;
@@ -246,26 +247,16 @@ export default function Bible() {
     setError(null);
     devotionalAudio.stop();
 
-    if (navigator.onLine) {
-      try {
-        const res = await fetch(`https://bible-api.com/${encodeURIComponent(bookName)}+${chapterNum}?translation=${trans}`);
-        if (!res.ok) throw new Error('Falha ao obter capítulo');
-        const data = await res.json();
-        const formatted: Verse[] = data.verses.map((v: any) => ({
-          book_name: v.book_name,
-          chapter: v.chapter,
-          verse: v.verse,
-          text: v.text.trim()
-        }));
-        setChapterVerses(formatted);
-        setLoading(false);
-        return;
-      } catch (err) {
-        console.warn('API online falhou, buscando cache local...', err);
-      }
+    try {
+      const verses = await getChapterVerses(bookName, chapterNum, trans);
+      setChapterVerses(verses);
+      setLoading(false);
+      return;
+    } catch (err) {
+      console.warn('Erro ao carregar capítulo bíblico:', err);
     }
 
-    // Fallback offline verses generator
+    // Fallback offline apenas se ainda não houver cache no IndexedDB
     const singleSample = SAMPLE_VERSES[`${bookName} ${chapterNum}:1`];
     if (singleSample) {
       setChapterVerses([{
@@ -275,13 +266,8 @@ export default function Bible() {
         text: singleSample
       }]);
     } else {
-      const generated: Verse[] = Array.from({ length: 15 }, (_, i) => ({
-        book_name: bookName,
-        chapter: chapterNum,
-        verse: i + 1,
-        text: `Porque a palavra de Deus é viva, e eficaz, e mais penetrante do que qualquer espada de dois gumes... (${bookName} ${chapterNum}:${i + 1})`
-      }));
-      setChapterVerses(generated);
+      setChapterVerses([]);
+      setError('Não foi possível carregar este capítulo. Verifique sua conexão e tente novamente.');
     }
     setLoading(false);
   }, [translation]);
@@ -369,17 +355,10 @@ export default function Bible() {
     setError(null);
     setView('search');
     try {
-      const res = await fetch(`https://bible-api.com/${encodeURIComponent(searchReference)}?translation=${translation}`);
-      if (!res.ok) throw new Error('Versículo não encontrado');
-      const data = await res.json();
-      setSearchedVerse({
-        book_name: data.verses[0].book_name,
-        chapter: data.verses[0].chapter,
-        verse: data.verses[0].verse,
-        text: data.text
-      });
+      const found = await searchVerseByReference(searchReference, translation);
+      setSearchedVerse(found);
     } catch (err) {
-      setError('Sinal interrompido. Verifique a referência.');
+      setError('Versículo não encontrado. Use o formato "Livro Capítulo:Versículo" (ex: Salmos 23:1).');
     } finally {
       setLoading(false);
     }
