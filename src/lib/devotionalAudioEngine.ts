@@ -8,37 +8,37 @@ export interface VoiceProfileConfig {
   description: string;
   rate: number;
   pitch: number;
-  geminiVoice: 'Charon' | 'Fenrir' | 'Kore' | 'Puck';
+  geminiVoice: 'Orus' | 'Charon' | 'Fenrir' | 'Aoede' | 'Kore' | 'Puck';
 }
 
 export const VOICE_PROFILES: Record<VoiceArchetype, VoiceProfileConfig> = {
   maduro: {
-    name: 'Voz Madura & Humana (50-65a)',
-    description: 'Grave, calorosa, experiente e expressiva com pausas naturais',
-    rate: 0.90,
+    name: 'Voz Natural J.A.R.V.I.S (Orus)',
+    description: 'Fluida, humana e expressiva com dinâmica e entonação natural',
+    rate: 0.94,
+    pitch: 0.92,
+    geminiVoice: 'Orus'
+  },
+  solene: {
+    name: 'Solene & Profunda (Charon)',
+    description: 'Tom reverente e grave estilo narração bíblica sagrada',
+    rate: 0.88,
     pitch: 0.78,
     geminiVoice: 'Charon'
   },
-  solene: {
-    name: 'Solene & Profunda',
-    description: 'Tom reverente e imponente estilo narração bíblica sagrada',
-    rate: 0.85,
-    pitch: 0.75,
-    geminiVoice: 'Fenrir'
-  },
   suave: {
-    name: 'Suave & Acolhedora',
+    name: 'Suave & Acolhedora (Puck)',
     description: 'Paz, conforto espiritual e meditação devocional',
-    rate: 0.90,
-    pitch: 0.92,
+    rate: 0.92,
+    pitch: 0.95,
     geminiVoice: 'Puck'
   },
   feminina: {
-    name: 'Serena Feminina',
-    description: 'Voz doce, clara e acolhedora para reflexão',
-    rate: 0.92,
+    name: 'Serena Feminina (Aoede)',
+    description: 'Voz feminina fluida, clara e acolhedora para reflexão',
+    rate: 0.94,
     pitch: 1.05,
-    geminiVoice: 'Kore'
+    geminiVoice: 'Aoede'
   }
 };
 
@@ -50,6 +50,7 @@ class DevotionalAudioEngine {
   private bgInterval: number | null = null;
 
   private isSpeechPlaying = false;
+  private playbackSessionId = 0;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private currentAudioElement: HTMLAudioElement | null = null;
   private onVerseChangeCallback: ((verseNum: number) => void) | null = null;
@@ -268,10 +269,10 @@ class DevotionalAudioEngine {
     return ptVoices[0];
   }
 
-  // Request high-fidelity AI Neural Speech (50-65yo mature deep male voice) from server
+  // Request high-fidelity AI Neural Speech (Gemini TTS with J.A.R.V.I.S Orus voice) from server
   private async fetchNeuralSpeech(text: string, voiceArchetype: VoiceArchetype): Promise<string | null> {
     try {
-      const geminiVoice = VOICE_PROFILES[voiceArchetype]?.geminiVoice || 'Charon';
+      const geminiVoice = VOICE_PROFILES[voiceArchetype]?.geminiVoice || 'Orus';
       const res = await fetch('/api/ai/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -293,7 +294,7 @@ class DevotionalAudioEngine {
     return null;
   }
 
-  // Narrate verse list with synchronized highlighting and devotional cadence
+  // Narrate verse list with fluid Gemini Neural TTS, prefetching & synchronized highlighting
   public async narrateVerses(
     verses: { verse: number; text: string; book_name?: string; chapter?: number }[],
     options?: {
@@ -309,39 +310,47 @@ class DevotionalAudioEngine {
       this.startAmbientPad();
     }
 
+    const sessionId = ++this.playbackSessionId;
     this.isSpeechPlaying = true;
     this.onVerseChangeCallback = options?.onVerseChange || null;
     this.notifyState(true);
 
-    let currentIndex = 0;
-
-    const speakNextVerse = () => {
-      if (!this.isSpeechPlaying || currentIndex >= verses.length) {
-        this.stop();
-        if (options?.onFinish) options.onFinish();
-        return;
-      }
-
-      const item = verses[currentIndex];
-      if (this.onVerseChangeCallback) {
-        this.onVerseChangeCallback(item.verse);
-      }
-
-      // Add respectful introduction for verse 1
+    const buildVerseText = (idx: number) => {
+      const item = verses[idx];
       let rawText = '';
-      if (currentIndex === 0 && item.book_name && item.chapter) {
-        rawText = `Livro de ${item.book_name}, capítulo ${item.chapter}. ... `;
+      if (idx === 0 && item.book_name && item.chapter) {
+        rawText = `Livro de ${item.book_name}, capítulo ${item.chapter}. `;
       }
-      rawText += `Versículo ${item.verse}. ... ${item.text}`;
+      rawText += item.text;
+      return rawText.trim();
+    };
 
-      const humanizedText = this.humanizeTextForSpeech(rawText);
+    // Prefetch cache so transitions between verses are fluid without awkward gaps
+    const audioPromiseCache = new Map<number, Promise<string | null>>();
+    const getVerseAudio = (idx: number): Promise<string | null> => {
+      if (idx >= verses.length) return Promise.resolve(null);
+      if (!audioPromiseCache.has(idx)) {
+        const text = buildVerseText(idx);
+        audioPromiseCache.set(idx, this.fetchNeuralSpeech(text, this.voiceArchetype));
+      }
+      return audioPromiseCache.get(idx)!;
+    };
 
+    const advanceToNext = (nextIndex: number) => {
+      setTimeout(() => {
+        if (this.isSpeechPlaying && this.playbackSessionId === sessionId) {
+          void speakVerseAt(nextIndex);
+        }
+      }, 220);
+    };
+
+    const speakWithBrowserFallback = (idx: number) => {
       if (!('speechSynthesis' in window)) {
-        currentIndex++;
-        setTimeout(speakNextVerse, 1000);
+        advanceToNext(idx + 1);
         return;
       }
 
+      const humanizedText = this.humanizeTextForSpeech(buildVerseText(idx));
       const utterance = new SpeechSynthesisUtterance(humanizedText);
       utterance.lang = 'pt-BR';
 
@@ -351,31 +360,66 @@ class DevotionalAudioEngine {
       utterance.volume = this.voiceVolume;
 
       const voice = this.getBestVoice();
-      if (voice) {
-        utterance.voice = voice;
-      }
+      if (voice) utterance.voice = voice;
 
-      utterance.onend = () => {
-        currentIndex++;
-        // Contemplative pause between verses for reflection (750ms)
-        setTimeout(() => {
-          if (this.isSpeechPlaying) {
-            speakNextVerse();
-          }
-        }, 750);
-      };
-
-      utterance.onerror = (e) => {
-        console.warn('Speech synthesis notice:', e);
-        currentIndex++;
-        speakNextVerse();
-      };
+      utterance.onend = () => advanceToNext(idx + 1);
+      utterance.onerror = () => advanceToNext(idx + 1);
 
       this.currentUtterance = utterance;
       window.speechSynthesis.speak(utterance);
     };
 
-    speakNextVerse();
+    const speakVerseAt = async (idx: number) => {
+      if (!this.isSpeechPlaying || this.playbackSessionId !== sessionId) return;
+      if (idx >= verses.length) {
+        this.stop();
+        if (options?.onFinish) options.onFinish();
+        return;
+      }
+
+      const item = verses[idx];
+      if (this.onVerseChangeCallback) {
+        this.onVerseChangeCallback(item.verse);
+      }
+
+      // Start prefetching the next verse immediately for seamless flow
+      if (idx + 1 < verses.length) {
+        void getVerseAudio(idx + 1);
+      }
+
+      const neuralAudioUrl = await getVerseAudio(idx);
+      if (!this.isSpeechPlaying || this.playbackSessionId !== sessionId) return;
+
+      if (neuralAudioUrl) {
+        try {
+          const audio = new Audio(neuralAudioUrl);
+          audio.volume = this.voiceVolume;
+          this.currentAudioElement = audio;
+
+          audio.onended = () => {
+            if (this.playbackSessionId !== sessionId) return;
+            this.currentAudioElement = null;
+            advanceToNext(idx + 1);
+          };
+
+          audio.onerror = () => {
+            if (this.playbackSessionId !== sessionId) return;
+            this.currentAudioElement = null;
+            speakWithBrowserFallback(idx);
+          };
+
+          await audio.play();
+          return;
+        } catch (err) {
+          console.warn('[DevotionalAudio] Neural verse playback error, falling back:', err);
+          this.currentAudioElement = null;
+        }
+      }
+
+      speakWithBrowserFallback(idx);
+    };
+
+    void speakVerseAt(0);
   }
 
   // Narrate any text (sermon, devotional, prayer, exegesis, chat) with rich expressive voice
@@ -477,6 +521,7 @@ class DevotionalAudioEngine {
   }
 
   public stop() {
+    this.playbackSessionId++;
     this.isSpeechPlaying = false;
     if (this.currentAudioElement) {
       try {

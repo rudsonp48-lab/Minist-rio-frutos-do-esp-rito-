@@ -962,9 +962,9 @@ function pcmToWav(pcmData: Buffer, sampleRate: number = 24000, numChannels: numb
   return buffer;
 }
 
-// Text-to-Speech endpoint with mature, deep, warm, authoritative voice profile
+// Text-to-Speech endpoint with mature, deep, warm, authoritative voice profile (J.A.R.V.I.S Orus + Gemini TTS)
 app.post("/api/ai/tts", async (req, res) => {
-  const { text, voice = "Charon" } = req.body || {};
+  const { text, voice = "Orus" } = req.body || {};
   if (!text || typeof text !== "string" || !text.trim()) {
     return res.status(400).json({ error: "Text is required for speech synthesis" });
   }
@@ -975,40 +975,59 @@ app.post("/api/ai/tts", async (req, res) => {
     .replace(/[*_`]/g, "")
     .replace(/\[(.*?)\]\(.*?\)/g, "$1")
     .replace(/[-*]\s+/g, "")
-    .trim();
+    .trim()
+    .slice(0, 1800);
 
   try {
     const ai = await getGeminiModel();
     if (ai) {
-      const selectedVoice = voice === "Fenrir" ? "Fenrir" : "Charon";
-      const voiceDirective = `[VOICE PROFILE: Mature Brazilian Portuguese male narrator, perceived age 50-65 years old. Timbre: Deep, rich, warm, resonant, authoritative yet calm and comforting. Pacing: 0.92x conversational with natural pauses at punctuation and thoughtful cadence. Never robotic, never rushed.]\n\n${cleanText}`;
+      const validVoices = ["Orus", "Puck", "Charon", "Fenrir", "Aoede", "Kore", "Zephyr"];
+      const selectedVoice = validVoices.includes(voice) ? voice : "Orus";
+      const voiceDirective =
+        `Leia o texto a seguir em português do Brasil com voz humana natural, fluida e expressiva, ` +
+        `com entonação vocal realista, dinâmica de leitura, respiração e pausas suaves na pontuação, ` +
+        `sem soar robótico ou apressado:\n\n${cleanText}`;
 
-      const ttsResponse = await ai.models.generateContent({
-        model: "gemini-3.1-flash-tts-preview",
-        contents: [{ parts: [{ text: voiceDirective }] }],
-        config: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: selectedVoice }
+      const ttsModels = ["gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"];
+      for (const modelName of ttsModels) {
+        try {
+          const ttsResponse = await ai.models.generateContent({
+            model: modelName,
+            contents: [{ parts: [{ text: voiceDirective }] }],
+            config: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: selectedVoice }
+                }
+              }
             }
+          });
+
+          const audioPart = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+          if (audioPart && audioPart.data) {
+            const rawBuffer = Buffer.from(audioPart.data, "base64");
+            const mime = (audioPart.mimeType || "").toLowerCase();
+            const isRiffWav =
+              rawBuffer.length > 12 &&
+              rawBuffer.toString("ascii", 0, 4) === "RIFF" &&
+              rawBuffer.toString("ascii", 8, 12) === "WAVE";
+
+            const wavBuffer =
+              isRiffWav || mime.includes("wav") ? rawBuffer : pcmToWav(rawBuffer, 24000, 1, 16);
+            const audioUrl = `data:audio/wav;base64,${wavBuffer.toString("base64")}`;
+
+            return res.json({
+              audioUrl,
+              mimeType: "audio/wav",
+              source: "gemini-neural-tts",
+              voiceName: selectedVoice,
+              model: modelName
+            });
           }
+        } catch (modelErr: any) {
+          console.warn(`[Gemini TTS] Model ${modelName} failed:`, modelErr?.message || modelErr);
         }
-      });
-
-      const audioPart = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      if (audioPart && audioPart.data) {
-        const rawPcm = Buffer.from(audioPart.data, "base64");
-        const wavBuffer = pcmToWav(rawPcm, 24000, 1, 16);
-        const base64Wav = wavBuffer.toString("base64");
-        const audioUrl = `data:audio/wav;base64,${base64Wav}`;
-
-        return res.json({
-          audioUrl,
-          mimeType: "audio/wav",
-          source: "gemini-neural-tts",
-          voiceName: selectedVoice
-        });
       }
     }
   } catch (err: any) {
