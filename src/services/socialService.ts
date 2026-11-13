@@ -104,27 +104,90 @@ export interface SocialPost {
   isReel?: boolean;
 }
 
+const STORY_TTL_MS = 24 * 60 * 60 * 1000;
+const ADMIN_EMAIL = 'rudson.p48@gmail.com';
+const deletingExpiredStoryIds = new Set<string>();
+
+function getStoryCreatedMs(story: Partial<UserStory>): number {
+  if (story.createdAt?.toMillis) return story.createdAt.toMillis();
+  if (story.createdAt?.seconds) return story.createdAt.seconds * 1000;
+  if (story.createdAtIso) {
+    const parsed = Date.parse(story.createdAtIso);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return Date.now();
+}
+
+function getStoryExpiresMs(story: Partial<UserStory> & { expiresAtMs?: number }): number {
+  if (typeof story.expiresAtMs === 'number' && !Number.isNaN(story.expiresAtMs)) {
+    return story.expiresAtMs;
+  }
+  if (story.expiresAt?.toMillis) return story.expiresAt.toMillis();
+  if (story.expiresAt?.seconds) return story.expiresAt.seconds * 1000;
+  if (typeof story.expiresAt === 'string') {
+    const parsed = Date.parse(story.expiresAt);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return getStoryCreatedMs(story) + STORY_TTL_MS;
+}
+
+function cleanupExpiredStories(expiredStories: UserStory[]) {
+  const user = auth.currentUser;
+  if (!user || expiredStories.length === 0) return;
+
+  const isAdmin = user.email === ADMIN_EMAIL;
+  expiredStories.forEach((story) => {
+    if (!story.id || deletingExpiredStoryIds.has(story.id)) return;
+    if (story.userId === user.uid || isAdmin) {
+      deletingExpiredStoryIds.add(story.id);
+      deleteDoc(doc(db, 'stories', story.id)).catch((err) => {
+        deletingExpiredStoryIds.delete(story.id);
+        console.debug('[SocialService] Error auto-deleting expired story:', err);
+      });
+    }
+  });
+}
+
 /**
- * Real-time subscription to active stories
+ * Real-time subscription to active stories (24h TTL, auto-deletes expired stories)
  */
 export function subscribeToStories(callback: (groups: UserStoryGroup[]) => void) {
-  const currentUid = auth.currentUser?.uid;
   const q = query(
     collection(db, 'stories'),
     orderBy('createdAt', 'desc'),
     limit(50)
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const stories: UserStory[] = snapshot.docs.map(docSnap => ({
-      id: docSnap.id,
-      ...docSnap.data()
-    } as UserStory));
+  let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+  let latestStories: UserStory[] = [];
 
-    // Group stories by userId
+  const emitActiveGroups = () => {
+    if (expiryTimer) {
+      clearTimeout(expiryTimer);
+      expiryTimer = null;
+    }
+
+    const currentUid = auth.currentUser?.uid;
+    const now = Date.now();
+    const activeStories: UserStory[] = [];
+    const expiredStories: UserStory[] = [];
+
+    latestStories.forEach((story) => {
+      if (getStoryExpiresMs(story) > now) {
+        activeStories.push(story);
+      } else {
+        expiredStories.push(story);
+      }
+    });
+
+    if (expiredStories.length > 0) {
+      cleanupExpiredStories(expiredStories);
+    }
+
+    // Group active stories by userId
     const groupsMap = new Map<string, UserStoryGroup>();
 
-    stories.forEach(story => {
+    activeStories.forEach(story => {
       const existing = groupsMap.get(story.userId);
       const isSeen = currentUid && story.viewers && story.viewers.includes(currentUid);
 
@@ -136,7 +199,7 @@ export function subscribeToStories(callback: (groups: UserStoryGroup[]) => void)
           userRole: story.userRole,
           hasUnseen: !isSeen,
           stories: [story],
-          latestTimestamp: story.createdAt?.toMillis?.() || Date.now()
+          latestTimestamp: getStoryCreatedMs(story)
         });
       } else {
         existing.stories.push(story);
@@ -154,14 +217,35 @@ export function subscribeToStories(callback: (groups: UserStoryGroup[]) => void)
     });
 
     callback(groups);
+
+    // Schedule next automatic refresh right when the soonest active story expires
+    if (activeStories.length > 0) {
+      const nextExpiryDelay = Math.min(
+        ...activeStories.map((s) => Math.max(1000, getStoryExpiresMs(s) - now))
+      );
+      expiryTimer = setTimeout(emitActiveGroups, Math.min(nextExpiryDelay, STORY_TTL_MS));
+    }
+  };
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    latestStories = snapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    } as UserStory));
+    emitActiveGroups();
   }, (err) => {
     console.debug('[SocialService] Error fetching stories:', err);
     callback([]);
   });
+
+  return () => {
+    if (expiryTimer) clearTimeout(expiryTimer);
+    unsubscribe();
+  };
 }
 
 /**
- * Publish a new story
+ * Publish a new story (expires automatically after 24 hours)
  */
 export async function createStory(params: {
   mediaUrl: string;
@@ -171,16 +255,21 @@ export async function createStory(params: {
   const user = auth.currentUser;
   if (!user) throw new Error('Usuário não autenticado');
 
+  const now = Date.now();
+  const expiresAtMs = now + STORY_TTL_MS;
+
   const storyData = {
     userId: user.uid,
     userName: user.displayName || user.email?.split('@')[0] || 'Membro',
     userPhoto: user.photoURL || '',
-    userRole: user.email === 'rudson.p48@gmail.com' ? 'Pastor / Administrador' : 'Membro da Igreja',
+    userRole: user.email === ADMIN_EMAIL ? 'Pastor / Administrador' : 'Membro da Igreja',
     mediaUrl: params.mediaUrl,
     mediaType: params.mediaType,
     caption: params.caption || '',
     createdAt: serverTimestamp(),
-    createdAtIso: new Date().toISOString(),
+    createdAtIso: new Date(now).toISOString(),
+    expiresAt: new Date(expiresAtMs).toISOString(),
+    expiresAtMs,
     viewers: [user.uid],
     likes: []
   };
