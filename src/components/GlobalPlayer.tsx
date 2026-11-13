@@ -112,6 +112,36 @@ export default function GlobalPlayer() {
   };
   const failedVideoIds = useRef<Set<string>>(new Set());
   const radioAudioRef = useRef<HTMLAudioElement | null>(null);
+  const videoSlotRef = useRef<HTMLDivElement | null>(null);
+  const [videoRect, setVideoRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  useEffect(() => {
+    if (!selectedVideo || selectedVideo.id === 'radio-1' || isMinimized || showLyrics) {
+      return;
+    }
+    const updateRect = () => {
+      if (!videoSlotRef.current) return;
+      const r = videoSlotRef.current.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        setVideoRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+      }
+    };
+    updateRect();
+    const t1 = setTimeout(updateRect, 120);
+    const t2 = setTimeout(updateRect, 350);
+    window.addEventListener('resize', updateRect);
+    let ro: ResizeObserver | null = null;
+    if (videoSlotRef.current && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(updateRect);
+      ro.observe(videoSlotRef.current);
+    }
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', updateRect);
+      ro?.disconnect();
+    };
+  }, [selectedVideo?.id, isMinimized, showLyrics]);
 
   // Memoize YouTube player opts without window.location.href so route navigation
   // never changes opts and never causes react-youtube to destroy/recreate the player.
@@ -359,10 +389,20 @@ export default function GlobalPlayer() {
 
   return (
     <>
-      <div 
+      <div
+        style={
+          selectedVideo && selectedVideo.id !== 'radio-1' && !isMinimized && !showLyrics && videoRect
+            ? {
+                top: `${videoRect.top}px`,
+                left: `${videoRect.left}px`,
+                width: `${videoRect.width}px`,
+                height: `${videoRect.height}px`,
+              }
+            : undefined
+        }
         className={
-          selectedVideo && !isMinimized && (!showLyrics) && (selectedVideo.type === 'video' || selectedVideo.type === 'live')
-            ? "fixed top-[calc(max(20px,env(safe-area-inset-top))+80px)] sm:top-[calc(max(20px,env(safe-area-inset-top))+80px)] left-1/2 -translate-x-1/2 w-[calc(100%-4rem)] max-w-[384px] aspect-video z-[105] rounded-2xl overflow-hidden shadow-2xl transition-all"
+          selectedVideo && selectedVideo.id !== 'radio-1' && !isMinimized && !showLyrics
+            ? "fixed top-[calc(max(20px,env(safe-area-inset-top))+64px)] left-1/2 -translate-x-1/2 w-full max-w-md h-[36vh] min-h-[210px] max-h-[340px] z-[105] bg-black overflow-hidden shadow-2xl transition-[opacity] duration-200"
             : "fixed top-0 left-0 w-[400px] max-w-[50vw] aspect-video opacity-[0.01] pointer-events-none z-[-1]"
         }
       >
@@ -424,7 +464,7 @@ export default function GlobalPlayer() {
             </div>
 
             {/* Navigation */}
-            <div className="relative z-10 flex px-6 pt-4 pb-6 items-center justify-between shrink-0">
+            <div className="relative z-10 flex px-6 pt-3 pb-3 items-center justify-between shrink-0">
               <button onClick={() => setIsMinimized(true)} className="w-10 h-10 flex items-center justify-center p-2 -ml-2 text-white/90 hover:text-white active:scale-90 transition-all drop-shadow-md">
                 <ChevronDown className="w-8 h-8" />
               </button>
@@ -440,8 +480,8 @@ export default function GlobalPlayer() {
               </button>
             </div>
 
-            {/* Main Content Area: Album OR Lyrics */}
-            <div className="relative z-10 px-8 pb-8 flex-none flex items-center justify-center transition-all duration-500" style={{ height: showLyrics ? '45vh' : 'auto' }}>
+            {/* Main Content Area: Video / Album OR Lyrics */}
+            <div className={`relative z-10 flex-none flex items-center justify-center transition-all duration-500 ${showLyrics || selectedVideo.id === 'radio-1' ? 'px-8 pb-6' : 'px-0 pb-5'}`} style={{ height: showLyrics ? '45vh' : 'auto' }}>
                <AnimatePresence mode="wait">
                  {showLyrics ? (
                    <motion.div 
@@ -470,9 +510,12 @@ export default function GlobalPlayer() {
                      exit={{ opacity: 0, scale: 0.9 }}
                      className="w-full"
                    >
-                     {selectedVideo.type === 'video' || selectedVideo.type === 'live' ? (
-                       <div className="w-full aspect-video bg-black/20 shadow-2xl rounded-2xl relative border border-white/10 backdrop-blur-md">
-                           {/* The video is rendered above this via fixed positioning */}
+                     {selectedVideo.id !== 'radio-1' ? (
+                       <div
+                         ref={videoSlotRef}
+                         className="w-full h-[36vh] min-h-[210px] max-h-[340px] bg-black/40 relative"
+                       >
+                           {/* The YouTube video is rendered directly over this slot via fixed positioning */}
                        </div>
                      ) : (
                        <div className="w-full aspect-[4/5] sm:aspect-square relative rounded-[2rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/10">
