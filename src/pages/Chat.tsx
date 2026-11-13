@@ -77,7 +77,7 @@ export default function Chat() {
   );
 
   const handleEnableNotifications = async () => {
-    const granted = await requestNotificationPermission();
+    const granted = await requestNotificationPermission(currentUser?.uid);
     setHasNotificationPermission(granted);
   };
 
@@ -1128,6 +1128,7 @@ export default function Chat() {
         isOpen={isCallModalOpen}
         onClose={() => setIsCallModalOpen(false)}
         roomTitle={callTitle}
+        channelId={activeChannelId}
         initialType={callType}
         availableUsers={activeUsers}
         onSendMessage={(text) => {

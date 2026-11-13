@@ -193,7 +193,13 @@ async function resolveTargetSubscriptionsFromFirestore(recipientUid: string, sen
 
   try {
     if (!recipientUid || recipientUid === 'all') {
-      const snap = await getDocs(query(collection(db, 'users'), limit(150)));
+      // Query only users who actually enabled push notifications so they are never crowded out
+      const pushEnabledQuery = query(
+        collection(db, 'users'),
+        where('pushNotificationEnabled', '==', true),
+        limit(300)
+      );
+      const snap = await getDocs(pushEnabledQuery);
       snap.forEach((docSnap) => {
         if (senderUid && docSnap.id === senderUid) return;
         const data = docSnap.data();
@@ -471,23 +477,22 @@ export async function notifyChatMessage(params: {
       ? `/chat?dm=${params.senderUid}`
       : `/chat?channel=${params.channelId}`;
 
-    // Only persist individual Firestore notification doc for direct messages or specific recipients
-    if (params.recipientUid !== 'all') {
-      await addDoc(notificationsRef, {
-        recipientUid: params.recipientUid,
-        senderUid: params.senderUid,
-        senderName: params.senderName,
-        senderPhoto: params.senderPhoto || '',
-        type: isDirect ? 'chat_dm' : 'chat_message',
-        title,
-        message: params.message.slice(0, 120),
-        channelId: params.channelId,
-        isDirect,
-        read: false,
-        createdAt: serverTimestamp(),
-        actionUrl
-      });
-    }
+    // Persist notification doc for both direct messages and community channels ('all')
+    await addDoc(notificationsRef, {
+      recipientUid: params.recipientUid,
+      senderUid: params.senderUid,
+      senderName: params.senderName,
+      senderPhoto: params.senderPhoto || '',
+      type: isDirect ? 'chat_dm' : 'chat_message',
+      title,
+      message: params.message.slice(0, 120),
+      channelId: params.channelId,
+      isDirect,
+      read: false,
+      createdAt: serverTimestamp(),
+      createdAtIso: new Date().toISOString(),
+      actionUrl
+    });
 
     // Send Web Push notification to wake device and show on lock screen
     sendPushNotificationToServer({
@@ -660,6 +665,56 @@ export async function notifyCallIncoming(params: {
     });
   } catch (error) {
     console.error('[NotificationService] Error sending call incoming notification:', error);
+  }
+}
+
+/**
+ * Notifies all community members when a group audio/video call starts in a channel
+ */
+export async function notifyChannelCallIncoming(params: {
+  callerUid: string;
+  callerName: string;
+  callerPhoto?: string;
+  channelId: string;
+  channelTitle: string;
+  callType: 'audio' | 'video';
+}) {
+  try {
+    const notificationsRef = collection(db, 'notifications');
+    const isVideo = params.callType === 'video';
+    const title = isVideo
+      ? `📹 Chamada de Vídeo em ${params.channelTitle}`
+      : `📞 Chamada de Voz em ${params.channelTitle}`;
+    const body = `${params.callerName} iniciou uma chamada ao vivo. Toque para entrar!`;
+    const actionUrl = `/chat?channel=${encodeURIComponent(params.channelId)}`;
+
+    await addDoc(notificationsRef, {
+      recipientUid: 'all',
+      senderUid: params.callerUid,
+      senderName: params.callerName,
+      senderPhoto: params.callerPhoto || '',
+      type: 'call_incoming',
+      title,
+      message: body,
+      channelId: params.channelId,
+      callType: params.callType,
+      read: false,
+      createdAt: serverTimestamp(),
+      createdAtIso: new Date().toISOString(),
+      actionUrl
+    });
+
+    sendPushNotificationToServer({
+      recipientUid: 'all',
+      senderUid: params.callerUid,
+      title,
+      body,
+      icon: params.callerPhoto || '/icon.svg',
+      url: actionUrl,
+      type: 'call_incoming'
+    });
+  } catch (error) {
+    console.error('[NotificationService] Error sending channel call notification:', error);
   }
 }
 

@@ -26,15 +26,18 @@ import {
   UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth } from '../../lib/firebase';
+import { auth, db } from '../../lib/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ActiveUser } from '../../services/presenceService';
 import { CallParticipant, playCallSound } from '../../services/callService';
+import { notifyChannelCallIncoming } from '../../services/notificationService';
 import { getSafeAuthPhotoUrl } from '../../lib/imageUtils';
 
 interface CallRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
   roomTitle: string;
+  channelId?: string;
   initialType: 'audio' | 'video';
   availableUsers: ActiveUser[];
   onSendMessage?: (text: string) => void;
@@ -44,6 +47,7 @@ export default function CallRoomModal({
   isOpen,
   onClose,
   roomTitle,
+  channelId = 'geral',
   initialType,
   availableUsers,
   onSendMessage
@@ -111,6 +115,31 @@ export default function CallRoomModal({
     // Pre-populate with host participant
     const initialList: CallParticipant[] = [mySelf];
     setParticipants(initialList);
+
+    // Register group call room in Firestore and notify community members in-app & via Web Push
+    if (currentUser) {
+      const callerName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Irmão(ã)';
+      const roomDocId = `room_${channelId}_${Date.now()}`;
+      setDoc(doc(db, 'call_rooms', roomDocId), {
+        channelId,
+        roomTitle,
+        callType: initialType,
+        hostUid: currentUser.uid,
+        hostName: callerName,
+        status: 'active',
+        createdAt: serverTimestamp(),
+        createdAtIso: new Date().toISOString()
+      }).catch((err) => console.debug('[CallRoomModal] Room registration note:', err));
+
+      notifyChannelCallIncoming({
+        callerUid: currentUser.uid,
+        callerName,
+        callerPhoto: currentUser.photoURL || '',
+        channelId,
+        channelTitle: roomTitle,
+        callType: initialType
+      }).catch((err) => console.debug('[CallRoomModal] Channel call notification note:', err));
+    }
 
     // Request real local camera/mic stream
     startLocalMedia(initialType === 'video');
