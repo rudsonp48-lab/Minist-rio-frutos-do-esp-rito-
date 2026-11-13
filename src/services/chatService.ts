@@ -328,6 +328,22 @@ export async function sendChatMessage(params: {
           console.debug('[ChatService] Notification dispatch note:', notifErr);
         }
       }
+    } else if (!params.channelId.includes('ai_pastor')) {
+      // Group / church channel message: dispatch Web Push to subscribed members outside the app
+      try {
+        await notifyChatMessage({
+          recipientUid: 'all',
+          senderUid: currentUser.uid,
+          senderName: senderDisplayName,
+          senderPhoto: senderPhotoUrl,
+          channelId: params.channelId,
+          channelName: params.channelId,
+          message: messagePreview,
+          isDirect: false
+        });
+      } catch (groupNotifErr) {
+        console.debug('[ChatService] Group notification dispatch note:', groupNotifErr);
+      }
     }
   } catch (err) {
     console.debug('[ChatService] Post-message actions error:', err);

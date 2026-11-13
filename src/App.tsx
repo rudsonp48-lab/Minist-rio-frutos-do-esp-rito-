@@ -30,7 +30,7 @@ import BottomNav from './components/layout/BottomNav';
 import TopBar from './components/layout/TopBar';
 import { User as UserIcon, Church } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTheme } from './lib/ThemeContext';
 import { PlayerProvider } from './lib/PlayerContext';
 import GlobalPlayer from './components/GlobalPlayer';
@@ -158,7 +158,20 @@ import Cells from './pages/Cells';
 
 function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { churchName } = useTheme();
+
+  // Handle Service Worker notification click navigation without full page reload
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'NAVIGATE_TO' && event.data?.url) {
+        navigate(event.data.url);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+  }, [navigate]);
 
   // Real-time 1-on-1 Call Signaling State
   const [incomingCall, setIncomingCall] = useState<CallSession | null>(null);

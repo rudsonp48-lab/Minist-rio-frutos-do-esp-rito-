@@ -51,21 +51,29 @@ export function DailyDevotionalNotification({ user }: { user: User }) {
         currentStreak += 1;
         localStorage.setItem(streakKey, currentStreak.toString());
         
-        // Safely attempt browser notification if supported (catch mobile WebKit/Chrome TypeError)
-        try {
-          if (typeof window !== 'undefined' && 'Notification' in window) {
-            if (Notification.permission === 'granted') {
-              // Try constructing notification (works on desktop; catches on mobile where constructor is forbidden)
-              new Notification(`Devocional: ${currentDevotional.title}`, {
+        // Dispatch via Service Worker (works on Android/iOS PWA & Desktop) with fallback
+        (async () => {
+          try {
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              const title = `📖 Devocional: ${currentDevotional.title}`;
+              const options = {
                 body: currentDevotional.verse,
-                icon: '/icon.svg'
-              });
+                icon: '/icon.svg',
+                badge: '/icon.svg',
+                tag: `devotional_${todayStr}`,
+                data: { url: '/bible', type: 'devotional' }
+              };
+              if ('serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.ready;
+                await reg.showNotification(title, options);
+              } else {
+                new Notification(title, options);
+              }
             }
+          } catch (notifErr) {
+            console.debug('[Devotional] Push notification notice:', notifErr);
           }
-        } catch (notifErr) {
-          // Benign on mobile browsers that require ServiceWorker showNotification
-          console.debug('[Devotional] Push notification not supported natively:', notifErr);
-        }
+        })();
 
         setShowNotification(true);
         localStorage.setItem(storageKey, todayStr);

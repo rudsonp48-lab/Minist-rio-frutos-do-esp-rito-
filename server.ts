@@ -1158,10 +1158,19 @@ app.post("/api/notifications/send-push", async (req, res) => {
     url = "/chat",
     type = "general",
     callId,
-    delaySeconds = 0
+    delaySeconds = 0,
+    subscriptions: providedSubscriptions = []
   } = req.body || {};
 
   const executePush = async () => {
+    const isDm = type === "chat_dm" && senderUid;
+    const isCall = type === "call_incoming" || type === "call_video" || type === "call_audio";
+    const tag = callId
+      ? `call_${callId}`
+      : isDm
+        ? `dm_${senderUid}`
+        : `msg_${Date.now()}`;
+
     const payload = JSON.stringify({
       title,
       body,
@@ -1170,31 +1179,46 @@ app.post("/api/notifications/send-push", async (req, res) => {
       url,
       type,
       callId,
-      tag: callId ? `call_${callId}` : `msg_${Date.now()}`,
+      senderUid,
+      tag,
       timestamp: Date.now()
     });
 
-    const isCall = type === "call_incoming" || type === "call_video" || type === "call_audio";
     const options: any = {
       TTL: 86400, // 24 hours
-      urgency: isCall ? "high" : "high"
+      urgency: "high"
     };
 
-    let targetSubs: PushSubRecord[] = [];
-    if (!recipientUid || recipientUid === "all") {
-      targetSubs = Array.from(subscriptionsMap.values()).filter(
-        s => !senderUid || s.userId !== senderUid
-      );
-    } else {
-      targetSubs = Array.from(subscriptionsMap.values()).filter(
-        s => s.userId === recipientUid
-      );
+    const targetMap = new Map<string, any>();
+
+    // 1. Add subscriptions resolved by client from Firestore (survives Vercel serverless cold starts)
+    if (Array.isArray(providedSubscriptions)) {
+      for (const sub of providedSubscriptions) {
+        if (sub && typeof sub.endpoint === "string" && sub.keys) {
+          targetMap.set(sub.endpoint, sub);
+        }
+      }
     }
 
-    // Fallback: if targeted user has no specific subscription in this device session, send to all registered devices
-    if (targetSubs.length === 0) {
-      targetSubs = Array.from(subscriptionsMap.values());
+    // 2. Merge with in-memory / disk subscriptions if any
+    if (!recipientUid || recipientUid === "all") {
+      for (const rec of subscriptionsMap.values()) {
+        if (!senderUid || rec.userId !== senderUid) {
+          targetMap.set(rec.endpoint, rec.subscription);
+        }
+      }
+    } else {
+      for (const rec of subscriptionsMap.values()) {
+        if (rec.userId === recipientUid) {
+          targetMap.set(rec.endpoint, rec.subscription);
+        }
+      }
     }
+
+    const targetSubs = Array.from(targetMap.entries()).map(([endpoint, subscription]) => ({
+      endpoint,
+      subscription
+    }));
 
     let sent = 0;
     let failed = 0;

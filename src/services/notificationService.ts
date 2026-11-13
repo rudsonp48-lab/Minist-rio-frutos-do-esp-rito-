@@ -11,6 +11,7 @@ import {
   setDoc,
   doc, 
   writeBatch,
+  getDoc,
   getDocs,
   limit
 } from 'firebase/firestore';
@@ -140,11 +141,23 @@ export async function subscribeToPushService(userId?: string): Promise<boolean> 
         })
       });
 
-      // 2. Also persist in Firestore user document for permanent cloud backup
+      // 2. Also persist in Firestore user document for permanent cloud backup (supports multiple devices)
       if (activeUserId && activeUserId !== 'guest') {
         try {
-          await setDoc(doc(db, 'users', activeUserId), {
-            webPushSubscription: sub.toJSON(),
+          const subJson = sub.toJSON();
+          const userRef = doc(db, 'users', activeUserId);
+          const userSnap = await getDoc(userRef);
+          const existingList: any[] = Array.isArray(userSnap.data()?.webPushSubscriptions)
+            ? userSnap.data()!.webPushSubscriptions
+            : [];
+          const mergedSubs = [
+            subJson,
+            ...existingList.filter((s: any) => s?.endpoint && s.endpoint !== subJson.endpoint)
+          ].slice(0, 5);
+
+          await setDoc(userRef, {
+            webPushSubscription: subJson,
+            webPushSubscriptions: mergedSubs,
             pushNotificationEnabled: true,
             pushUpdatedAt: serverTimestamp()
           }, { merge: true });
@@ -164,6 +177,53 @@ export async function subscribeToPushService(userId?: string): Promise<boolean> 
 }
 
 /**
+ * Resolves target device Web Push subscriptions from Firestore so Vercel serverless
+ * functions can deliver notifications even across cold starts & multiple devices.
+ */
+async function resolveTargetSubscriptionsFromFirestore(recipientUid: string, senderUid?: string): Promise<any[]> {
+  const collected: any[] = [];
+  const seenEndpoints = new Set<string>();
+
+  const addSub = (sub: any) => {
+    if (sub && typeof sub.endpoint === 'string' && !seenEndpoints.has(sub.endpoint)) {
+      seenEndpoints.add(sub.endpoint);
+      collected.push(sub);
+    }
+  };
+
+  try {
+    if (!recipientUid || recipientUid === 'all') {
+      const snap = await getDocs(query(collection(db, 'users'), limit(150)));
+      snap.forEach((docSnap) => {
+        if (senderUid && docSnap.id === senderUid) return;
+        const data = docSnap.data();
+        if (Array.isArray(data?.webPushSubscriptions)) {
+          data.webPushSubscriptions.forEach(addSub);
+        }
+        if (data?.webPushSubscription) {
+          addSub(data.webPushSubscription);
+        }
+      });
+    } else {
+      const userSnap = await getDoc(doc(db, 'users', recipientUid));
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        if (Array.isArray(data?.webPushSubscriptions)) {
+          data.webPushSubscriptions.forEach(addSub);
+        }
+        if (data?.webPushSubscription) {
+          addSub(data.webPushSubscription);
+        }
+      }
+    }
+  } catch (err) {
+    console.debug('[Push] Could not resolve Firestore subscriptions:', err);
+  }
+
+  return collected;
+}
+
+/**
  * Sends a push notification through our server's Web Push endpoint
  * This guarantees delivery to backgrounded apps and locked phone screens!
  */
@@ -177,14 +237,21 @@ export async function sendPushNotificationToServer(params: {
   type?: string;
   callId?: string;
   delaySeconds?: number;
+  subscriptions?: any[];
 }) {
   try {
+    const activeSenderUid = params.senderUid || auth.currentUser?.uid;
+    const targetSubscriptions = params.subscriptions ?? await resolveTargetSubscriptionsFromFirestore(
+      params.recipientUid,
+      activeSenderUid
+    );
+
     await fetch('/api/notifications/send-push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         recipientUid: params.recipientUid,
-        senderUid: params.senderUid || auth.currentUser?.uid,
+        senderUid: activeSenderUid,
         title: params.title,
         body: params.body,
         icon: params.icon || '/icon.svg',
@@ -192,7 +259,8 @@ export async function sendPushNotificationToServer(params: {
         url: params.url || '/chat',
         type: params.type || 'general',
         callId: params.callId,
-        delaySeconds: params.delaySeconds || 0
+        delaySeconds: params.delaySeconds || 0,
+        subscriptions: targetSubscriptions
       })
     });
   } catch (e) {
@@ -219,6 +287,15 @@ export async function testLockScreenNotification(delaySeconds = 5): Promise<{ su
   const currentUser = auth.currentUser;
   const targetId = currentUser?.uid || 'all';
 
+  let currentDeviceSubs: any[] = [];
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager?.getSubscription();
+      if (sub) currentDeviceSubs = [sub.toJSON()];
+    }
+  } catch {}
+
   try {
     const res = await fetch('/api/notifications/send-push', {
       method: 'POST',
@@ -232,7 +309,8 @@ export async function testLockScreenNotification(delaySeconds = 5): Promise<{ su
         badge: '/icon.svg',
         url: '/chat',
         type: 'test_notification',
-        delaySeconds
+        delaySeconds,
+        subscriptions: currentDeviceSubs
       })
     });
 
@@ -385,28 +463,31 @@ export async function notifyChatMessage(params: {
   try {
     const notificationsRef = collection(db, 'notifications');
     const isDirect = !!params.isDirect;
-    const title = isDirect 
-      ? `💬 Mensagem de ${params.senderName}`
-      : `💬 ${params.senderName} em #${params.channelName || 'Comunhão'}`;
+    const title = isDirect
+      ? params.senderName
+      : `${params.senderName} • #${params.channelName || 'Comunhão'}`;
 
-    const actionUrl = isDirect 
-      ? `/chat?dm=${params.senderUid}` 
+    const actionUrl = isDirect
+      ? `/chat?dm=${params.senderUid}`
       : `/chat?channel=${params.channelId}`;
 
-    await addDoc(notificationsRef, {
-      recipientUid: params.recipientUid,
-      senderUid: params.senderUid,
-      senderName: params.senderName,
-      senderPhoto: params.senderPhoto || '',
-      type: isDirect ? 'chat_dm' : 'chat_message',
-      title,
-      message: params.message.slice(0, 120),
-      channelId: params.channelId,
-      isDirect,
-      read: false,
-      createdAt: serverTimestamp(),
-      actionUrl
-    });
+    // Only persist individual Firestore notification doc for direct messages or specific recipients
+    if (params.recipientUid !== 'all') {
+      await addDoc(notificationsRef, {
+        recipientUid: params.recipientUid,
+        senderUid: params.senderUid,
+        senderName: params.senderName,
+        senderPhoto: params.senderPhoto || '',
+        type: isDirect ? 'chat_dm' : 'chat_message',
+        title,
+        message: params.message.slice(0, 120),
+        channelId: params.channelId,
+        isDirect,
+        read: false,
+        createdAt: serverTimestamp(),
+        actionUrl
+      });
+    }
 
     // Send Web Push notification to wake device and show on lock screen
     sendPushNotificationToServer({
@@ -566,15 +647,7 @@ export async function notifyCallIncoming(params: {
       actionUrl: '/chat'
     });
 
-    // Trigger local system background notification
-    triggerCallNotification({
-      callerName: params.callerName,
-      callType: params.callType,
-      callId: params.callId,
-      callerPhoto: params.callerPhoto
-    });
-
-    // Dispatch Web Push so remote device rings on lock screen
+    // Dispatch Web Push so remote device rings on lock screen (only on recipient's devices, not caller's)
     sendPushNotificationToServer({
       recipientUid: params.recipientUid,
       senderUid: params.callerUid,

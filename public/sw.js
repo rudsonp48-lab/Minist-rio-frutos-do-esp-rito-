@@ -33,12 +33,13 @@ self.addEventListener('push', (event) => {
   }
 
   const isCall = data.type === 'call_incoming' || data.type === 'call_video' || data.type === 'call_audio';
+  const isDm = data.type === 'chat_dm' && data.senderUid;
 
   const notificationOptions = {
     body: data.body,
     icon: data.icon || '/icon.svg',
     badge: data.badge || '/icon.svg',
-    tag: data.tag || (isCall ? `call_${data.callId || Date.now()}` : `msg_${Date.now()}`),
+    tag: data.tag || (isCall ? `call_${data.callId || Date.now()}` : isDm ? `dm_${data.senderUid}` : `msg_${Date.now()}`),
     renotify: true,
     requireInteraction: true, // Crucial for mobile lock screen visibility
     silent: false,
@@ -92,12 +93,12 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If a window is already open, focus it and navigate
+      // If a window is already open, focus it and route smoothly via SPA postMessage
       for (const client of clientList) {
         if ('focus' in client) {
           client.focus();
-          if ('navigate' in client && targetUrl) {
-            client.navigate(targetUrl);
+          if (targetUrl) {
+            client.postMessage({ type: 'NAVIGATE_TO', url: targetUrl });
           }
           return;
         }
