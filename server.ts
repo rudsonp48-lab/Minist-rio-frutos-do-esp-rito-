@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
 import webpush from "web-push";
-import { buildTheologyPrompts, generateContextualTheologyFallback, TheologyRequest, ChatMessage } from "./src/services/theologyEngine";
+import { buildTheologyPrompts, generateContextualTheologyFallback, TheologyRequest, ChatMessage } from "./src/services/theologyEngine.js";
 
 dotenv.config();
 

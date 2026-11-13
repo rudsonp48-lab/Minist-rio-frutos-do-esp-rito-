@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { generateContextualTheologyFallback, ChatMessage } from "../../src/services/theologyEngine";
+import { generateContextualTheologyFallback, ChatMessage } from "../../src/services/theologyEngine.js";
 
 export default async function handler(req: any, res: any) {
   // Support CORS
