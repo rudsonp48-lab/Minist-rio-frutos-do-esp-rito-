@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePlayer } from '../lib/PlayerContext';
-import { ChevronDown, MoreHorizontal, Shuffle, Pause, Play, SkipBack, SkipForward, Repeat, Volume1, Volume2, Cast, List, ListVideo, X, Heart, Mic2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Shuffle, Pause, Play, SkipBack, SkipForward, Repeat, Volume1, Volume2, Cast, List, ListVideo, X, Heart, Mic2, Music2 } from 'lucide-react';
 import YouTube from 'react-youtube';
 import { useTheme } from '../lib/ThemeContext';
 
@@ -24,6 +24,32 @@ export default function GlobalPlayer() {
 
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [isDockedSide, setIsDockedSide] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('global_player_docked_side') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const toggleDockedSide = (dock: boolean) => {
+    setIsDockedSide(dock);
+    try {
+      localStorage.setItem('global_player_docked_side', String(dock));
+    } catch {}
+  };
+  const handleMiniTogglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
+      try {
+        if (playing) {
+          playerRef.current.pauseVideo();
+        } else {
+          playerRef.current.playVideo();
+        }
+      } catch (err) {}
+    }
+    setPlaying(!playing);
+  };
   const failedVideoIds = useRef<Set<string>>(new Set());
   const radioAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -537,11 +563,12 @@ export default function GlobalPlayer() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {selectedVideo && isMinimized && (
-          <motion.div 
+        {selectedVideo && isMinimized && !isDockedSide && (
+          <motion.div
+            key="mini-bar"
             initial={{ opacity: 0, y: 100 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
+            exit={{ opacity: 0, x: 80 }}
             className="fixed bottom-[84px] md:bottom-24 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-sm bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 flex items-center gap-3 z-[150] shadow-2xl cursor-pointer"
             onClick={() => setIsMinimized(false)}
           >
@@ -551,36 +578,74 @@ export default function GlobalPlayer() {
                  <div className="h-full bg-[var(--theme-color)]" style={{ width: `${(played / (duration || 1)) * 100}%` }} />
                </div>
             </div>
-            <div className="flex-1 min-w-0 pr-2">
+            <div className="flex-1 min-w-0 pr-1">
                <p className="text-white font-semibold text-sm truncate">{selectedVideo.title}</p>
                <p className="text-white/60 text-xs truncate">{selectedVideo.author || 'Mídia'}</p>
             </div>
-            <div className="flex items-center gap-2 pr-2">
-               <button 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
-                      try {
-                        if (playing) {
-                          playerRef.current.pauseVideo();
-                        } else {
-                          playerRef.current.playVideo();
-                        }
-                      } catch (err) {}
-                    }
-                    setPlaying(!playing); 
-                  }}
-                  className="w-10 h-10 flex items-center justify-center text-white bg-white/10 rounded-full hover:bg-white/20 active:scale-95 transition-all"
+            <div className="flex items-center gap-1 pr-1">
+               <button
+                  onClick={handleMiniTogglePlay}
+                  aria-label={playing ? 'Pausar música' : 'Tocar música'}
+                  className="w-9 h-9 flex items-center justify-center text-white bg-white/10 rounded-full hover:bg-white/20 active:scale-95 transition-all"
                >
-                 {playing ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
+                 {playing ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                </button>
-               <button 
+               <button
+                  onClick={(e) => { e.stopPropagation(); toggleDockedSide(true); }}
+                  title="Minimizar para a lateral"
+                  aria-label="Minimizar player para a lateral"
+                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 rounded-full active:scale-95 transition-all"
+               >
+                 <ChevronRight className="w-5 h-5" />
+               </button>
+               <button
                   onClick={(e) => { e.stopPropagation(); setSelectedVideo(null); }}
+                  aria-label="Fechar player"
                   className="w-8 h-8 flex items-center justify-center text-white/50 hover:text-white"
                >
                  <X className="w-5 h-5" />
                </button>
             </div>
+          </motion.div>
+        )}
+
+        {selectedVideo && isMinimized && isDockedSide && (
+          <motion.div
+            key="side-dock"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 40 }}
+            onClick={() => toggleDockedSide(false)}
+            title={`${selectedVideo.title} — Toque para expandir`}
+            className="fixed right-0 top-[58%] -translate-y-1/2 z-[150] bg-zinc-900/95 backdrop-blur-xl border border-r-0 border-white/15 rounded-l-2xl py-2.5 pl-2 pr-2.5 flex flex-col items-center gap-2 shadow-2xl cursor-pointer overflow-hidden"
+          >
+            {/* Barrinha vertical de progresso na borda direita */}
+            <div className="absolute right-0 inset-y-0 w-1 bg-white/10">
+              <div
+                className="w-full bg-[var(--theme-color)] transition-all duration-300"
+                style={{ height: `${Math.min(100, Math.max(4, (played / (duration || 1)) * 100))}%` }}
+              />
+            </div>
+
+            <ChevronLeft className="w-4 h-4 text-white/70" />
+
+            <div className={`w-7 h-7 rounded-full overflow-hidden shrink-0 ${playing ? 'ring-2 ring-[var(--theme-color)]' : 'opacity-80'}`}>
+              {selectedVideo.thumbnail ? (
+                <img src={selectedVideo.thumbnail} className="w-full h-full object-cover" alt="" />
+              ) : (
+                <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                  <Music2 className="w-3.5 h-3.5 text-white" />
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleMiniTogglePlay}
+              aria-label={playing ? 'Pausar música' : 'Tocar música'}
+              className="w-7 h-7 flex items-center justify-center text-white bg-white/10 rounded-full hover:bg-white/20 active:scale-95 transition-all"
+            >
+              {playing ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
