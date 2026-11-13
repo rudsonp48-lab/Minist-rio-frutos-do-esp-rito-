@@ -25,6 +25,7 @@ const WebRadio = lazy(() => import('./pages/WebRadio'));
 const Give = lazy(() => import('./pages/Give'));
 const LiveStream = lazy(() => import('./pages/LiveStream'));
 const Cells = lazy(() => import('./pages/Cells'));
+const Courses = lazy(() => import('./pages/Courses'));
 
 // Components
 import Sidebar from './components/layout/Sidebar';
@@ -233,6 +234,7 @@ function AppContent({ user, isAdmin }: { user: User | null, isAdmin: boolean }) 
             <Route path="/bible" element={<PageWrapper><Bible /></PageWrapper>} />
             <Route path="/live" element={<PageWrapper><LiveStream /></PageWrapper>} />
             <Route path="/cells" element={<PageWrapper><Cells /></PageWrapper>} />
+            <Route path="/courses" element={<PageWrapper><Courses /></PageWrapper>} />
             <Route path="/media" element={<PageWrapper><Media /></PageWrapper>} />
             <Route path="/events" element={<PageWrapper><Events /></PageWrapper>} />
             <Route path="/gallery" element={<PageWrapper><Gallery /></PageWrapper>} />

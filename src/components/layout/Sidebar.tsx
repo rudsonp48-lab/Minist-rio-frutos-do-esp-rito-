@@ -3,7 +3,7 @@ import { User } from 'firebase/auth';
 import { 
   Church, Home, BookOpen, Radio, Calendar, Heart, 
   Map, Headphones, Users, User as UserIcon, 
-  Settings, Info, Shield, Search, MessageSquare, Download 
+  Settings, Info, Shield, Search, MessageSquare, Download, GraduationCap 
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -59,6 +59,7 @@ export default function Sidebar({ user, isAdmin }: SidebarProps) {
     { to: '/chat', label: 'Chat da Comunidade', icon: MessageSquare },
     { to: '/notes', label: 'Bloco de Notas', icon: BookOpen },
     { to: '/gallery', label: 'Estudos Bíblicos', icon: Map },
+    { to: '/courses', label: 'Cursos & Certificados', icon: GraduationCap },
     { to: '/devotional', label: 'Devocionais', icon: BookOpen },
     { to: '/media', label: 'Louvores', icon: Headphones },
     { to: '/podcast', label: 'Podcast', icon: Radio },

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin, Sparkles, Scroll, Download, Smartphone } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin, Sparkles, Scroll, Download, Smartphone, GraduationCap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
@@ -408,6 +408,7 @@ export default function Home() {
               { to: '/prayers', icon: HandHeart, label: 'Oração', color: 'from-emerald-600/30 to-teal-600/30 border-emerald-400/25 text-emerald-300' },
               { to: '/give', icon: Heart, label: 'Ofertar', color: 'from-amber-500/30 to-yellow-600/30 border-amber-400/25 text-amber-300' },
               { to: '/cells', icon: User, label: 'Células', color: 'from-blue-600/30 to-cyan-600/30 border-blue-400/25 text-blue-300' },
+              { to: '/courses', icon: GraduationCap, label: 'Cursos', color: 'from-violet-600/30 to-purple-600/30 border-violet-400/25 text-violet-300' },
               { to: '/events', icon: Calendar, label: 'Agenda', color: 'from-fuchsia-600/30 to-purple-600/30 border-fuchsia-400/25 text-fuchsia-300' },
               { to: '/podcast', icon: Headphones, label: 'Podcast', color: 'from-indigo-600/30 to-violet-600/30 border-indigo-400/25 text-indigo-300' },
               { to: '/profile', icon: Star, label: 'Carteira', color: 'from-amber-500/30 to-purple-600/30 border-amber-400/25 text-amber-300' },

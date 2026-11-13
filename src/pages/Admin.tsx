@@ -3,7 +3,7 @@ import {
   Users, Calendar, Radio, Settings, Search, Plus, 
   Trash2, ShieldAlert, BarChart3, LayoutDashboard, 
   Bell, Database, Loader2, Camera, Save, X, 
-  Zap, Globe, Cpu, CreditCard, ChevronRight, ChevronLeft, ShieldCheck, ImagePlus
+  Zap, Globe, Cpu, CreditCard, ChevronRight, ChevronLeft, ShieldCheck, ImagePlus, GraduationCap, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../lib/firebase';
@@ -11,6 +11,7 @@ import { collection, query, orderBy, onSnapshot, deleteDoc, doc, getDocs, limit,
 import { compressImage } from '../lib/imageUtils';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { DEFAULT_BANNERS } from '../lib/data';
+import { DEFAULT_DRIVE_COURSES_URL } from '../services/courseService';
 import { Link } from 'react-router-dom';
 
 const ADMIN_EMAIL = 'rudson.p48@gmail.com';
@@ -408,6 +409,7 @@ export default function Admin() {
             { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
             { id: 'settings', label: 'Sistema', icon: Settings },
             { id: 'banners', label: 'Banners Web', icon: ImagePlus },
+            { id: 'courses', label: 'Cursos & Drive', icon: GraduationCap },
             { id: 'events', label: 'Agenda', icon: Calendar },
             { id: 'photos', label: 'Galeria', icon: Camera },
             { id: 'users', label: 'Membros', icon: Users }
@@ -640,6 +642,78 @@ export default function Admin() {
                       Nenhum banner ativo no momento. Use o formulário acima para publicar um novo banner.
                     </div>
                   )}
+                </div>
+              </div>
+            </motion.div>
+          ) : activeMenu === 'courses' ? (
+            <motion.div key="courses-admin" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 max-w-4xl">
+              <div className="bg-[#111111] border border-white/10 rounded-[2rem] p-8 lg:p-10 space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-serif font-bold tracking-wider uppercase flex items-center gap-3 text-white">
+                      <GraduationCap className="w-6 h-6 text-[var(--theme-color)]" />
+                      Cursos & Pasta do Google Drive
+                    </h3>
+                    <p className="text-sm text-white/60 mt-1">
+                      Configure o link da pasta do Google Drive onde ficam as apostilas, slides e materiais dos cursos.
+                    </p>
+                  </div>
+                  <Link
+                    to="/courses"
+                    className="px-4 py-2 rounded-xl bg-purple-600/25 border border-purple-400/40 text-purple-200 text-xs font-bold inline-flex items-center gap-1.5 hover:bg-purple-600/40 transition"
+                  >
+                    Abrir Área de Cursos
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-xs font-bold uppercase tracking-widest text-white/60 block">
+                    Link da Pasta do Google Drive (Cursos)
+                  </label>
+                  <input
+                    type="url"
+                    value={config.coursesDriveUrl ?? DEFAULT_DRIVE_COURSES_URL}
+                    onChange={(e) => setConfig({ ...config, coursesDriveUrl: e.target.value })}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="w-full px-4 py-3.5 rounded-2xl bg-black/50 border border-white/15 text-sm text-white focus:outline-none focus:border-[var(--theme-color)]"
+                  />
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={async () => {
+                        setIsSaving(true);
+                        try {
+                          const urlToSave = (config.coursesDriveUrl ?? DEFAULT_DRIVE_COURSES_URL).trim();
+                          await setDoc(
+                            doc(db, 'settings', 'church_config'),
+                            { coursesDriveUrl: urlToSave, updatedAt: serverTimestamp() },
+                            { merge: true }
+                          );
+                          showToast('Link do Google Drive dos cursos salvo com sucesso!');
+                        } catch (err) {
+                          showToast('Erro ao salvar link do Google Drive.', 'error');
+                        } finally {
+                          setIsSaving(false);
+                        }
+                      }}
+                      className="px-6 py-3 rounded-xl bg-[var(--theme-color)] text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 hover:brightness-110 transition"
+                    >
+                      <Save className="w-4 h-4" />
+                      {isSaving ? 'Salvando...' : 'Salvar Link do Drive'}
+                    </button>
+
+                    <a
+                      href={config.coursesDriveUrl || DEFAULT_DRIVE_COURSES_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:text-white text-xs font-bold inline-flex items-center gap-2 transition"
+                    >
+                      Testar Link no Drive
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
                 </div>
               </div>
             </motion.div>
