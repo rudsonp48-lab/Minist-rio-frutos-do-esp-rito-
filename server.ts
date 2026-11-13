@@ -34,7 +34,7 @@ async function fetchWithTimeout(resource: RequestInfo | URL, options: RequestIni
 }
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
