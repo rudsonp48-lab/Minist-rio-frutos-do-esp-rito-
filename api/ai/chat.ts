@@ -29,24 +29,39 @@ export default async function handler(req: any, res: any) {
         },
       });
 
-      const contents = messages.map((m: ChatMessage) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      }));
+      let startIndex = 0;
+      while (startIndex < messages.length && messages[startIndex]?.role === "assistant") {
+        startIndex++;
+      }
+      const validMessages = messages.slice(startIndex);
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
-        contents,
-        config: {
-          systemInstruction:
-            "Você é o Conselheiro e Mentor Bíblico Ecclesia IA. Ofereça respostas gentis, sábias, biblicamente fundamentadas e acolhedoras. Use versículos relevantes quando oportuno e formate as respostas com clareza em Markdown.",
-          temperature: 0.7,
-        },
-      });
+      if (validMessages.length > 0) {
+        const contents = validMessages.map((m: ChatMessage) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: String(m.content || "") }],
+        }));
 
-      const text = response.text || "";
-      if (text.trim()) {
-        return res.status(200).json({ response: text });
+        const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+        for (const modelName of candidateModels) {
+          try {
+            const response = await ai.models.generateContent({
+              model: modelName,
+              contents,
+              config: {
+                systemInstruction:
+                  "Você é o Conselheiro e Mentor Bíblico Ecclesia IA. Ofereça respostas gentis, sábias, biblicamente fundamentadas e acolhedoras. Use versículos relevantes quando oportuno e formate as respostas com clareza em Markdown.",
+                temperature: 0.7,
+              },
+            });
+
+            const text = response.text || "";
+            if (text.trim()) {
+              return res.status(200).json({ response: text });
+            }
+          } catch (modelErr: any) {
+            console.warn(`[Vercel API /chat] Model ${modelName} failed:`, modelErr?.message || modelErr);
+          }
+        }
       }
     } catch (err: any) {
       console.warn("[Vercel API /chat] Gemini chat failed:", err?.message || err);

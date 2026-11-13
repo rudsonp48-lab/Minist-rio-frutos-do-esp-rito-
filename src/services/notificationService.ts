@@ -8,6 +8,7 @@ import {
   orderBy, 
   serverTimestamp, 
   updateDoc, 
+  setDoc,
   doc, 
   writeBatch,
   getDocs,
@@ -128,6 +129,8 @@ export async function subscribeToPushService(userId?: string): Promise<boolean> 
 
     if (sub) {
       const activeUserId = userId || auth.currentUser?.uid || 'guest';
+      
+      // 1. Sync with backend memory + JSON storage
       await fetch('/api/notifications/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -136,8 +139,22 @@ export async function subscribeToPushService(userId?: string): Promise<boolean> 
           subscription: sub.toJSON()
         })
       });
+
+      // 2. Also persist in Firestore user document for permanent cloud backup
+      if (activeUserId && activeUserId !== 'guest') {
+        try {
+          await setDoc(doc(db, 'users', activeUserId), {
+            webPushSubscription: sub.toJSON(),
+            pushNotificationEnabled: true,
+            pushUpdatedAt: serverTimestamp()
+          }, { merge: true });
+        } catch (fsErr) {
+          console.debug('[Push] Note on Firestore push token sync:', fsErr);
+        }
+      }
+
       localStorage.setItem('church_push_enabled', 'true');
-      console.log('[Push] Push subscription synced with server for user:', activeUserId);
+      console.log('[Push] Push subscription synced with server and cloud for user:', activeUserId);
       return true;
     }
   } catch (err) {

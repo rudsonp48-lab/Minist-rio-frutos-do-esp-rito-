@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import webpush from "web-push";
 import { buildTheologyPrompts, generateContextualTheologyFallback, TheologyRequest, ChatMessage } from "./src/services/theologyEngine";
@@ -827,10 +826,10 @@ app.get("/api/youtube-related", async (req, res) => {
 // ==========================================
 
 const CANDIDATE_GEMINI_MODELS = [
-  "gemini-3.7-flash",
-  "gemini-3.1-flash-lite",
-  "gemini-flash-latest",
-  "gemini-2.5-flash"
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash",
+  "gemini-flash-latest"
 ];
 
 async function generateGeminiTextWithResilience(
@@ -1070,7 +1069,10 @@ interface PushSubRecord {
   updatedAt: number;
 }
 
-const SUBSCRIPTIONS_FILE = path.join(process.cwd(), "data", "push_subscriptions.json");
+const IS_VERCEL = process.env.VERCEL === "1" || Boolean(process.env.NOW_REGION);
+const SUBSCRIPTIONS_FILE = IS_VERCEL
+  ? path.join("/tmp", "push_subscriptions.json")
+  : path.join(process.cwd(), "data", "push_subscriptions.json");
 const subscriptionsMap = new Map<string, PushSubRecord>();
 
 function loadPushSubscriptions() {
@@ -1222,7 +1224,23 @@ app.post("/api/notifications/send-push", async (req, res) => {
   };
 
   if (delaySeconds && Number(delaySeconds) > 0) {
-    const delay = Number(delaySeconds);
+    const delay = Math.min(Number(delaySeconds), 25);
+    if (IS_VERCEL) {
+      await new Promise((resolve) => setTimeout(resolve, delay * 1000));
+      try {
+        const result = await executePush();
+        return res.json({
+          success: true,
+          delayed: true,
+          delaySeconds: delay,
+          ...result,
+          message: `Notificação disparada após ${delay} segundos!`
+        });
+      } catch (err: any) {
+        return res.status(500).json({ error: err?.message || "Failed to dispatch delayed push" });
+      }
+    }
+
     setTimeout(() => {
       executePush().catch(e => console.warn("[WebPush] Delayed push error:", e));
     }, delay * 1000);
@@ -1248,6 +1266,7 @@ export default app;
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa"

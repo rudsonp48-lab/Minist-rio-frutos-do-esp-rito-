@@ -30,19 +30,26 @@ export default async function handler(req: any, res: any) {
       });
 
       const { systemInstruction, userPrompt } = buildTheologyPrompts(payload);
+      const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        },
-      });
+      for (const modelName of candidateModels) {
+        try {
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: userPrompt,
+            config: {
+              systemInstruction,
+              temperature: 0.7,
+            },
+          });
 
-      const text = response.text || "";
-      if (text.trim()) {
-        return res.status(200).json({ result: text, source: "gemini" });
+          const text = response.text || "";
+          if (text.trim()) {
+            return res.status(200).json({ result: text, source: "gemini" });
+          }
+        } catch (modelErr: any) {
+          console.warn(`[Vercel API /theology] Model ${modelName} failed:`, modelErr?.message || modelErr);
+        }
       }
     } catch (err: any) {
       console.warn("[Vercel API /theology] Gemini generation failed:", err?.message || err);

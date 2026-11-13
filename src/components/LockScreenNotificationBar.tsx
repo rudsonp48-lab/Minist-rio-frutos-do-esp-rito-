@@ -53,18 +53,19 @@ export default function LockScreenNotificationBar() {
     setCountdown(5);
     setTestSuccessMessage(null);
 
-    // Call server to schedule push in 5 seconds
-    const result = await testLockScreenNotification(5);
+    // Fire push request concurrently so both local (immediate response) and Vercel (awaited delay) sync with countdown
+    const pushPromise = testLockScreenNotification(5);
 
     // Countdown interval
     let counter = 5;
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       counter -= 1;
       setCountdown(counter);
       if (counter <= 0) {
         clearInterval(interval);
+        const result = await pushPromise;
         setIsTesting(false);
-        setTestSuccessMessage(result.message || 'Notificação disparada! Verifique a tela do seu celular.');
+        setTestSuccessMessage(result?.message || 'Notificação disparada! Verifique a tela do seu celular.');
       }
     }, 1000);
   };
@@ -126,11 +127,18 @@ export default function LockScreenNotificationBar() {
                   </h4>
                   <p className="text-[11px] text-white/60">
                     {permission === 'granted' 
-                      ? 'Push habilitado no dispositivo' 
-                      : 'Receba mensagens e chamadas fora do app'}
+                      ? 'Push ativo: chamadas e mensagens tocam com o celular travado' 
+                      : 'Receba chamadas e mensagens mesmo com o app fechado e celular travado'}
                   </p>
                 </div>
               </div>
+
+              {/* iOS Safari Tip if applicable */}
+              {typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.navigator as any).standalone && (
+                <div className="mb-2.5 p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-300 leading-snug">
+                  💡 <strong>No iPhone:</strong> para receber notificações fora do app, toque em <em>Compartilhar (quadrado com seta)</em> e depois em <em>"Adicionar à Tela de Início"</em>.
+                </div>
+              )}
 
               {testSuccessMessage && (
                 <div className="mb-3 p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">

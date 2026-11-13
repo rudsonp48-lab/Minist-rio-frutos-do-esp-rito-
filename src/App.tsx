@@ -43,6 +43,7 @@ import IncomingCallModal from './components/chat/IncomingCallModal';
 import DirectCallModal from './components/chat/DirectCallModal';
 import InstallAppModal from './components/InstallAppModal';
 import { CallSession, subscribeToIncomingCalls } from './services/callService';
+import { subscribeToPushService } from './services/notificationService';
 import { triggerCallNotification } from './services/notificationService';
 
 export default function App() {
@@ -108,6 +109,13 @@ export default function App() {
             } catch (e) {
               setIsAdmin(false);
             }
+          }
+
+          // Auto-sync push subscription if notification permission is already granted
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            subscribeToPushService(currentUser.uid).catch((err) => {
+              console.debug('[Push] Auto sync on login note:', err);
+            });
           }
         })();
       } else {
