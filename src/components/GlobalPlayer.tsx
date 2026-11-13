@@ -37,6 +37,66 @@ export default function GlobalPlayer() {
       localStorage.setItem('global_player_docked_side', String(dock));
     } catch {}
   };
+  const [sidePos, setSidePos] = useState<{ yPct: number; side: 'left' | 'right' }>(() => {
+    try {
+      const saved = localStorage.getItem('global_player_side_pos');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed?.yPct === 'number' && (parsed.side === 'left' || parsed.side === 'right')) {
+          return { yPct: Math.min(88, Math.max(12, parsed.yPct)), side: parsed.side };
+        }
+      }
+    } catch {}
+    return { yPct: 58, side: 'right' };
+  });
+  const suppressSideClickRef = useRef(false);
+  const handleSidePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startYPct = sidePos.yPct;
+    let currentSide = sidePos.side;
+    let currentYPct = startYPct;
+    let moved = false;
+    suppressSideClickRef.current = false;
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!moved && Math.hypot(dx, dy) > 6) {
+        moved = true;
+        suppressSideClickRef.current = true;
+      }
+      if (!moved) return;
+
+      const vh = window.innerHeight || 800;
+      const vw = window.innerWidth || 400;
+      currentYPct = Math.min(88, Math.max(12, startYPct + (dy / vh) * 100));
+      if (ev.clientX < vw * 0.4) {
+        currentSide = 'left';
+      } else if (ev.clientX > vw * 0.6) {
+        currentSide = 'right';
+      }
+      setSidePos({ yPct: currentYPct, side: currentSide });
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (moved) {
+        try {
+          localStorage.setItem('global_player_side_pos', JSON.stringify({ yPct: currentYPct, side: currentSide }));
+        } catch {}
+        setTimeout(() => {
+          suppressSideClickRef.current = false;
+        }, 80);
+      }
+    };
+
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', onUp, { once: true });
+    window.addEventListener('pointercancel', onUp, { once: true });
+  };
   const handleMiniTogglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
@@ -612,26 +672,39 @@ export default function GlobalPlayer() {
         {selectedVideo && isMinimized && isDockedSide && (
           <motion.div
             key="side-dock"
-            initial={{ opacity: 0, x: 40 }}
+            initial={{ opacity: 0, x: sidePos.side === 'right' ? 40 : -40 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 40 }}
-            onClick={() => toggleDockedSide(false)}
-            title={`${selectedVideo.title} — Toque para expandir`}
-            className="fixed right-0 top-[58%] -translate-y-1/2 z-[150] bg-zinc-900/95 backdrop-blur-xl border border-r-0 border-white/15 rounded-l-2xl py-2.5 pl-2 pr-2.5 flex flex-col items-center gap-2 shadow-2xl cursor-pointer overflow-hidden"
+            exit={{ opacity: 0, x: sidePos.side === 'right' ? 40 : -40 }}
+            onPointerDown={handleSidePointerDown}
+            onClick={() => {
+              if (suppressSideClickRef.current) return;
+              toggleDockedSide(false);
+            }}
+            style={{ top: `${sidePos.yPct}%` }}
+            title={`${selectedVideo.title} — Arraste para mover ou toque para expandir`}
+            className={`fixed -translate-y-1/2 z-[150] bg-zinc-900/95 backdrop-blur-xl border border-white/15 py-2.5 flex flex-col items-center gap-2 shadow-2xl cursor-grab active:cursor-grabbing touch-none select-none overflow-hidden ${
+              sidePos.side === 'right'
+                ? 'right-0 rounded-l-2xl border-r-0 pl-2 pr-2.5'
+                : 'left-0 rounded-r-2xl border-l-0 pr-2 pl-2.5'
+            }`}
           >
-            {/* Barrinha vertical de progresso na borda direita */}
-            <div className="absolute right-0 inset-y-0 w-1 bg-white/10">
+            {/* Barrinha vertical de progresso na borda */}
+            <div className={`absolute inset-y-0 w-1 bg-white/10 ${sidePos.side === 'right' ? 'right-0' : 'left-0'}`}>
               <div
                 className="w-full bg-[var(--theme-color)] transition-all duration-300"
                 style={{ height: `${Math.min(100, Math.max(4, (played / (duration || 1)) * 100))}%` }}
               />
             </div>
 
-            <ChevronLeft className="w-4 h-4 text-white/70" />
+            {sidePos.side === 'right' ? (
+              <ChevronLeft className="w-4 h-4 text-white/70" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-white/70" />
+            )}
 
             <div className={`w-7 h-7 rounded-full overflow-hidden shrink-0 ${playing ? 'ring-2 ring-[var(--theme-color)]' : 'opacity-80'}`}>
               {selectedVideo.thumbnail ? (
-                <img src={selectedVideo.thumbnail} className="w-full h-full object-cover" alt="" />
+                <img src={selectedVideo.thumbnail} className="w-full h-full object-cover pointer-events-none" alt="" />
               ) : (
                 <div className="w-full h-full bg-white/10 flex items-center justify-center">
                   <Music2 className="w-3.5 h-3.5 text-white" />
@@ -640,7 +713,13 @@ export default function GlobalPlayer() {
             </div>
 
             <button
-              onClick={handleMiniTogglePlay}
+              onClick={(e) => {
+                if (suppressSideClickRef.current) {
+                  e.stopPropagation();
+                  return;
+                }
+                handleMiniTogglePlay(e);
+              }}
               aria-label={playing ? 'Pausar música' : 'Tocar música'}
               className="w-7 h-7 flex items-center justify-center text-white bg-white/10 rounded-full hover:bg-white/20 active:scale-95 transition-all"
             >
