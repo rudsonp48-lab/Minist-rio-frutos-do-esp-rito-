@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin, Sparkles, Download, Smartphone, GraduationCap } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin, Sparkles, Download, Smartphone, GraduationCap, Volume2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
@@ -8,8 +8,9 @@ import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { Logo } from '../components/Logo';
 import { useTheme } from '../lib/ThemeContext';
 import { getDailyDevotional } from '../lib/devotionalsData';
-import { DEFAULT_BANNERS, RECENT_ITEMS, TESTIMONIALS, PODCASTS, CONTINUE_WATCHING, GALLERY_IMAGES } from '../lib/data';
+import { DEFAULT_BANNERS, TESTIMONIALS, PODCASTS, GALLERY_IMAGES } from '../lib/data';
 import { YouTubeVideo } from '../services/youtube';
+import { devotionalAudio } from '../lib/devotionalAudioEngine';
 
 function getYouTubeId(url: string) {
   if (!url) return null;
@@ -445,130 +446,111 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Continue Watching / Recent */}
-        <section>
-          <div className="flex items-end justify-between mb-6 px-2">
-             <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Em Alta</h2>
-             <Link to="/media" className="text-sm font-bold text-[var(--theme-color)] tracking-widest flex items-center gap-1 hover:opacity-80 transition-opacity">Ver Mais <ChevronRight className="w-4 h-4" /></Link>
-          </div>
-          <motion.div 
-            className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory"
-          >
-            {RECENT_ITEMS.map((item, idx) => (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                key={item.id} 
-              >
-                <Link to="/media" className="block w-64 lg:w-80 group relative ios-card rounded-[32px] p-2">
-                  <div className="aspect-video rounded-[24px] bg-black overflow-hidden relative border border-white/5 group-hover:border-white/20 transition-colors shadow-inner">
-                    <img loading="lazy" src={item.img} alt={item.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                    <div className="absolute bottom-4 left-4 right-4">
-                       <span className="text-[10px] font-bold text-white/80 backdrop-blur-md bg-black/30 px-2 py-1 rounded-full uppercase tracking-wider mb-2 inline-block border border-white/10">{item.category}</span>
-                       <h3 className="text-base font-bold text-white truncate drop-shadow-md">{item.title}</h3>
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-sm">
-                      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center shadow-lg">
-                        <Play className="w-6 h-6 text-white ml-1 fill-current" />
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        </section>
-
-        {/* Continue Watching Section */}
-        <section>
-          <div className="flex items-end justify-between mb-6 px-2">
-             <div className="flex items-center gap-3">
-               <h2 className="text-3xl font-display font-bold tracking-tight text-black dark:text-white">Continuar Assistindo</h2>
-             </div>
-          </div>
-          <motion.div 
-            className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x snap-mandatory"
-          >
-            {CONTINUE_WATCHING.map((item, idx) => (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                key={item.id} 
-              >
-                <Link to="/media" className="block w-64 lg:w-80 group relative ios-card rounded-[32px] p-2">
-                  <div className="aspect-video rounded-[24px] bg-black overflow-hidden relative border border-white/5 group-hover:border-white/20 transition-colors shadow-inner">
-                    <img loading="lazy" src={item.img} alt={item.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                    <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-2">
-                       <h3 className="text-sm font-bold text-white truncate drop-shadow-md">{item.title}</h3>
-                       <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
-                         <div className="h-full bg-[var(--theme-color)] rounded-full" style={{ width: `${item.progress}%` }}></div>
-                       </div>
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-sm">
-                      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center shadow-lg">
-                        <Play className="w-6 h-6 text-white ml-1 fill-current" />
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        </section>
-
         {/* Modern Devotional Widget */}
         <section>
-          <div className="ios-card relative w-full bg-gradient-to-br from-white to-[#F2F2F7] dark:from-[#1C1C1E] dark:to-[#111111] overflow-hidden group min-h-[400px] flex items-center">
+          <div className="flex items-end justify-between mb-4 px-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[var(--theme-color)]/15 border border-[var(--theme-color)]/30 flex items-center justify-center text-[var(--theme-color)]">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-black dark:text-white">Devocional Diário</h2>
+            </div>
+            <Link to="/devotional" className="text-xs font-bold text-[var(--theme-color)] tracking-widest uppercase flex items-center gap-1 hover:opacity-80 transition-opacity">
+              Acervo <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="ios-card relative w-full rounded-[32px] bg-gradient-to-br from-white via-[#F5F5FA] to-[#EAEAF4] dark:from-[#181624] dark:via-[#12121A] dark:to-[#0C0C10] border border-black/5 dark:border-white/10 overflow-hidden group shadow-2xl">
              {/* Background Glow / Image */}
              {(currentDevotional as any)?.image ? (
                 <div className="absolute inset-0 z-0 pointer-events-none">
-                  <img loading="lazy" src={(currentDevotional as any).image} alt="Devocional Background" className="w-full h-full object-cover opacity-20 dark:opacity-40 group-hover:scale-105 transition-transform duration-1000" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent dark:from-[#1C1C1E] dark:via-[#1C1C1E]/90 dark:to-transparent"></div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent dark:from-[#1C1C1E] dark:via-transparent dark:to-transparent lg:hidden"></div>
+                  <img loading="lazy" src={(currentDevotional as any).image} alt="Devocional Background" className="w-full h-full object-cover opacity-15 dark:opacity-30 group-hover:scale-105 transition-transform duration-1000" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/60 dark:from-[#12121A] dark:via-[#12121A]/90 dark:to-[#12121A]/50"></div>
                 </div>
              ) : (
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-[var(--theme-color)]/20 to-transparent rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-1000 group-hover:scale-110"></div>
+                <>
+                  <div className="absolute -top-24 -right-24 w-80 h-80 bg-[var(--theme-color)]/20 rounded-full blur-[90px] pointer-events-none" />
+                  <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-amber-500/10 rounded-full blur-[80px] pointer-events-none" />
+                </>
              )}
              
-             <div className="relative z-10 p-8 lg:p-12 w-full max-w-2xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[var(--theme-color)] drop-shadow-sm">Devocional Diário</span>
-                  <div className="flex items-center gap-1 bg-[var(--theme-color)]/10 text-[var(--theme-color)] px-2 py-0.5 rounded-full border border-[var(--theme-color)]/20 shadow-sm">
+             <div className="relative z-10 p-6 sm:p-8 lg:p-10 space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full bg-[var(--theme-color)]/15 border border-[var(--theme-color)]/30 text-[10px] font-extrabold tracking-[0.18em] uppercase text-[var(--theme-color)]">
+                      Palavra de Hoje
+                    </span>
+                    <span className="text-[11px] font-medium text-black/50 dark:text-white/50 capitalize">
+                      {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short' })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-300 px-2.5 py-1 rounded-full border border-amber-500/25">
                     <Star className="w-3 h-3 fill-current" />
                     <span className="text-[10px] font-bold">Ofensiva: 5 dias</span>
                   </div>
                 </div>
-                <h3 className="text-3xl lg:text-4xl font-display tracking-tight font-bold text-black dark:text-white mb-6 leading-tight drop-shadow-sm">{currentDevotional.title}</h3>
-                <div className="pl-6 border-l-[3px] border-[var(--theme-color)]/50 mb-6 rounded-sm">
-                  <p className="text-xl text-black/80 dark:text-white/90 italic leading-relaxed drop-shadow-sm">"{currentDevotional.verse}"</p>
-                  <p className="text-xs text-[var(--theme-color)] font-bold mt-3 tracking-wider drop-shadow-sm">{currentDevotional.reference}</p>
-                </div>
-                <p className="text-black/70 dark:text-white/80 leading-relaxed mb-8 font-medium drop-shadow-sm">{currentDevotional.text}</p>
-                <div className="flex items-center gap-4">
-                  <Link to="/bible" state={{ book: currentDevotional.book, chapter: currentDevotional.chapter, verse: currentDevotional.verseNumber }} className="ios-button inline-flex items-center justify-center gap-2 shadow-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 backdrop-blur-md">
-                    <BookOpen className="w-4 h-4 fill-current" />
+
+                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-display tracking-tight font-bold text-black dark:text-white leading-tight">
+                  {currentDevotional.title}
+                </h3>
+
+                <blockquote className="p-4 sm:p-5 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border-l-4 border-[var(--theme-color)] backdrop-blur-sm">
+                  <p className="text-base sm:text-lg text-black/85 dark:text-white/95 italic leading-relaxed font-serif">
+                    "{currentDevotional.verse}"
+                  </p>
+                  <footer className="text-xs text-[var(--theme-color)] font-extrabold mt-2 tracking-wider uppercase">
+                    — {currentDevotional.reference}
+                  </footer>
+                </blockquote>
+
+                <p className="text-sm sm:text-base text-black/70 dark:text-white/75 leading-relaxed line-clamp-4">
+                  {currentDevotional.text}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2.5 pt-2">
+                  <Link
+                    to="/devotional"
+                    className="px-5 py-3 rounded-2xl bg-[var(--theme-color)] hover:opacity-90 text-white text-xs font-extrabold uppercase tracking-wider inline-flex items-center gap-2 shadow-lg shadow-purple-950/30 active:scale-95 transition-all"
+                  >
+                    <BookOpen className="w-4 h-4" />
                     Ler Completo
                   </Link>
+
+                  <button
+                    onClick={() => {
+                      if (devotionalAudio.isPlaying()) {
+                        devotionalAudio.stop();
+                      } else {
+                        void devotionalAudio.narrateText(
+                          currentDevotional.title,
+                          `${currentDevotional.verse}. ${currentDevotional.reference}. ${currentDevotional.text}`
+                        );
+                      }
+                    }}
+                    className="px-4 py-3 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all"
+                  >
+                    <Volume2 className="w-4 h-4" /> Ouvir
+                  </button>
+
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(`*${currentDevotional.title}*\n\n"${currentDevotional.verse}" - ${currentDevotional.reference}\n\n${currentDevotional.text}`);
                       alert("Devocional copiado!");
                     }}
-                    className="w-12 h-12 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors backdrop-blur-md shadow-lg"
+                    title="Copiar devocional"
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
                   >
-                    <Copy className="w-5 h-5 text-black dark:text-white" />
+                    <Copy className="w-4 h-4 text-black dark:text-white" />
                   </button>
+
                   <a
                     href={`https://wa.me/?text=${encodeURIComponent(`*${currentDevotional.title}*\n\n"${currentDevotional.verse}" - ${currentDevotional.reference}\n\n${currentDevotional.text}`)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="w-12 h-12 rounded-full flex items-center justify-center bg-green-500 hover:bg-green-600 transition-colors shadow-lg"
+                    title="Compartilhar no WhatsApp"
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center bg-green-500 hover:bg-green-600 transition-colors shadow-md"
                   >
-                    <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
                     </svg>
                   </a>
