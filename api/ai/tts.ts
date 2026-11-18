@@ -117,7 +117,7 @@ export default async function handler(req: any, res: any) {
             },
           }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Gemini TTS timeout")), 9000)
+            setTimeout(() => reject(new Error("Gemini TTS timeout")), 15000)
           ),
         ]);
 

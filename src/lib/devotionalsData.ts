@@ -13,7 +13,7 @@ export const DEVOCIONAIS = [
     reference: "2 Coríntios 5:17",
     text: "O poder de Deus tem a capacidade de transformar nossa identidade por completo. Você foi renovado nEle.",
     book: "2 Coríntios", chapter: 5, verseNumber: 17,
-    image: "https://images.unsplash.com/photo-1444464666168-49b626f86641?auto=format&fit=crop&q=80&w=600"
+    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1000"
   },
   {
     title: "Força no Senhor",
@@ -37,7 +37,7 @@ export const DEVOCIONAIS = [
     reference: "2 Coríntios 4:7",
     text: "Nossa fragilidade não é um obstáculo para Deus, mas sim o palco onde Ele demonstra a Sua glória e poder.",
     book: "2 Coríntios", chapter: 4, verseNumber: 7,
-    image: "https://images.unsplash.com/photo-1610706240003-8868dfd0ea6a?auto=format&fit=crop&q=80&w=600"
+    image: "https://images.unsplash.com/photo-1490682143684-14369e18dce8?auto=format&fit=crop&q=80&w=1000"
   },
   {
     title: "Renovação Diária",
@@ -53,7 +53,7 @@ export const DEVOCIONAIS = [
     reference: "Salmos 27:14",
     text: "A coragem nem sempre é a ausência de medo, mas sim a certeza de que Deus está segurando sua mão enquanto você avança.",
     book: "Salmos", chapter: 27, verseNumber: 14,
-    image: "https://images.unsplash.com/photo-1483726234545-481d6e8804cb?auto=format&fit=crop&q=80&w=600"
+    image: "https://images.unsplash.com/photo-1434725039720-aaad6dd32dfe?auto=format&fit=crop&q=80&w=1000"
   },
   {
     title: "Refúgio Seguro",
@@ -102,7 +102,7 @@ export const DEVOCIONAIS = [
     reference: "Salmos 23:1",
     text: "Deus cuida de nós com o amor de um pastor pelas suas ovelhas. Ele supre todas as nossas necessidades.",
     book: "Salmos", chapter: 23, verseNumber: 1,
-    image: "https://images.unsplash.com/photo-1442115594191-2ea3d23157ac?auto=format&fit=crop&q=80&w=600"
+    image: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&q=80&w=1000"
   },
   {
     title: "Paz em Meio à Luta",

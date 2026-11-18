@@ -462,17 +462,18 @@ export default function Home() {
 
           <div className="ios-card relative w-full rounded-[32px] bg-gradient-to-br from-white via-[#F5F5FA] to-[#EAEAF4] dark:from-[#181624] dark:via-[#12121A] dark:to-[#0C0C10] border border-black/5 dark:border-white/10 overflow-hidden group shadow-2xl">
              {/* Background Glow / Image */}
-             {(currentDevotional as any)?.image ? (
-                <div className="absolute inset-0 z-0 pointer-events-none">
-                  <img loading="lazy" src={(currentDevotional as any).image} alt="Devocional Background" className="w-full h-full object-cover opacity-15 dark:opacity-30 group-hover:scale-105 transition-transform duration-1000" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/60 dark:from-[#12121A] dark:via-[#12121A]/90 dark:to-[#12121A]/50"></div>
-                </div>
-             ) : (
-                <>
-                  <div className="absolute -top-24 -right-24 w-80 h-80 bg-[var(--theme-color)]/20 rounded-full blur-[90px] pointer-events-none" />
-                  <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-amber-500/10 rounded-full blur-[80px] pointer-events-none" />
-                </>
-             )}
+             <div className="absolute inset-0 z-0 pointer-events-none">
+               <img
+                 loading="lazy"
+                 src={(currentDevotional as any)?.image || 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&q=80&w=1000'}
+                 onError={(e) => {
+                   (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&q=80&w=1000';
+                 }}
+                 alt="Devocional Background"
+                 className="w-full h-full object-cover opacity-30 dark:opacity-45 group-hover:scale-105 transition-transform duration-1000"
+               />
+               <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 to-white/40 dark:from-[#12121A]/95 dark:via-[#12121A]/75 dark:to-[#12121A]/35"></div>
+             </div>
              
              <div className="relative z-10 p-6 sm:p-8 lg:p-10 space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">

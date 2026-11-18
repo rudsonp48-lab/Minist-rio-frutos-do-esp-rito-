@@ -315,42 +315,67 @@ class DevotionalAudioEngine {
     this.onVerseChangeCallback = options?.onVerseChange || null;
     this.notifyState(true);
 
-    const buildVerseText = (idx: number) => {
-      const item = verses[idx];
-      let rawText = '';
-      if (idx === 0 && item.book_name && item.chapter) {
-        rawText = `Livro de ${item.book_name}, capítulo ${item.chapter}. `;
-      }
-      rawText += item.text;
-      return rawText.trim();
-    };
+    // Group verses into natural reading chunks (~420 chars) for continuous human-like prosody
+    interface VerseChunk {
+      text: string;
+      verses: { verse: number; charWeight: number }[];
+    }
+    const chunks: VerseChunk[] = [];
+    let currentChunkVerses: { verse: number; text: string; charWeight: number }[] = [];
+    let currentLen = 0;
 
-    // Prefetch cache so transitions between verses are fluid without awkward gaps
+    verses.forEach((item, idx) => {
+      const prefix = idx === 0 && item.book_name && item.chapter
+        ? `Livro de ${item.book_name}, capítulo ${item.chapter}. `
+        : '';
+      const piece = `${prefix}${item.text.trim()}`;
+      if (currentChunkVerses.length > 0 && currentLen + piece.length > 420) {
+        chunks.push({
+          text: currentChunkVerses.map((v) => v.text).join(' '),
+          verses: currentChunkVerses.map((v) => ({ verse: v.verse, charWeight: v.charWeight })),
+        });
+        currentChunkVerses = [];
+        currentLen = 0;
+      }
+      currentChunkVerses.push({ verse: item.verse, text: piece, charWeight: Math.max(10, piece.length) });
+      currentLen += piece.length + 1;
+    });
+    if (currentChunkVerses.length > 0) {
+      chunks.push({
+        text: currentChunkVerses.map((v) => v.text).join(' '),
+        verses: currentChunkVerses.map((v) => ({ verse: v.verse, charWeight: v.charWeight })),
+      });
+    }
+
+    // Prefetch cache so transitions between chunks are fluid without awkward gaps
     const audioPromiseCache = new Map<number, Promise<string | null>>();
-    const getVerseAudio = (idx: number): Promise<string | null> => {
-      if (idx >= verses.length) return Promise.resolve(null);
-      if (!audioPromiseCache.has(idx)) {
-        const text = buildVerseText(idx);
-        audioPromiseCache.set(idx, this.fetchNeuralSpeech(text, this.voiceArchetype));
+    const getChunkAudio = (chunkIdx: number): Promise<string | null> => {
+      if (chunkIdx >= chunks.length) return Promise.resolve(null);
+      if (!audioPromiseCache.has(chunkIdx)) {
+        audioPromiseCache.set(chunkIdx, this.fetchNeuralSpeech(chunks[chunkIdx].text, this.voiceArchetype));
       }
-      return audioPromiseCache.get(idx)!;
+      return audioPromiseCache.get(chunkIdx)!;
     };
 
-    const advanceToNext = (nextIndex: number) => {
+    const advanceToNextChunk = (nextChunkIdx: number) => {
       setTimeout(() => {
         if (this.isSpeechPlaying && this.playbackSessionId === sessionId) {
-          void speakVerseAt(nextIndex);
+          void speakChunkAt(nextChunkIdx);
         }
-      }, 220);
+      }, 150);
     };
 
-    const speakWithBrowserFallback = (idx: number) => {
+    const speakChunkWithBrowserFallback = (chunkIdx: number) => {
       if (!('speechSynthesis' in window)) {
-        advanceToNext(idx + 1);
+        advanceToNextChunk(chunkIdx + 1);
         return;
       }
 
-      const humanizedText = this.humanizeTextForSpeech(buildVerseText(idx));
+      const chunk = chunks[chunkIdx];
+      if (this.onVerseChangeCallback && chunk.verses[0]) {
+        this.onVerseChangeCallback(chunk.verses[0].verse);
+      }
+      const humanizedText = this.humanizeTextForSpeech(chunk.text);
       const utterance = new SpeechSynthesisUtterance(humanizedText);
       utterance.lang = 'pt-BR';
 
@@ -362,32 +387,32 @@ class DevotionalAudioEngine {
       const voice = this.getBestVoice();
       if (voice) utterance.voice = voice;
 
-      utterance.onend = () => advanceToNext(idx + 1);
-      utterance.onerror = () => advanceToNext(idx + 1);
+      utterance.onend = () => advanceToNextChunk(chunkIdx + 1);
+      utterance.onerror = () => advanceToNextChunk(chunkIdx + 1);
 
       this.currentUtterance = utterance;
       window.speechSynthesis.speak(utterance);
     };
 
-    const speakVerseAt = async (idx: number) => {
+    const speakChunkAt = async (chunkIdx: number) => {
       if (!this.isSpeechPlaying || this.playbackSessionId !== sessionId) return;
-      if (idx >= verses.length) {
+      if (chunkIdx >= chunks.length) {
         this.stop();
         if (options?.onFinish) options.onFinish();
         return;
       }
 
-      const item = verses[idx];
-      if (this.onVerseChangeCallback) {
-        this.onVerseChangeCallback(item.verse);
+      const chunk = chunks[chunkIdx];
+      if (this.onVerseChangeCallback && chunk.verses[0]) {
+        this.onVerseChangeCallback(chunk.verses[0].verse);
       }
 
-      // Start prefetching the next verse immediately for seamless flow
-      if (idx + 1 < verses.length) {
-        void getVerseAudio(idx + 1);
+      // Start prefetching the next chunk immediately for seamless flow
+      if (chunkIdx + 1 < chunks.length) {
+        void getChunkAudio(chunkIdx + 1);
       }
 
-      const neuralAudioUrl = await getVerseAudio(idx);
+      const neuralAudioUrl = await getChunkAudio(chunkIdx);
       if (!this.isSpeechPlaying || this.playbackSessionId !== sessionId) return;
 
       if (neuralAudioUrl) {
@@ -396,16 +421,30 @@ class DevotionalAudioEngine {
           audio.volume = this.voiceVolume;
           this.currentAudioElement = audio;
 
+          const totalWeight = chunk.verses.reduce((sum, v) => sum + v.charWeight, 0);
+          audio.ontimeupdate = () => {
+            if (!this.onVerseChangeCallback || !audio.duration || chunk.verses.length <= 1) return;
+            const progress = audio.currentTime / audio.duration;
+            let acc = 0;
+            for (const v of chunk.verses) {
+              acc += v.charWeight / totalWeight;
+              if (progress <= acc) {
+                this.onVerseChangeCallback(v.verse);
+                break;
+              }
+            }
+          };
+
           audio.onended = () => {
             if (this.playbackSessionId !== sessionId) return;
             this.currentAudioElement = null;
-            advanceToNext(idx + 1);
+            advanceToNextChunk(chunkIdx + 1);
           };
 
           audio.onerror = () => {
             if (this.playbackSessionId !== sessionId) return;
             this.currentAudioElement = null;
-            speakWithBrowserFallback(idx);
+            speakChunkWithBrowserFallback(chunkIdx);
           };
 
           await audio.play();
@@ -416,10 +455,10 @@ class DevotionalAudioEngine {
         }
       }
 
-      speakWithBrowserFallback(idx);
+      speakChunkWithBrowserFallback(chunkIdx);
     };
 
-    void speakVerseAt(0);
+    void speakChunkAt(0);
   }
 
   // Narrate any text (sermon, devotional, prayer, exegesis, chat) with rich expressive voice
@@ -434,27 +473,36 @@ class DevotionalAudioEngine {
       this.startAmbientPad();
     }
 
+    const sessionId = ++this.playbackSessionId;
     this.isSpeechPlaying = true;
     this.notifyState(true);
 
-    const fullContent = title ? `${title}. ... ... ${body}` : body;
-    const humanizedText = this.humanizeTextForSpeech(fullContent);
+    // Keep natural punctuation for Gemini Neural TTS so prosody & intonation stay fluid
+    const naturalContent = (title ? `${title}. ${body}` : body)
+      .replace(/#+\s/g, '')
+      .replace(/[*_`]/g, '')
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+      .trim();
 
     // 1. Try High-Quality Neural AI Voice first
-    const neuralAudioUrl = await this.fetchNeuralSpeech(humanizedText.slice(0, 1500), this.voiceArchetype);
-    
-    if (neuralAudioUrl && this.isSpeechPlaying) {
+    const neuralAudioUrl = await this.fetchNeuralSpeech(naturalContent.slice(0, 1600), this.voiceArchetype);
+    if (!this.isSpeechPlaying || this.playbackSessionId !== sessionId) return;
+
+    if (neuralAudioUrl) {
       try {
         const audio = new Audio(neuralAudioUrl);
         audio.volume = this.voiceVolume;
         this.currentAudioElement = audio;
 
         audio.onended = () => {
+          if (this.playbackSessionId !== sessionId) return;
           this.stop();
           if (options?.onFinish) options.onFinish();
         };
 
         audio.onerror = () => {
+          if (this.playbackSessionId !== sessionId) return;
+          const humanizedText = this.humanizeTextForSpeech(naturalContent);
           this.fallbackToSpeechSynthesis(humanizedText, options);
         };
 
@@ -466,6 +514,7 @@ class DevotionalAudioEngine {
     }
 
     // 2. Fallback to calibrated humanized Speech Synthesis
+    const humanizedText = this.humanizeTextForSpeech(naturalContent);
     this.fallbackToSpeechSynthesis(humanizedText, options);
   }
 
