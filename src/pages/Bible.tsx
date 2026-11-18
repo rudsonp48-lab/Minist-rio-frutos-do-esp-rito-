@@ -5,7 +5,7 @@ import {
   List, PenTool, Highlighter, Edit3, Volume2, VolumeX, Sparkles, 
   CheckCircle2, Copy, Check, Save, Play, Pause, RotateCcw,
   Type, Sliders, Layers, Library, Music, Mic2, Radio, SlidersHorizontal,
-  Flame, Heart, Calendar, Trash2
+  Flame, Heart, Calendar, Trash2, Scroll, ArrowLeftRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BIBLE_STRUCTURE, SAMPLE_VERSES } from '../lib/bibleData';
@@ -17,7 +17,13 @@ import { db, auth } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandlers';
 import { devotionalAudio, VoiceArchetype } from '../lib/devotionalAudioEngine';
-import { getChapterVerses, searchVerseByReference } from '../services/bibleService';
+import {
+  getChapterVerses,
+  searchVerseByReference,
+  BIBLE_TRANSLATIONS,
+  compareVerseAcrossTranslations,
+} from '../services/bibleService';
+import SermonStudio from '../components/bible/SermonStudio';
 
 interface Verse {
   book_name: string;
@@ -94,12 +100,24 @@ export default function Bible() {
   const { themeColor } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const [translation, setTranslation] = useState('almeida');
+  const [translation, setTranslation] = useState<string>(() => {
+    try {
+      return localStorage.getItem('bible_translation') || 'acf';
+    } catch {
+      return 'acf';
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
-  const [view, setView] = useState<'books' | 'chapters' | 'chapter' | 'search' | 'notes' | 'plans' | 'dictionary' | 'highlights'>('books');
+  const [view, setView] = useState<'books' | 'chapters' | 'chapter' | 'search' | 'notes' | 'plans' | 'dictionary' | 'highlights' | 'sermons'>('books');
+  const [sermonPrefill, setSermonPrefill] = useState<{ ref: string; text: string } | null>(null);
+  const [comparingVerse, setComparingVerse] = useState<{
+    key: string;
+    loading: boolean;
+    items: { id: string; shortLabel: string; name: string; text: string }[];
+  } | null>(null);
   const [selectedBook, setSelectedBook] = useState<typeof BIBLE_STRUCTURE[0] | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [chapterVerses, setChapterVerses] = useState<Verse[]>([]);
@@ -217,10 +235,28 @@ export default function Bible() {
     localStorage.setItem('bible_font_size', size.toString());
   };
 
-  const translations = [
-    { id: 'almeida', label: 'Almeida Revista' },
-    { id: 'nvi', label: 'Nova Versão Internacional (NVI)' },
-  ];
+  const translations = BIBLE_TRANSLATIONS;
+
+  const handleChangeTranslation = (newTrans: string) => {
+    setTranslation(newTrans);
+    try {
+      localStorage.setItem('bible_translation', newTrans);
+    } catch {}
+    if (view === 'chapter' && selectedBook && selectedChapter) {
+      void fetchChapter(selectedBook.book, selectedChapter, newTrans);
+    }
+  };
+
+  const handleCompareVerse = async (v: Verse) => {
+    const key = `${v.book_name}_${v.chapter}_${v.verse}`;
+    if (comparingVerse?.key === key) {
+      setComparingVerse(null);
+      return;
+    }
+    setComparingVerse({ key, loading: true, items: [] });
+    const items = await compareVerseAcrossTranslations(v.book_name, v.chapter, v.verse);
+    setComparingVerse({ key, loading: false, items });
+  };
 
   useEffect(() => {
     const handleStatus = () => setIsOffline(!navigator.onLine);
@@ -467,7 +503,7 @@ export default function Bible() {
           </Link>
         )}
         <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2">
-          {view === 'books' ? 'Bíblia Sagrada' : view === 'chapters' ? selectedBook?.book : view === 'chapter' ? `${selectedBook?.book} ${selectedChapter}` : view === 'plans' ? 'Planos de Leitura' : view === 'highlights' ? 'Meus Versículos Grifados' : view === 'dictionary' ? 'Dicionário Teológico' : view === 'notes' ? 'Bloco de Notas' : 'Busca'}
+          {view === 'books' ? 'Estudo Bíblico Aprofundado' : view === 'chapters' ? selectedBook?.book : view === 'chapter' ? `${selectedBook?.book} ${selectedChapter}` : view === 'sermons' ? 'Desenvolver Sermões' : view === 'plans' ? 'Planos de Leitura' : view === 'highlights' ? 'Meus Versículos Grifados' : view === 'dictionary' ? 'Dicionário Teológico' : view === 'notes' ? 'Bloco de Notas' : 'Busca'}
         </h1>
         <div className="flex items-center gap-1.5">
           {view === 'chapter' && (
@@ -679,32 +715,58 @@ export default function Bible() {
 
       {/* Main Content Area */}
       <main className="max-w-4xl mx-auto px-4 pt-20">
-        {/* Secondary Subtabs when in Books View */}
-        {view === 'books' && (
+        {/* Secondary Subtabs for Deep Bible Study */}
+        {(view === 'books' || view === 'sermons' || view === 'dictionary' || view === 'plans' || view === 'highlights') && (
           <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
             <button 
               onClick={() => setView('books')}
-              className="px-4 py-2 rounded-full text-xs font-bold bg-white text-black shadow-md shrink-0 flex items-center gap-1.5"
+              className={`px-4 py-2 rounded-full text-xs font-bold shrink-0 flex items-center gap-1.5 transition-all ${
+                view === 'books'
+                  ? 'bg-white text-black shadow-md'
+                  : 'bg-[#14141A] text-white/80 hover:text-white border border-white/10'
+              }`}
             >
-              <Book className="w-3.5 h-3.5" /> Livros
+              <Book className="w-3.5 h-3.5" /> Livros & Versões
             </button>
             <button 
-              onClick={() => setView('plans')}
-              className="px-4 py-2 rounded-full text-xs font-bold bg-[#14141A] text-white/80 hover:text-white border border-white/10 shadow-sm shrink-0 flex items-center gap-1.5"
+              onClick={() => setView('sermons')}
+              className={`px-4 py-2 rounded-full text-xs font-bold shrink-0 flex items-center gap-1.5 transition-all ${
+                view === 'sermons'
+                  ? 'bg-amber-400 text-black shadow-md'
+                  : 'bg-[#14141A] text-white/80 hover:text-white border border-white/10'
+              }`}
             >
-              <Calendar className="w-3.5 h-3.5 text-amber-400" /> Planos de Leitura
-            </button>
-            <button 
-              onClick={() => setView('highlights')}
-              className="px-4 py-2 rounded-full text-xs font-bold bg-[#14141A] text-white/80 hover:text-white border border-white/10 shadow-sm shrink-0 flex items-center gap-1.5"
-            >
-              <Highlighter className="w-3.5 h-3.5 text-purple-400" /> Grifados ({allHighlightsList.length})
+              <Scroll className={`w-3.5 h-3.5 ${view === 'sermons' ? 'text-black' : 'text-amber-400'}`} /> Sermões
             </button>
             <button 
               onClick={() => setView('dictionary')}
-              className="px-4 py-2 rounded-full text-xs font-bold bg-[#14141A] text-white/80 hover:text-white border border-white/10 shadow-sm shrink-0 flex items-center gap-1.5"
+              className={`px-4 py-2 rounded-full text-xs font-bold shrink-0 flex items-center gap-1.5 transition-all ${
+                view === 'dictionary'
+                  ? 'bg-cyan-400 text-black shadow-md'
+                  : 'bg-[#14141A] text-white/80 hover:text-white border border-white/10'
+              }`}
             >
-              <BookOpen className="w-3.5 h-3.5 text-cyan-400" /> Dicionário Bíblico
+              <BookOpen className={`w-3.5 h-3.5 ${view === 'dictionary' ? 'text-black' : 'text-cyan-400'}`} /> Dicionário Bíblico
+            </button>
+            <button 
+              onClick={() => setView('plans')}
+              className={`px-4 py-2 rounded-full text-xs font-bold shrink-0 flex items-center gap-1.5 transition-all ${
+                view === 'plans'
+                  ? 'bg-white text-black shadow-md'
+                  : 'bg-[#14141A] text-white/80 hover:text-white border border-white/10'
+              }`}
+            >
+              <Calendar className={`w-3.5 h-3.5 ${view === 'plans' ? 'text-black' : 'text-amber-400'}`} /> Planos
+            </button>
+            <button 
+              onClick={() => setView('highlights')}
+              className={`px-4 py-2 rounded-full text-xs font-bold shrink-0 flex items-center gap-1.5 transition-all ${
+                view === 'highlights'
+                  ? 'bg-purple-400 text-black shadow-md'
+                  : 'bg-[#14141A] text-white/80 hover:text-white border border-white/10'
+              }`}
+            >
+              <Highlighter className={`w-3.5 h-3.5 ${view === 'highlights' ? 'text-black' : 'text-purple-400'}`} /> Grifados ({allHighlightsList.length})
             </button>
           </div>
         )}
@@ -713,6 +775,74 @@ export default function Bible() {
           {/* Books Grid View */}
           {view === 'books' && (
             <motion.div key="books" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+              {/* AI Pastor & Theological Assistant Highlight Card (moved from Home to Bible Study) */}
+              <section className="bg-gradient-to-r from-purple-950/50 via-indigo-950/40 to-[#0e0e14] border border-white/10 rounded-[28px] p-5 sm:p-6 relative overflow-hidden shadow-2xl">
+                <div className="absolute -right-10 -bottom-10 w-56 h-56 bg-[var(--theme-color)]/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+                  <div className="space-y-2 max-w-xl">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--theme-color)]/20 border border-[var(--theme-color)]/30 text-[var(--theme-color)] text-[11px] font-bold uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5" /> Mentor Teológico & Exegese IA
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-display font-bold text-white tracking-tight">
+                      Aprofunde seus Estudos Bíblicos com Inteligência Artificial
+                    </h3>
+                    <p className="text-xs sm:text-sm text-white/70 leading-relaxed">
+                      Consulte raízes do hebraico e grego, gere esboços expositivos de sermões, tire dúvidas doutrinárias e receba orações pastorais guiadas.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { mode: 'exegesis', reference: 'Salmos 23:1' } }))}
+                      className="flex-1 sm:flex-none h-11 px-5 rounded-2xl bg-[var(--theme-color)] hover:bg-[var(--color-primary-focused)] text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-purple-950/50 active:scale-95 transition-all"
+                    >
+                      <BookOpen className="w-4 h-4" /> Exegese
+                    </button>
+
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { mode: 'sermon' } }))}
+                      className="flex-1 sm:flex-none h-11 px-5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all"
+                    >
+                      <Scroll className="w-4 h-4 text-amber-400" /> Esboço IA
+                    </button>
+
+                    <button
+                      onClick={() => setView('sermons')}
+                      className="w-full sm:w-auto h-11 px-5 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all"
+                    >
+                      <PenTool className="w-4 h-4" /> Criar Sermão
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              {/* Bible Version Selector */}
+              <div className="bg-[#121216] border border-white/10 rounded-2xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/60 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-[var(--theme-color)]" /> Versão da Bíblia para Estudo
+                  </span>
+                  <span className="text-[11px] text-white/40">
+                    {translations.find(t => t.id === translation)?.name || 'Almeida Corrigida Fiel'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {translations.map((tr) => (
+                    <button
+                      key={tr.id}
+                      onClick={() => handleChangeTranslation(tr.id)}
+                      className={`px-3 py-2 rounded-xl border text-left transition-all ${
+                        translation === tr.id
+                          ? 'bg-[var(--theme-color)]/20 border-[var(--theme-color)] text-white shadow-sm'
+                          : 'bg-black/30 border-white/10 text-white/60 hover:text-white hover:border-white/20'
+                      }`}
+                    >
+                      <div className="text-xs font-extrabold">{tr.shortLabel}</div>
+                      <div className="text-[10px] opacity-70 truncate">{tr.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
               {/* Search Bar */}
               <form onSubmit={searchSingleVerse} className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -789,10 +919,24 @@ export default function Bible() {
           {/* Chapter Reading View */}
           {view === 'chapter' && (
             <motion.div key="chapter" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between bg-black/5 dark:bg-white/5 p-4 rounded-2xl gap-2">
-                <div>
+              <div className="flex flex-wrap items-center justify-between bg-black/5 dark:bg-white/5 p-4 rounded-2xl gap-3">
+                <div className="space-y-1">
                   <h2 className="text-xl font-bold">{selectedBook?.book} {selectedChapter}</h2>
-                  <span className="text-xs text-white/50 uppercase font-semibold">{translation.toUpperCase()}</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {translations.map((tr) => (
+                      <button
+                        key={tr.id}
+                        onClick={() => handleChangeTranslation(tr.id)}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase transition-all border ${
+                          translation === tr.id
+                            ? 'bg-[var(--theme-color)] text-white border-[var(--theme-color)]'
+                            : 'bg-white/5 text-white/50 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        {tr.shortLabel}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 
                 <div className="flex items-center gap-2">
@@ -874,6 +1018,30 @@ export default function Bible() {
                                   <Sparkles className="w-3.5 h-3.5" /> Exegese IA
                                 </button>
 
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleCompareVerse(v);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-200 font-bold flex items-center gap-1"
+                                >
+                                  <ArrowLeftRight className="w-3.5 h-3.5" /> Comparar Versões
+                                </button>
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSermonPrefill({
+                                      ref: `${v.book_name} ${v.chapter}:${v.verse}`,
+                                      text: v.text,
+                                    });
+                                    setView('sermons');
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-200 font-bold flex items-center gap-1"
+                                >
+                                  <Scroll className="w-3.5 h-3.5" /> Usar em Sermão
+                                </button>
+
                                 {/* Multi-Color Highlight Selection */}
                                 <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-black/50 border border-white/15">
                                   <span className="text-[10px] text-white/50 font-bold uppercase mr-1">Grifar:</span>
@@ -944,6 +1112,37 @@ export default function Bible() {
                                   {savedVerse ? 'Salvo' : 'Salvar Nota'}
                                 </button>
                               </motion.div>
+                            )}
+
+                            {comparingVerse?.key === key && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-3 p-3.5 rounded-2xl bg-black/60 border border-cyan-500/30 space-y-2.5"
+                              >
+                                <div className="flex items-center justify-between text-[11px] font-bold text-cyan-300 uppercase tracking-wider">
+                                  <span>Comparação de Versões — {v.book_name} {v.chapter}:{v.verse}</span>
+                                  <button
+                                    onClick={() => setComparingVerse(null)}
+                                    className="text-white/50 hover:text-white text-xs"
+                                  >
+                                    Fechar
+                                  </button>
+                                </div>
+                                {comparingVerse.loading ? (
+                                  <p className="text-xs text-white/60 animate-pulse">Carregando versões...</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {comparingVerse.items.map((item) => (
+                                      <div key={item.id} className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                                        <span className="text-[10px] font-extrabold text-amber-300 uppercase">
+                                          {item.shortLabel} · {item.name}
+                                        </span>
+                                        <p className="text-xs text-white/90 mt-1 leading-relaxed">{item.text}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1181,7 +1380,33 @@ export default function Bible() {
                     </div>
                   </div>
                 ))}
+                {dictSearch.trim() && (
+                  <div className="bg-purple-950/30 border border-purple-500/30 rounded-[24px] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Quer aprofundar "{dictSearch}" no Hebraico & Grego?</h4>
+                      <p className="text-xs text-white/60">Consulte o Dicionário Teológico IA para etimologia, Strong e aplicações bíblicas.</p>
+                    </div>
+                    <button
+                      onClick={() => handleOpenAIExegesis(`Dicionário Bíblico & Etimologia (Hebraico/Grego/Strong) do termo: ${dictSearch}`)}
+                      className="px-4 py-2 rounded-xl bg-[var(--theme-color)] text-white text-xs font-bold flex items-center gap-1.5 shrink-0"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" /> Consultar IA
+                    </button>
+                  </div>
+                )}
               </div>
+            </motion.div>
+          )}
+
+          {/* Sermon Development Studio Tab View */}
+          {view === 'sermons' && (
+            <motion.div key="sermons" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <SermonStudio
+                translation={translation}
+                prefillReference={sermonPrefill?.ref}
+                prefillVerseText={sermonPrefill?.text}
+                onConsumePrefill={() => setSermonPrefill(null)}
+              />
             </motion.div>
           )}
 

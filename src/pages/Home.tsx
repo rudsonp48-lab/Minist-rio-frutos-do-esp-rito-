@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin, Sparkles, Scroll, Download, Smartphone, GraduationCap } from 'lucide-react';
+import { Play, Calendar, BookOpen, Radio, Search, User, Heart, Edit3, Edit, ChevronRight, ChevronLeft, Copy, CheckCircle2, QrCode, CreditCard, Bell, HandHeart, Mic, MessageSquareQuote, Star, Camera, Headphones, X, Navigation, MapPin, Sparkles, Download, Smartphone, GraduationCap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { db } from '../lib/firebase';
@@ -442,40 +442,6 @@ export default function Home() {
                 </Link>
               </motion.div>
             ))}
-          </div>
-        </section>
-
-        {/* AI Pastor & Theological Assistant Highlight Card */}
-        <section className="bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black border border-white/10 rounded-[32px] p-6 lg:p-8 relative overflow-hidden shadow-2xl">
-          <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-[var(--theme-color)]/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--theme-color)]/20 border border-[var(--theme-color)]/30 text-[var(--theme-color)] text-xs font-bold uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5" /> Mentor Teológico & Exegese IA
-              </div>
-              <h3 className="text-2xl lg:text-3xl font-display font-bold text-white tracking-tight">
-                Aprofunde seus Estudos Bíblicos com Inteligência Artificial
-              </h3>
-              <p className="text-sm text-white/70 leading-relaxed">
-                Consulte raízes do hebraico e grego, gere esboços expositivos de sermões, tire dúvidas doutrinárias e receba orações pastorais guiadas.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto">
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { mode: 'exegesis', reference: 'Salmos 23:1' } }))}
-                className="flex-1 md:flex-none h-12 px-6 rounded-2xl bg-[var(--theme-color)] hover:bg-[var(--color-primary-focused)] text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-purple-950/50 active:scale-95 transition-all"
-              >
-                <BookOpen className="w-4 h-4" /> Exegese
-              </button>
-
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent('open-ai-assistant', { detail: { mode: 'sermon' } }))}
-                className="flex-1 md:flex-none h-12 px-6 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all"
-              >
-                <Scroll className="w-4 h-4 text-amber-400" /> Esboço
-              </button>
-            </div>
           </div>
         </section>
 

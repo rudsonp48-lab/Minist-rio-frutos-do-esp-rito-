@@ -7,6 +7,40 @@ export interface BibleVerse {
   text: string;
 }
 
+export interface BibleTranslationOption {
+  id: string;
+  shortLabel: string;
+  name: string;
+  description: string;
+}
+
+export const BIBLE_TRANSLATIONS: BibleTranslationOption[] = [
+  {
+    id: 'acf',
+    shortLabel: 'ACF',
+    name: 'Almeida Corrigida Fiel',
+    description: 'Tradução clássica e fiel aos manuscritos tradicionais (Textus Receptus)',
+  },
+  {
+    id: 'aa',
+    shortLabel: 'AA / ARA',
+    name: 'Almeida Revisada e Atualizada',
+    description: 'Linguagem solene e precisa, ideal para estudo exegético e púlpito',
+  },
+  {
+    id: 'nvi',
+    shortLabel: 'NVI',
+    name: 'Nova Versão Internacional',
+    description: 'Equilíbrio entre fidelidade aos originais e clareza contemporânea',
+  },
+  {
+    id: 'kjv',
+    shortLabel: 'KJV',
+    name: 'King James Version (EN)',
+    description: 'Versão clássica em inglês para comparação e estudo interlinear',
+  },
+];
+
 interface RawBibleBook {
   abbrev: string;
   chapters: string[][];
@@ -78,8 +112,9 @@ function normalizeText(value: string): string {
 function resolveTranslationFile(translation: string): string {
   const t = normalizeText(translation);
   if (t === 'nvi') return 'nvi';
-  if (t === 'aa') return 'aa';
-  return 'acf'; // 'almeida' -> Almeida Corrigida Fiel
+  if (t === 'aa' || t === 'ara') return 'aa';
+  if (t === 'kjv' || t === 'en_kjv') return 'en_kjv';
+  return 'acf'; // 'almeida' / 'acf' -> Almeida Corrigida Fiel
 }
 
 async function loadTranslation(translation: string): Promise<RawBibleBook[]> {
@@ -198,4 +233,30 @@ export async function searchVerseByReference(
   }
 
   return found;
+}
+
+export async function compareVerseAcrossTranslations(
+  bookName: string,
+  chapterNum: number,
+  verseNum: number
+): Promise<{ id: string; shortLabel: string; name: string; text: string }[]> {
+  const results = await Promise.allSettled(
+    BIBLE_TRANSLATIONS.map(async (tr) => {
+      const verses = await getChapterVerses(bookName, chapterNum, tr.id);
+      const match = verses.find((v) => v.verse === verseNum);
+      return {
+        id: tr.id,
+        shortLabel: tr.shortLabel,
+        name: tr.name,
+        text: match?.text || '',
+      };
+    })
+  );
+
+  return results
+    .filter(
+      (r): r is PromiseFulfilledResult<{ id: string; shortLabel: string; name: string; text: string }> =>
+        r.status === 'fulfilled' && Boolean(r.value.text)
+    )
+    .map((r) => r.value);
 }
