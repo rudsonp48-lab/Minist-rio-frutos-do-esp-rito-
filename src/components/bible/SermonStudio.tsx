@@ -13,13 +13,26 @@ import {
   Loader2,
   ListPlus,
   X,
+  Search,
+  Link2,
+  Wand2,
 } from 'lucide-react';
-import { searchVerseByReference } from '../../services/bibleService';
+import {
+  BibleVerse,
+  searchBibleByKeyword,
+  searchVerseByReference,
+} from '../../services/bibleService';
 
 export interface SermonPoint {
   id: string;
   heading: string;
   body: string;
+}
+
+export interface WordConnection {
+  word: string;
+  original: string;
+  meaning: string;
 }
 
 export interface SermonDraft {
@@ -32,6 +45,8 @@ export interface SermonDraft {
   points: SermonPoint[];
   application: string;
   conclusion: string;
+  wordConnections?: WordConnection[];
+  relatedVerses?: string[];
   aiNotes?: string;
   updatedAt: string;
 }
@@ -47,10 +62,10 @@ const SERMON_CATEGORIES = [
   'Evangelístico',
 ];
 
-function createEmptySermon(initialRef = '', initialText = ''): SermonDraft {
+function createEmptySermon(initialRef = '', initialText = '', initialTitle = ''): SermonDraft {
   return {
     id: `sermon_${Date.now()}`,
-    title: '',
+    title: initialTitle,
     baseReference: initialRef,
     baseVerseText: initialText,
     category: 'Culto de Domingo',
@@ -62,9 +77,39 @@ function createEmptySermon(initialRef = '', initialText = ''): SermonDraft {
     ],
     application: '',
     conclusion: '',
+    wordConnections: [],
+    relatedVerses: [],
     aiNotes: '',
     updatedAt: new Date().toISOString(),
   };
+}
+
+function tryParseStructuredSermon(raw: string): Partial<{
+  title: string;
+  baseReference: string;
+  introduction: string;
+  points: { heading: string; body: string }[];
+  application: string;
+  conclusion: string;
+  wordConnections: WordConnection[];
+  relatedVerses: string[];
+}> | null {
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end <= start) return null;
+
+  try {
+    const parsed = JSON.parse(cleaned.slice(start, end + 1));
+    if (parsed && typeof parsed === 'object') {
+      return parsed;
+    }
+  } catch {}
+  return null;
 }
 
 interface SermonStudioProps {
@@ -95,6 +140,12 @@ export default function SermonStudio({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
+  // Dynamic Bible Keyword Search & Verse Connections
+  const [keywordQuery, setKeywordQuery] = useState('');
+  const [keywordResults, setKeywordResults] = useState<BibleVerse[]>([]);
+  const [searchingKeyword, setSearchingKeyword] = useState(false);
+  const [quickTitleInput, setQuickTitleInput] = useState('');
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sermons));
@@ -110,14 +161,15 @@ export default function SermonStudio({
 
   const showToast = (msg: string) => {
     setStatusMsg(msg);
-    setTimeout(() => setStatusMsg(null), 2800);
+    setTimeout(() => setStatusMsg(null), 3500);
   };
 
-  const handleLoadBaseVerse = async () => {
-    if (!editing?.baseReference.trim()) return;
+  const handleLoadBaseVerse = async (customRef?: string) => {
+    const refToFetch = (customRef ?? editing?.baseReference ?? '').trim();
+    if (!refToFetch) return;
     setLoadingVerse(true);
     try {
-      const verse = await searchVerseByReference(editing.baseReference, translation);
+      const verse = await searchVerseByReference(refToFetch, translation);
       setEditing((prev) =>
         prev
           ? {
@@ -134,38 +186,162 @@ export default function SermonStudio({
     }
   };
 
-  const handleGenerateWithAI = async () => {
-    if (!editing) return;
-    const topic = editing.title.trim() || editing.baseReference.trim();
+  const handleKeywordSearch = async (e?: React.FormEvent, overrideWord?: string) => {
+    if (e) e.preventDefault();
+    const q = (overrideWord ?? keywordQuery).trim();
+    if (q.length < 2) {
+      showToast('Digite pelo menos 2 letras para buscar na Bíblia.');
+      return;
+    }
+    setSearchingKeyword(true);
+    try {
+      const matches = await searchBibleByKeyword(q, translation, 12);
+      setKeywordResults(matches);
+      if (matches.length === 0) {
+        showToast(`Nenhum versículo encontrado com "${q}" nesta versão.`);
+      }
+    } catch {
+      showToast('Erro ao pesquisar palavras na Bíblia.');
+    } finally {
+      setSearchingKeyword(false);
+    }
+  };
+
+  const handleGenerateFullSermon = async (targetDraft?: SermonDraft, keywordHint?: string) => {
+    const draft = targetDraft || editing;
+    if (!draft) return;
+
+    const topic = draft.title.trim() || draft.baseReference.trim() || keywordHint?.trim() || '';
     if (!topic) {
-      showToast('Informe um título ou texto bíblico base para gerar o esboço.');
+      showToast('Digite um Título para o Sermão ou uma palavra-chave para gerar!');
       return;
     }
 
     setLoadingAI(true);
     try {
+      // Also search matching verses in the Bible to feed real context
+      const searchSeed = keywordHint?.trim() || draft.title.trim();
+      const mainWord = searchSeed
+        .split(/\s+/)
+        .filter((w) => w.length > 3)
+        .sort((a, b) => b.length - a.length)[0];
+
+      let foundContextVerses: BibleVerse[] = [];
+      if (mainWord) {
+        try {
+          foundContextVerses = await searchBibleByKeyword(mainWord, translation, 6);
+          if (foundContextVerses.length > 0) {
+            setKeywordResults(foundContextVerses);
+          }
+        } catch {}
+      }
+
+      const versesContextText = foundContextVerses
+        .map((v) => `${v.book_name} ${v.chapter}:${v.verse} - "${v.text}"`)
+        .join('\n');
+
+      const prompt =
+        `Gere um sermão expositivo completo e pronto para pregar em português do Brasil.\n` +
+        `Título do sermão: "${draft.title || topic}"\n` +
+        `Ocasião: ${draft.category}\n` +
+        (draft.baseReference ? `Texto base informado: ${draft.baseReference}\n` : '') +
+        (draft.baseVerseText ? `Texto do versículo: "${draft.baseVerseText}"\n` : '') +
+        (versesContextText ? `Versículos relacionados encontrados na Bíblia:\n${versesContextText}\n` : '') +
+        `\nResponda EXCLUSIVAMENTE com um JSON válido (sem markdown extra) neste formato exato:\n` +
+        `{\n` +
+        `  "baseReference": "Livro Capítulo:Versículo principal",\n` +
+        `  "introduction": "Introdução envolvente conectando o tema à vida prática (3 a 5 linhas)",\n` +
+        `  "points": [\n` +
+        `    { "heading": "1. Título do Ponto 1", "body": "Explicação bíblica profunda com referências de versículos conectados" },\n` +
+        `    { "heading": "2. Título do Ponto 2", "body": "Explicação bíblica profunda com referências de versículos conectados" },\n` +
+        `    { "heading": "3. Título do Ponto 3", "body": "Explicação bíblica profunda com referências de versículos conectados" }\n` +
+        `  ],\n` +
+        `  "application": "Ilustração e aplicação prática para a igreja",\n` +
+        `  "conclusion": "Conclusão forte com oração e apelo final",\n` +
+        `  "wordConnections": [\n` +
+        `    { "word": "Palavra-chave 1", "original": "Termo em Grego/Hebraico", "meaning": "Significado teológico resumido" },\n` +
+        `    { "word": "Palavra-chave 2", "original": "Termo em Grego/Hebraico", "meaning": "Significado teológico resumido" }\n` +
+        `  ],\n` +
+        `  "relatedVerses": ["Ref 1", "Ref 2", "Ref 3", "Ref 4"]\n` +
+        `}`;
+
       const res = await fetch('/api/ai/theology', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'sermon',
-          prompt: `Crie um esboço expositivo completo de sermão para "${editing.title || 'Mensagem Bíblica'}" baseado em "${editing.baseReference || 'Escrituras Sagradas'}" (${editing.category}). Inclua introdução, 3 pontos expositivos com referências, aplicação prática e conclusão.`,
-          context: editing.baseVerseText || undefined,
+          prompt,
+          context: draft.baseVerseText || versesContextText || undefined,
         }),
       });
+
       const data = await res.json();
-      const text = data.response || data.content || '';
-      if (text) {
-        setEditing((prev) => (prev ? { ...prev, aiNotes: text } : prev));
-        showToast('Esboço gerado pela IA! Você pode adaptar nos campos abaixo.');
+      const rawText = data.result || data.response || data.content || '';
+      const structured = tryParseStructuredSermon(rawText);
+
+      if (structured) {
+        const chosenRef = draft.baseReference.trim() || structured.baseReference || '';
+        let loadedVerseText = draft.baseVerseText;
+        let canonicalRef = chosenRef;
+
+        if (chosenRef && !loadedVerseText) {
+          try {
+            const v = await searchVerseByReference(chosenRef, translation);
+            canonicalRef = `${v.book_name} ${v.chapter}:${v.verse}`;
+            loadedVerseText = v.text;
+          } catch {}
+        }
+
+        const nextPoints: SermonPoint[] =
+          Array.isArray(structured.points) && structured.points.length > 0
+            ? structured.points.map((p, idx) => ({
+                id: `p_${Date.now()}_${idx}`,
+                heading: p.heading || `${idx + 1}. Tópico`,
+                body: p.body || '',
+              }))
+            : draft.points;
+
+        setEditing({
+          ...draft,
+          title: draft.title.trim() || structured.title || topic,
+          baseReference: canonicalRef,
+          baseVerseText: loadedVerseText,
+          introduction: structured.introduction || draft.introduction,
+          points: nextPoints,
+          application: structured.application || draft.application,
+          conclusion: structured.conclusion || draft.conclusion,
+          wordConnections: Array.isArray(structured.wordConnections) ? structured.wordConnections : [],
+          relatedVerses: Array.isArray(structured.relatedVerses) ? structured.relatedVerses : [],
+          aiNotes: '',
+        });
+        showToast('Sermão completo gerado com conexões bíblicas! Revise e salve.');
+      } else if (rawText) {
+        setEditing({
+          ...draft,
+          aiNotes: rawText,
+        });
+        showToast('Esboço gerado nas notas abaixo!');
       } else {
-        showToast('Não foi possível gerar o esboço agora.');
+        showToast('Não foi possível gerar o sermão agora.');
       }
     } catch {
       showToast('Erro ao consultar o Mentor Teológico IA.');
     } finally {
       setLoadingAI(false);
     }
+  };
+
+  const handleQuickCreateAndGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = quickTitleInput.trim();
+    if (!title) {
+      showToast('Digite um título ou tema para gerar o sermão.');
+      return;
+    }
+    const fresh = createEmptySermon('', '', title);
+    setEditing(fresh);
+    setQuickTitleInput('');
+    await handleGenerateFullSermon(fresh, title);
   };
 
   const handleSave = () => {
@@ -201,6 +377,10 @@ export default function SermonStudio({
       ...s.points.map((p) => `${p.heading}\n${p.body}\n`),
       s.application ? `APLICAÇÃO PRÁTICA:\n${s.application}\n` : '',
       s.conclusion ? `CONCLUSÃO:\n${s.conclusion}\n` : '',
+      s.wordConnections?.length
+        ? `CONEXÕES DE PALAVRAS:\n${s.wordConnections.map((w) => `• ${w.word} (${w.original}): ${w.meaning}`).join('\n')}\n`
+        : '',
+      s.relatedVerses?.length ? `VERSÍCULOS CONECTADOS: ${s.relatedVerses.join(', ')}\n` : '',
       s.aiNotes ? `NOTAS / EXEGESE IA:\n${s.aiNotes}` : '',
     ];
     return lines.filter(Boolean).join('\n');
@@ -215,22 +395,23 @@ export default function SermonStudio({
   if (editing) {
     return (
       <div className="space-y-5 pb-12">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Responsive Header (never clips on mobile) */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           <button
             onClick={() => setEditing(null)}
             className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white flex items-center gap-1.5"
           >
-            <ArrowLeft className="w-4 h-4" /> Voltar aos Sermões
+            <ArrowLeft className="w-4 h-4" /> Voltar
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={handleGenerateWithAI}
+              onClick={() => void handleGenerateFullSermon()}
               disabled={loadingAI}
-              className="px-3.5 py-2 rounded-xl bg-purple-600/25 hover:bg-purple-600/40 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+              className="px-3.5 py-2 rounded-xl bg-purple-600/30 hover:bg-purple-600/45 border border-purple-400/40 text-purple-100 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
             >
-              {loadingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              {loadingAI ? 'Gerando...' : 'Gerar Esboço IA'}
+              {loadingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
+              {loadingAI ? 'Gerando Sermão...' : 'Gerar Sermão IA'}
             </button>
             <button
               onClick={handleSave}
@@ -248,18 +429,30 @@ export default function SermonStudio({
         )}
 
         <div className="bg-[#121218] border border-white/10 rounded-[28px] p-5 sm:p-6 space-y-5">
+          {/* Título + Botão Gerar Automático */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2 space-y-1.5">
               <label className="text-[11px] font-bold uppercase tracking-wider text-white/50">
                 Título do Sermão
               </label>
-              <input
-                type="text"
-                value={editing.title}
-                onChange={(e) => setEditing({ ...editing, title: e.target.value })}
-                placeholder="Ex: O Bom Pastor que Guia Nossos Passos"
-                className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-[var(--theme-color)]"
-              />
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={editing.title}
+                  onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+                  placeholder="Ex: O Verdadeiro Evangelho"
+                  className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-[var(--theme-color)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleGenerateFullSermon()}
+                  disabled={loadingAI}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[var(--theme-color)] to-purple-600 hover:opacity-90 text-white text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shrink-0 disabled:opacity-50"
+                >
+                  {loadingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                  {loadingAI ? 'Gerando...' : 'Gerar deste Título'}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -280,6 +473,125 @@ export default function SermonStudio({
             </div>
           </div>
 
+          {/* Buscador Dinâmico de Palavras & Conexões Bíblicas */}
+          <div className="p-4 rounded-2xl bg-black/35 border border-cyan-500/20 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5" /> Conexões de Palavras & Versículos na Bíblia
+              </span>
+            </div>
+            <form onSubmit={(e) => void handleKeywordSearch(e)} className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={keywordQuery}
+                  onChange={(e) => setKeywordQuery(e.target.value)}
+                  placeholder="Buscar palavra na Bíblia (ex: evangelho, graça, fé, pastor)..."
+                  className="w-full bg-black/40 border border-white/10 rounded-xl py-2 pl-9 pr-3 text-xs text-white placeholder:text-white/35 outline-none focus:border-cyan-400"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={searchingKeyword}
+                className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-200 text-xs font-bold shrink-0"
+              >
+                {searchingKeyword ? 'Buscando...' : 'Conectar'}
+              </button>
+            </form>
+
+            {keywordResults.length > 0 && (
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {keywordResults.map((v) => {
+                  const ref = `${v.book_name} ${v.chapter}:${v.verse}`;
+                  return (
+                    <div key={ref} className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-amber-300">{ref}</span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditing((prev) =>
+                                prev ? { ...prev, baseReference: ref, baseVerseText: v.text } : prev
+                              )
+                            }
+                            className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-200 text-[10px] font-bold hover:bg-amber-500/30"
+                          >
+                            Usar como Base
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditing((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      points: [
+                                        ...prev.points,
+                                        {
+                                          id: `p_${Date.now()}`,
+                                          heading: `${prev.points.length + 1}. Conexão: ${ref}`,
+                                          body: `"${v.text}" (${ref}) — `,
+                                        },
+                                      ],
+                                    }
+                                  : prev
+                              )
+                            }
+                            className="px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-200 text-[10px] font-bold hover:bg-cyan-500/30"
+                          >
+                            + Adicionar Ponto
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-white/75 leading-relaxed">{v.text}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Word & Cross-Reference Chips from AI */}
+            {(editing.wordConnections?.length || 0) > 0 && (
+              <div className="pt-2 border-t border-white/10 space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300">
+                  Raízes & Conexões de Palavras
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {editing.wordConnections!.map((wc, i) => (
+                    <div key={i} className="p-2.5 rounded-xl bg-purple-950/30 border border-purple-500/25">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-xs font-bold text-white">{wc.word}</span>
+                        <span className="text-[10px] font-mono text-purple-300">({wc.original})</span>
+                      </div>
+                      <p className="text-[11px] text-white/70 mt-0.5">{wc.meaning}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(editing.relatedVerses?.length || 0) > 0 && (
+              <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 mr-1">
+                  Versículos Conectados:
+                </span>
+                {editing.relatedVerses!.map((rv) => (
+                  <button
+                    key={rv}
+                    type="button"
+                    onClick={() => void handleLoadBaseVerse(rv)}
+                    className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-[11px] font-semibold text-amber-200"
+                    title="Carregar como Texto Base"
+                  >
+                    {rv}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Texto Base */}
           <div className="space-y-2">
             <label className="text-[11px] font-bold uppercase tracking-wider text-white/50">
@@ -295,7 +607,7 @@ export default function SermonStudio({
               />
               <button
                 type="button"
-                onClick={handleLoadBaseVerse}
+                onClick={() => void handleLoadBaseVerse()}
                 disabled={loadingVerse}
                 className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 shrink-0"
               >
@@ -423,12 +735,11 @@ export default function SermonStudio({
             </div>
           </div>
 
-          {/* Sugestão / Esboço IA */}
           {editing.aiNotes && (
             <div className="p-4 rounded-2xl bg-purple-950/30 border border-purple-500/30 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" /> Sugestão de Esboço (Mentor IA)
+                  <Sparkles className="w-3.5 h-3.5" /> Notas Complementares (Mentor IA)
                 </span>
                 <button
                   type="button"
@@ -456,17 +767,45 @@ export default function SermonStudio({
             <Scroll className="w-5 h-5 text-amber-400" /> Oficina de Sermões
           </h2>
           <p className="text-xs text-white/50">
-            Desenvolva esboços expositivos, conecte versículos e organize suas pregações
+            Digite um título ou palavra-chave para gerar sermões completos com conexões bíblicas
           </p>
         </div>
 
         <button
           onClick={() => setEditing(createEmptySermon())}
-          className="px-4 py-2.5 rounded-2xl bg-[var(--theme-color)] text-white text-xs font-bold flex items-center gap-1.5 shadow-lg active:scale-95 transition-all"
+          className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-white text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
         >
-          <Plus className="w-4 h-4" /> Novo Sermão
+          <Plus className="w-4 h-4" /> Em Branco
         </button>
       </div>
+
+      {/* Quick Automatic Sermon Generator Bar */}
+      <form
+        onSubmit={(e) => void handleQuickCreateAndGenerate(e)}
+        className="bg-gradient-to-r from-purple-950/40 via-[#14141E] to-amber-950/20 border border-purple-500/30 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl"
+      >
+        <div className="flex items-center gap-2 text-xs font-bold text-purple-200">
+          <Wand2 className="w-4 h-4 text-amber-400" />
+          Gerador Automático de Sermão por Título ou Palavra
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <input
+            type="text"
+            value={quickTitleInput}
+            onChange={(e) => setQuickTitleInput(e.target.value)}
+            placeholder="Ex: O Verdadeiro Evangelho, Fé que Move Montanhas, Graça..."
+            className="flex-1 bg-black/45 border border-white/15 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-[var(--theme-color)]"
+          />
+          <button
+            type="submit"
+            disabled={loadingAI}
+            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-[var(--theme-color)] to-purple-600 hover:opacity-90 text-white text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shrink-0 active:scale-95 transition-all"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            Gerar Sermão
+          </button>
+        </div>
+      </form>
 
       {statusMsg && (
         <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-xs font-semibold">
@@ -480,17 +819,11 @@ export default function SermonStudio({
             <Scroll className="w-7 h-7" />
           </div>
           <div className="space-y-1 max-w-md mx-auto">
-            <h3 className="text-base font-bold text-white">Nenhum sermão criado ainda</h3>
+            <h3 className="text-base font-bold text-white">Nenhum sermão salvo ainda</h3>
             <p className="text-xs text-white/55 leading-relaxed">
-              Crie seu primeiro sermão com introdução, tópicos expositivos, busca automática de texto bíblico e apoio do Mentor IA.
+              Digite um título acima e clique em <strong>Gerar Sermão</strong> para criar um esboço completo com versículos e conexões de palavras automaticamente.
             </p>
           </div>
-          <button
-            onClick={() => setEditing(createEmptySermon())}
-            className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs inline-flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" /> Começar Primeiro Sermão
-          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

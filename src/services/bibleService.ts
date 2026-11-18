@@ -260,3 +260,39 @@ export async function compareVerseAcrossTranslations(
     )
     .map((r) => r.value);
 }
+
+export async function searchBibleByKeyword(
+  keyword: string,
+  translation: string = 'acf',
+  limit: number = 15
+): Promise<BibleVerse[]> {
+  const cleanQuery = normalizeText(keyword);
+  if (cleanQuery.length < 2) return [];
+
+  const booksData = await loadTranslation(translation);
+  const matches: BibleVerse[] = [];
+
+  for (let bIdx = 0; bIdx < booksData.length; bIdx++) {
+    const book = booksData[bIdx];
+    const bookName = BIBLE_STRUCTURE[bIdx]?.book || book.abbrev;
+    for (let cIdx = 0; cIdx < book.chapters.length; cIdx++) {
+      const chapter = book.chapters[cIdx];
+      for (let vIdx = 0; vIdx < chapter.length; vIdx++) {
+        const text = String(chapter[vIdx] || '').trim();
+        if (normalizeText(text).includes(cleanQuery)) {
+          matches.push({
+            book_name: bookName,
+            chapter: cIdx + 1,
+            verse: vIdx + 1,
+            text,
+          });
+          if (matches.length >= limit) {
+            return matches;
+          }
+        }
+      }
+    }
+  }
+
+  return matches;
+}
