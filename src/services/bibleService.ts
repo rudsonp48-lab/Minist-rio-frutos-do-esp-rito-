@@ -48,6 +48,24 @@ interface RawBibleBook {
 
 const memoryCache = new Map<string, RawBibleBook[]>();
 const inFlightLoads = new Map<string, Promise<RawBibleBook[]>>();
+const kjvChapterCache = new Map<string, BibleVerse[]>();
+
+const ENGLISH_BOOK_NAMES = [
+  'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
+  'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
+  '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra',
+  'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs',
+  'Ecclesiastes', 'Song of Solomon', 'Isaiah', 'Jeremiah', 'Lamentations',
+  'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos',
+  'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk',
+  'Zephaniah', 'Haggai', 'Zechariah', 'Malachi',
+  'Matthew', 'Mark', 'Luke', 'John', 'Acts',
+  'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',
+  'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians',
+  '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews',
+  'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John',
+  'Jude', 'Revelation',
+];
 
 const DB_NAME = 'ecclesia_bible_cache';
 const STORE_NAME = 'translations';
@@ -189,7 +207,43 @@ export async function getChapterVerses(
   chapterNum: number,
   translation: string = 'almeida'
 ): Promise<BibleVerse[]> {
-  const booksData = await loadTranslation(translation);
+  if (normalizeText(translation) === 'kjv') {
+    let bookIdx = findBookIndex(bookName, []);
+    if (bookIdx === -1) {
+      const ptBooks = await loadTranslation('acf');
+      bookIdx = findBookIndex(bookName, ptBooks);
+    }
+    if (bookIdx === -1 || !ENGLISH_BOOK_NAMES[bookIdx]) {
+      throw new Error(`Livro não encontrado: ${bookName}`);
+    }
+
+    const cacheKey = `${bookIdx}:${chapterNum}`;
+    const cachedKjv = kjvChapterCache.get(cacheKey);
+    if (cachedKjv) return cachedKjv;
+
+    const canonicalName = BIBLE_STRUCTURE[bookIdx]?.book || bookName;
+    const enBook = ENGLISH_BOOK_NAMES[bookIdx];
+    const res = await fetch(`https://bible-api.com/${encodeURIComponent(`${enBook} ${chapterNum}`)}?translation=kjv`);
+    if (!res.ok) {
+      throw new Error(`Erro ao carregar ${canonicalName} ${chapterNum} (KJV)`);
+    }
+    const data = await res.json();
+    if (!Array.isArray(data?.verses) || data.verses.length === 0) {
+      throw new Error(`Capítulo ${chapterNum} não encontrado em ${canonicalName}`);
+    }
+
+    const verses: BibleVerse[] = data.verses.map((v: any) => ({
+      book_name: canonicalName,
+      chapter: chapterNum,
+      verse: Number(v.verse),
+      text: String(v.text || '').replace(/\s+/g, ' ').trim(),
+    }));
+    kjvChapterCache.set(cacheKey, verses);
+    return verses;
+  }
+
+  const targetTrans = normalizeText(translation) === 'kjv' ? 'acf' : translation;
+  const booksData = await loadTranslation(targetTrans);
   const bookIdx = findBookIndex(bookName, booksData);
   if (bookIdx === -1 || !booksData[bookIdx]) {
     throw new Error(`Livro não encontrado: ${bookName}`);
@@ -269,7 +323,8 @@ export async function searchBibleByKeyword(
   const cleanQuery = normalizeText(keyword);
   if (cleanQuery.length < 2) return [];
 
-  const booksData = await loadTranslation(translation);
+  const targetTrans = normalizeText(translation) === 'kjv' ? 'acf' : translation;
+  const booksData = await loadTranslation(targetTrans);
   const matches: BibleVerse[] = [];
 
   for (let bIdx = 0; bIdx < booksData.length; bIdx++) {

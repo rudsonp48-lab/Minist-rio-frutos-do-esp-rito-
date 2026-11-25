@@ -502,7 +502,7 @@ export default function Bible() {
             <span className="text-[15px]">Início</span>
           </Link>
         )}
-        <h1 className="text-[17px] font-bold tracking-tight absolute left-1/2 -translate-x-1/2">
+        <h1 className={`text-[16px] font-bold tracking-tight truncate max-w-[46vw] sm:max-w-xs absolute left-1/2 -translate-x-1/2 ${view === 'chapter' ? 'hidden sm:block' : ''}`}>
           {view === 'books' ? 'Estudo Bíblico Aprofundado' : view === 'chapters' ? selectedBook?.book : view === 'chapter' ? `${selectedBook?.book} ${selectedChapter}` : view === 'sermons' ? 'Desenvolver Sermões' : view === 'plans' ? 'Planos de Leitura' : view === 'highlights' ? 'Meus Versículos Grifados' : view === 'dictionary' ? 'Dicionário Teológico' : view === 'notes' ? 'Bloco de Notas' : 'Busca'}
         </h1>
         <div className="flex items-center gap-1.5">
@@ -964,6 +964,28 @@ export default function Bible() {
               {loading ? (
                 <div className="text-center py-20 text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">
                   Carregando Palavra Viva...
+                </div>
+              ) : error || chapterVerses.length === 0 ? (
+                <div className="bg-[#14141C] border border-white/10 rounded-3xl p-6 text-center space-y-4">
+                  <p className="text-sm text-white/80 font-medium">
+                    {error || 'Não foi possível carregar os versículos deste capítulo.'}
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2.5">
+                    <button
+                      onClick={() => selectedBook && selectedChapter && void fetchChapter(selectedBook.book, selectedChapter, translation)}
+                      className="px-4 py-2 rounded-xl bg-[var(--theme-color)] text-white text-xs font-bold"
+                    >
+                      Tentar Novamente
+                    </button>
+                    {translation !== 'acf' && (
+                      <button
+                        onClick={() => handleChangeTranslation('acf')}
+                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold"
+                      >
+                        Usar Versão ACF
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className={`space-y-3 ${fontFamily === 'serif' ? 'font-serif' : 'font-sans'}`}>
